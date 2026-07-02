@@ -22,7 +22,8 @@ import {
   History,
   Sparkles,
   Star,
-  ChevronDown
+  ChevronDown,
+  Users
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -778,6 +779,90 @@ function HomePageContent() {
               </div>
             </motion.div>
           ))}
+        </div>
+      </section>
+
+      {/* Community Section */}
+      <section id="community" className="mx-auto max-w-5xl px-6 py-24 sm:py-32 relative z-10 border-t border-white/5">
+        <div className="text-center max-w-3xl mx-auto mb-16">
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5 }}
+            className="inline-flex items-center gap-2 rounded-full border border-cyan-500/20 bg-cyan-500/5 px-4 py-1.5 text-xs sm:text-sm font-medium text-cyan-300 mb-6 hover:bg-cyan-500/10 transition-colors"
+          >
+            <Users className="h-3.5 w-3.5 text-cyan-400" />
+            <span>EduAgent Community</span>
+          </motion.div>
+          <h2 className="font-heading text-4xl sm:text-5xl font-semibold tracking-tight text-white mb-6">
+            Join the Community of Students worldwide
+          </h2>
+          <p className="text-lg text-slate-400">
+            Connect, collaborate, and share knowledge with thousands of students using EduAgent AI globally.
+          </p>
+        </div>
+
+        <div className="grid gap-6 md:grid-cols-2">
+          {/* WhatsApp Card */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6 }}
+            className="relative overflow-hidden rounded-3xl border border-emerald-500/20 bg-emerald-950/5 backdrop-blur-md p-8 flex flex-col justify-between hover:border-emerald-500/40 hover:bg-emerald-950/10 transition-all group"
+          >
+            <div className="absolute -right-10 -top-10 h-32 w-32 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none group-hover:scale-125 transition-transform duration-500"></div>
+            <div>
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 mb-6">
+                <svg className="h-6 w-6 fill-current" viewBox="0 0 24 24">
+                  <path d="M12.012 2C6.48 2 2 6.48 2 12.012c0 1.764.456 3.48 1.332 5.004L2 22l5.148-1.344c1.488.816 3.168 1.248 4.86 1.248 5.532 0 10.012-4.48 10.012-10.012A9.97 9.97 0 0012.012 2zm5.796 14.196c-.24.672-1.2 1.224-1.656 1.284-.444.06-1.008.084-2.82-.672-2.316-.96-3.804-3.324-3.924-3.48-.108-.156-.936-1.248-.936-2.376 0-1.128.588-1.68.804-1.908.216-.228.468-.288.624-.288.156 0 .312.008.444.012.144.004.336-.056.528.408.192.48.66 1.608.72 1.728.06.12.096.264.012.432-.084.168-.18.276-.3.42-.12.144-.252.3-.36.408-.12.12-.24.252-.108.48.132.228.588.972 1.26 1.572.864.768 1.596 1.008 1.824 1.116.228.108.36.096.492-.06.132-.156.576-.672.732-.9.156-.228.312-.192.528-.108.216.084 1.38.648 1.62.768.24.12.408.18.468.288.06.108.06.624-.18 1.296z" />
+                </svg>
+              </div>
+              <h3 className="text-xl font-semibold text-white mb-2">WhatsApp Study Group</h3>
+              <p className="text-sm text-slate-400 leading-relaxed mb-8">
+                Join our official WhatsApp group to get instant support, participate in daily study challenges, and receive platform updates directly.
+              </p>
+            </div>
+            <Link
+              href="https://chat.whatsapp.com/GAnA2Edibt8Dcn54nuVHtI?s=cl&p=a&ilr=0"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-semibold px-6 h-11 text-xs transition-all shadow-[0_0_20px_rgba(16,185,129,0.15)] group-hover:scale-[1.01] active:scale-[0.99] w-fit"
+            >
+              Join WhatsApp Group <ArrowRight className="h-4 w-4" />
+            </Link>
+          </motion.div>
+
+          {/* Discord Card */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6, delay: 0.15 }}
+            className="relative overflow-hidden rounded-3xl border border-indigo-500/20 bg-indigo-950/5 backdrop-blur-md p-8 flex flex-col justify-between hover:border-indigo-500/40 hover:bg-indigo-950/10 transition-all group"
+          >
+            <div className="absolute -right-10 -top-10 h-32 w-32 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none group-hover:scale-125 transition-transform duration-500"></div>
+            <div>
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 mb-6">
+                <svg className="h-5 w-5 fill-current" viewBox="0 0 127.14 96.36">
+                  <path d="M107.7,8.07A105.15,105.15,0,0,0,77.26,0a77.19,77.19,0,0,0-3.3,6.83A96.67,96.67,0,0,0,52.22,6.83,77.19,77.19,0,0,0,48.92,0,105.15,105.15,0,0,0,18.48,8.07C2.71,31.58-1.54,54.65.37,77.53A105.73,105.73,0,0,0,32,96.36a77.7,77.7,0,0,0,6.63-10.85,68.43,68.43,0,0,1-10.4-5c.87-.64,1.71-1.32,2.5-2a75.48,75.48,0,0,0,72.7,0c.79.7,1.63,1.38,2.5,2a75.48,75.48,0,0,0,31.63-18.83C129.87,49.25,124.9,26.43,107.7,8.07ZM42.45,65.69C36.18,65.69,31,60,31,53S36.18,40.36,42.45,40.36,53.88,46,53.88,53,48.72,65.69,42.45,65.69Zm42.24,0C78.41,65.69,73.24,60,73.24,53S78.41,40.36,84.69,40.36,96.12,46,96.12,53,91,65.69,84.69,65.69Z" />
+                </svg>
+              </div>
+              <h3 className="text-xl font-semibold text-white mb-2">Discord Server</h3>
+              <p className="text-sm text-slate-400 leading-relaxed mb-8">
+                Join our Discord community to participate in voice channels, team up for study groups, share resources, and voice feedback directly to developers.
+              </p>
+            </div>
+            <Link
+              href="https://discord.gg/YneZvF38w"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-500 hover:bg-indigo-400 text-white font-semibold px-6 h-11 text-xs transition-all shadow-[0_0_20px_rgba(99,102,241,0.15)] group-hover:scale-[1.01] active:scale-[0.99] w-fit"
+            >
+              Join Discord Server <ArrowRight className="h-4 w-4" />
+            </Link>
+          </motion.div>
         </div>
       </section>
 
