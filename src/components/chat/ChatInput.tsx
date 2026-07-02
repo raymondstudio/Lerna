@@ -37,11 +37,7 @@ export function ChatInput({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  console.log(`[DOC_DEBUG] render ChatInput: courseId=${courseId} materialsCount=${materials.length} materialIds=${JSON.stringify(materials.map(m => m.id))}`);
 
-  useEffect(() => {
-    console.log(`[DOC_DEBUG] ChatInput useEffect materials update: materialsCount=${materials.length} materialIds=${JSON.stringify(materials.map(m => m.id))}`);
-  }, [materials]);
 
   // ── Mention state ──────────────────────────────────────────────────────────
   const [courses, setCourses] = useState<Course[]>([]);

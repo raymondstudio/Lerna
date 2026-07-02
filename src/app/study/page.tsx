@@ -872,10 +872,7 @@ function StudyPageContent() {
                     Select Course
                   </label>
                   {coursesLoading ? (
-                    <div className="flex items-center gap-2 text-slate-500 text-sm py-2">
-                      <Loader2 size={15} className="animate-spin" />
-                      Loading courses…
-                    </div>
+                    <div className="w-full h-11 bg-white/5 animate-pulse rounded-xl border border-white/5" />
                   ) : courses.length === 0 ? (
                     <p className="text-sm text-slate-500 italic">
                       No courses found. Please enroll in a course first.
@@ -1200,10 +1197,11 @@ function StudyPageContent() {
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       exit={{ opacity: 0 }}
-                      className="flex items-center gap-3 py-3"
+                      className="space-y-3 animate-pulse py-3"
                     >
-                      <Loader2 size={16} className="text-cyan-400 animate-spin shrink-0" />
-                      <span className="text-sm text-slate-500">Generating summary…</span>
+                      <div className="h-4 bg-white/10 rounded w-full" />
+                      <div className="h-4 bg-white/5 rounded w-5/6" />
+                      <div className="h-4 bg-white/5 rounded w-2/3" />
                     </motion.div>
                   ) : (
                     <motion.p

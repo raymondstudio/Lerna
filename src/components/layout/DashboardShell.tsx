@@ -15,6 +15,7 @@ import {
   Plus, 
   Search 
 } from "lucide-react";
+import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/use-auth";
@@ -185,7 +186,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
   );
 
   return (
-    <div className="flex h-screen w-full bg-[#0a0a0a] text-slate-200 overflow-hidden font-body">
+    <div className="flex h-[100dvh] w-full bg-[#0a0a0a] text-slate-200 overflow-hidden font-body">
       {/* Desktop Sidebar */}
       <aside
         className={`hidden md:flex flex-col bg-[#141414] border-r border-white/5 transition-all duration-300 ease-in-out shrink-0 ${
@@ -240,9 +241,17 @@ export function DashboardShell({ children }: { children: ReactNode }) {
           <div className="w-9" /> {/* Spacer */}
         </div>
 
-        {/* Content Injector */}
+        {/* Content Injector with Motion Page Transition */}
         <main className="flex-1 overflow-hidden relative min-h-0">
-          {children}
+          <motion.div
+            key={pathname}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+            className="h-full w-full flex flex-col"
+          >
+            {children}
+          </motion.div>
         </main>
       </div>
     </div>

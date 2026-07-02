@@ -194,8 +194,10 @@ export function StudyWorkspace() {
 
   // Load materials when activeSessionId changes
   useEffect(() => {
+    // Clear previous materials immediately to avoid displaying stale data
+    setActiveSessionMaterials([]);
+
     if (!ready || !user || !activeSessionId) {
-      setActiveSessionMaterials([]);
       return;
     }
 
@@ -225,16 +227,18 @@ export function StudyWorkspace() {
     };
   }, [ready, user, activeSessionId]);
 
+  const currentSessionId = paramSessionId ?? null;
+
   const activeSession = useMemo(
-    () => sessions.find((s) => s.id === activeSessionId) ?? null,
-    [sessions, activeSessionId]
+    () => (currentSessionId ? sessions.find((s) => s.id === currentSessionId) ?? null : null),
+    [sessions, currentSessionId]
   );
 
   const activeMessages = useMemo(() => sessionToMessages(activeSession), [activeSession]);
   const hasMessages = activeMessages.length > 0;
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+  const scrollToBottom = (behavior: "smooth" | "auto" = "smooth") => {
+    messagesEndRef.current?.scrollIntoView({ behavior, block: "end" });
   };
 
   const handleTranscriptScroll = () => {
@@ -255,8 +259,10 @@ export function StudyWorkspace() {
     lastActiveSessionId.current = activeSessionId;
     lastMessageCount.current = activeMessages.length;
 
-    if (sessionChanged || sending || (newMessages && isNearBottom)) {
-      scrollToBottom();
+    if (sessionChanged) {
+      scrollToBottom("auto");
+    } else if (sending || (newMessages && isNearBottom)) {
+      scrollToBottom("smooth");
     }
   }, [activeMessages.length, sending, activeSessionId, isNearBottom]);
 
@@ -374,9 +380,7 @@ export function StudyWorkspace() {
       }
 
       // Refresh the session materials list immediately
-      console.log(`handleUpload calling refreshMaterials for sessionId=${sessionForRequest.id}`);
       await refreshMaterials(sessionForRequest.id);
-      console.log(`handleUpload refreshMaterials complete for sessionId=${sessionForRequest.id}`);
 
       // Add success message
       const successMsg: ChatMessage = {
@@ -409,7 +413,27 @@ export function StudyWorkspace() {
         </div>
       )}
 
-      {hasMessages ? (
+      {loadingSessions && currentSessionId ? (
+        <div className="flex-1 flex flex-col px-4 md:px-8 pb-32 pt-16 md:pt-20">
+          <div className="mx-auto max-w-3xl w-full flex flex-col gap-6 animate-pulse">
+            <div className="flex items-start gap-4">
+              <div className="h-8 w-8 rounded-full bg-white/10 shrink-0" />
+              <div className="space-y-2 flex-1">
+                <div className="h-4 bg-white/10 rounded w-1/4" />
+                <div className="h-4 bg-white/5 rounded w-5/6" />
+                <div className="h-4 bg-white/5 rounded w-2/3" />
+              </div>
+            </div>
+            <div className="flex items-start gap-4 pt-6">
+              <div className="h-8 w-8 rounded-full bg-white/10 shrink-0" />
+              <div className="space-y-2 flex-1">
+                <div className="h-4 bg-white/10 rounded w-1/5" />
+                <div className="h-4 bg-white/5 rounded w-3/4" />
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : hasMessages ? (
         <div
           className="flex-1 overflow-y-auto px-4 md:px-8 pb-32 pt-16 md:pt-20 scrollbar-hide"
           ref={transcriptRef}

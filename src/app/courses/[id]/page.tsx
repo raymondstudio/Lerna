@@ -272,9 +272,23 @@ export default function CourseDetailsPage({ params }: PageProps) {
 
   if (loading || authLoading) {
     return (
-      <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
-        <Loader2 className="animate-spin text-cyan-500" size={28} />
-      </div>
+      <DashboardShell>
+        <div className="h-full overflow-y-auto bg-[#0a0a0a] text-white font-body px-6 py-8 animate-pulse">
+          <div className="max-w-4xl mx-auto space-y-8">
+            <div className="h-4 bg-white/5 rounded w-16" />
+            <div className="rounded-3xl border border-white/5 bg-[#141414] p-8 space-y-4">
+              <div className="h-6 bg-white/10 rounded w-1/4" />
+              <div className="h-10 bg-white/10 rounded w-3/4" />
+              <div className="h-4 bg-white/5 rounded w-1/2" />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="h-32 bg-[#141414] border border-white/5 rounded-2xl" />
+              <div className="h-32 bg-[#141414] border border-white/5 rounded-2xl" />
+              <div className="h-32 bg-[#141414] border border-white/5 rounded-2xl" />
+            </div>
+          </div>
+        </div>
+      </DashboardShell>
     );
   }
 

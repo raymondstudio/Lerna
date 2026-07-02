@@ -117,8 +117,9 @@ export function ChatMessage({ message }: { message?: MsgType | null }) {
             const match = /language-(\w+)/.exec(className || "");
             const lang = match ? match[1] : "";
             const content = String(children).replace(/\n$/, "");
+            const isInline = !match;
             
-            if (inline) {
+            if (isInline) {
               return (
                 <code className="rounded bg-white/10 px-1.5 py-0.5 font-mono text-sm text-cyan-200" {...props}>
                   {children}

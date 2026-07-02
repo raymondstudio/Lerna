@@ -826,9 +826,16 @@ function QuizPageContent() {
 
                 <div className="flex flex-col gap-3">
                   {loadingPastQuizzes ? (
-                    <div className="flex items-center justify-center py-12 gap-3 text-slate-500 text-sm">
-                      <Loader2 size={18} className="animate-spin text-cyan-400" />
-                      Loading history…
+                    <div className="flex flex-col gap-3">
+                      {Array.from({ length: 3 }).map((_, i) => (
+                        <div key={i} className="h-[72px] w-full bg-[#141414] border border-white/5 rounded-2xl animate-pulse flex items-center justify-between p-4">
+                          <div className="space-y-2 flex-1">
+                            <div className="h-4 bg-white/10 rounded w-1/3" />
+                            <div className="h-3 bg-white/5 rounded w-1/6" />
+                          </div>
+                          <div className="h-8 w-16 bg-white/10 rounded-lg shrink-0" />
+                        </div>
+                      ))}
                     </div>
                   ) : pastQuizzes.length === 0 ? (
                     <div className="text-center py-16 bg-[#141414] border border-white/5 rounded-2xl text-slate-500 text-sm">
@@ -1074,9 +1081,14 @@ function QuizPageContent() {
 
                 {/* Review Questions list */}
                 {loadingReview ? (
-                  <div className="flex items-center justify-center py-16 gap-3 text-slate-500 text-sm">
-                    <Loader2 size={16} className="animate-spin text-cyan-400" />
-                    Retrieving quiz breakdown…
+                  <div className="flex flex-col gap-4 animate-pulse">
+                    {Array.from({ length: 2 }).map((_, i) => (
+                      <div key={i} className="p-5 rounded-2xl border border-white/5 bg-white/[0.01] space-y-3">
+                        <div className="h-3 w-16 bg-white/10 rounded" />
+                        <div className="h-4 bg-white/10 rounded w-5/6" />
+                        <div className="h-3 bg-white/5 rounded w-1/2" />
+                      </div>
+                    ))}
                   </div>
                 ) : (
                   <div className="flex flex-col gap-4">
