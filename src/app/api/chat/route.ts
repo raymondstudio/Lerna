@@ -236,12 +236,23 @@ export async function POST(req: Request) {
       role: "assistant",
       content: aiMessage.content,
       sources: aiMessage.sources ?? [],
-      model_used: aiMessage.usage?.modelUsed,
-      prompt_tokens: aiMessage.usage?.promptTokens,
-      completion_tokens: aiMessage.usage?.completionTokens,
-      total_tokens: aiMessage.usage?.totalTokens,
-      estimated_cost: aiMessage.usage?.estimatedCost,
     });
+
+    if (!assistantMessageError && aiMessage.usage) {
+      try {
+        const { logAiRequest } = await import("@/lib/analytics/tracker");
+        await logAiRequest(
+          user.id,
+          aiMessage.usage.promptTokens,
+          aiMessage.usage.completionTokens,
+          aiMessage.usage.modelUsed,
+          "chat",
+          "success"
+        );
+      } catch (trackErr) {
+        console.error("[api:chat] Failed to log AI request telemetry:", trackErr);
+      }
+    }
 
     if (assistantMessageError) {
       return NextResponse.json(
