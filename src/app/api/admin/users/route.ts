@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
 
@@ -12,8 +11,7 @@ export async function GET(req: Request) {
     return NextResponse.json({ success: false, error: "Unauthenticated" }, { status: 401 });
   }
 
-  const adminClient = createSupabaseAdminClient();
-  const { data: isAdmin } = await adminClient.rpc("is_admin", { user_id: userData.user.id });
+  const { data: isAdmin } = await supabase.rpc("is_admin", { user_id: userData.user.id });
   
   const adminEmails = process.env.ADMIN_EMAILS
     ? process.env.ADMIN_EMAILS.split(",").map((e) => e.trim())
@@ -41,61 +39,8 @@ export async function GET(req: Request) {
     });
 
     if (error) {
-      console.warn("[api:admin:users] RPC failed, trying query fallback:", error.message);
-      
-      const { data: authUsers, error: listError } = await adminClient.auth.admin.listUsers();
-      if (listError) throw listError;
-
-      let filteredUsers = authUsers.users.map((u) => ({
-        id: u.id,
-        name: u.user_metadata?.full_name || "User",
-        email: u.email || "",
-        provider: u.app_metadata?.provider || "email",
-        joined_date: u.created_at,
-        last_login: u.last_sign_in_at || u.created_at,
-        status: u.app_metadata?.role === "admin" ? "Admin" : "Active",
-        total_sessions: 0,
-        total_messages: 0,
-        documents_uploaded: 0,
-        current_plan: "Free",
-      }));
-
-      if (search) {
-        const query = search.toLowerCase();
-        filteredUsers = filteredUsers.filter(
-          (u) => u.email.toLowerCase().includes(query) || u.name.toLowerCase().includes(query)
-        );
-      }
-
-      const totalCount = filteredUsers.length;
-      const pageUsers = filteredUsers.slice(offset, offset + limit);
-
-      const enhancedUsers = await Promise.all(
-        pageUsers.map(async (u) => {
-          const { count: sessions } = await adminClient
-            .from("study_sessions")
-            .select("*", { count: "exact", head: true })
-            .eq("user_id", u.id);
-          const { count: messages } = await adminClient
-            .from("study_messages")
-            .select("*", { count: "exact", head: true })
-            .eq("user_id", u.id);
-          const { count: docs } = await adminClient
-            .from("uploaded_materials")
-            .select("*", { count: "exact", head: true })
-            .eq("user_id", u.id);
-
-          return {
-            ...u,
-            total_sessions: sessions || 0,
-            total_messages: messages || 0,
-            documents_uploaded: docs || 0,
-            total_count: totalCount,
-          };
-        })
-      );
-
-      return NextResponse.json({ success: true, data: enhancedUsers });
+      console.error("[api:admin:users] RPC failed:", error.message);
+      return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
 
     return NextResponse.json({ success: true, data });
@@ -104,3 +49,4 @@ export async function GET(req: Request) {
     return NextResponse.json({ success: false, error: String(err) }, { status: 500 });
   }
 }
+

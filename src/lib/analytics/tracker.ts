@@ -1,4 +1,4 @@
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export async function logAiRequest(
   userId: string | null | undefined,
@@ -28,7 +28,7 @@ export async function logAiRequest(
       estimatedCost = promptTokens * 0.000000025;
     }
 
-    const adminClient = createSupabaseAdminClient();
+    const adminClient = await createSupabaseServerClient();
     const { error } = await adminClient.from("ai_requests").insert({
       user_id: userId || null,
       prompt_tokens: promptTokens,
@@ -56,7 +56,7 @@ export async function logPageView(
   userAgent?: string | null
 ) {
   try {
-    const adminClient = createSupabaseAdminClient();
+    const adminClient = await createSupabaseServerClient();
     const { error } = await adminClient.from("page_views").insert({
       user_id: userId || null,
       path,
@@ -75,7 +75,7 @@ export async function logFeatureUsage(
   additionalMetadata: Record<string, any> = {}
 ) {
   try {
-    const adminClient = createSupabaseAdminClient();
+    const adminClient = await createSupabaseServerClient();
     const { error } = await adminClient.from("feature_usage").insert({
       user_id: userId,
       feature_name: featureName,
@@ -93,7 +93,7 @@ export async function logAnalyticsEvent(
   eventProperties: Record<string, any> = {}
 ) {
   try {
-    const adminClient = createSupabaseAdminClient();
+    const adminClient = await createSupabaseServerClient();
     const { error } = await adminClient.from("analytics_events").insert({
       user_id: userId || null,
       event_name: eventName,
@@ -112,7 +112,7 @@ export async function logPerformanceMetric(
   additionalMetadata: Record<string, any> = {}
 ) {
   try {
-    const adminClient = createSupabaseAdminClient();
+    const adminClient = await createSupabaseServerClient();
     const { error } = await adminClient.from("performance_metrics").insert({
       user_id: userId || null,
       metric_name: metricName,
@@ -135,7 +135,7 @@ export async function logMarketingAttribution(
   }
 ) {
   try {
-    const adminClient = createSupabaseAdminClient();
+    const adminClient = await createSupabaseServerClient();
     const { error } = await adminClient.from("user_attribution").insert({
       user_id: userId,
       utm_source: attribution.utm_source || null,

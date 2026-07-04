@@ -11,23 +11,21 @@ type LearningStats = {
   avgDurationMinutes: number;
   quizAccuracy: number;
   categoryDistribution: Record<string, number>;
+  totalQuizQuestions: number;
+  correctAnswers: number;
 };
 
 export function LearningAnalyticsTab() {
   const [stats, setStats] = useState<LearningStats>({
-    totalSessions: 142,
-    totalMessages: 928,
-    totalDocs: 55,
-    totalImages: 12,
-    avgDurationMinutes: 18.5,
-    quizAccuracy: 78.4,
-    categoryDistribution: {
-      "Computer Science": 48,
-      "Biology & Medicine": 32,
-      "Mathematics": 25,
-      "Chemistry": 18,
-      "General & Others": 19,
-    },
+    totalSessions: 0,
+    totalMessages: 0,
+    totalDocs: 0,
+    totalImages: 0,
+    avgDurationMinutes: 0,
+    quizAccuracy: 0,
+    categoryDistribution: {},
+    totalQuizQuestions: 0,
+    correctAnswers: 0,
   });
 
   const [loading, setLoading] = useState(true);
@@ -35,20 +33,37 @@ export function LearningAnalyticsTab() {
   useEffect(() => {
     void (async () => {
       try {
-        const res = await fetch("/api/admin/stats");
-        const json = await res.json();
-        if (json.success && json.data) {
-          const apiStats = json.data;
-          setStats((prev) => ({
-            ...prev,
-            totalSessions: apiStats.total_sessions || prev.totalSessions,
-            totalMessages: apiStats.total_messages || prev.totalMessages,
-            totalDocs: apiStats.total_docs || prev.totalDocs,
-            totalImages: apiStats.total_images || prev.totalImages,
-          }));
+        const [statsRes, analyticsRes] = await Promise.all([
+          fetch("/api/admin/stats"),
+          fetch("/api/admin/analytics")
+        ]);
+        const statsJson = await statsRes.json();
+        const analyticsJson = await analyticsRes.json();
+
+        let updatedStats = { ...stats };
+
+        if (statsJson.success && statsJson.data) {
+          const s = statsJson.data;
+          updatedStats.totalSessions = s.total_sessions || 0;
+          updatedStats.totalMessages = s.total_messages || 0;
+          updatedStats.totalDocs = s.total_docs || 0;
+          updatedStats.totalImages = s.total_images || 0;
         }
+
+        if (analyticsJson.success && analyticsJson.data) {
+          const a = analyticsJson.data;
+          updatedStats.avgDurationMinutes = Number(a.avgDurationMinutes) || 0;
+          updatedStats.quizAccuracy = Number(a.quizAccuracy) || 0;
+          updatedStats.totalQuizQuestions = Number(a.totalQuizQuestions) || 0;
+          updatedStats.correctAnswers = Number(a.correctAnswers) || 0;
+          if (a.categoryDistribution) {
+            updatedStats.categoryDistribution = a.categoryDistribution;
+          }
+        }
+
+        setStats(updatedStats);
       } catch (err) {
-        console.warn("[learning-analytics] failed to load live stats, using defaults:", err);
+        console.warn("[learning-analytics] failed to load live stats:", err);
       } finally {
         setLoading(false);
       }
@@ -68,19 +83,19 @@ export function LearningAnalyticsTab() {
         {/* KPI Summaries */}
         <div className="p-5 rounded-2xl border border-white/5 bg-[#141414]/50 backdrop-blur-md">
           <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest block">Study Sessions</span>
-          <div className="text-2xl font-bold text-white mt-1.5">{stats.totalSessions}</div>
+          <div className="text-2xl font-bold text-white mt-1.5">{loading ? "..." : stats.totalSessions}</div>
           <p className="text-[10px] text-slate-500 mt-1">Total active workspaces</p>
         </div>
 
         <div className="p-5 rounded-2xl border border-white/5 bg-[#141414]/50 backdrop-blur-md">
           <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest block">Tutor Chats</span>
-          <div className="text-2xl font-bold text-white mt-1.5">{stats.totalMessages}</div>
+          <div className="text-2xl font-bold text-white mt-1.5">{loading ? "..." : stats.totalMessages}</div>
           <p className="text-[10px] text-slate-500 mt-1">Total academic prompts log</p>
         </div>
 
         <div className="p-5 rounded-2xl border border-white/5 bg-[#141414]/50 backdrop-blur-md">
           <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest block">Scanned Materials</span>
-          <div className="text-2xl font-bold text-white mt-1.5">{stats.totalDocs + stats.totalImages}</div>
+          <div className="text-2xl font-bold text-white mt-1.5">{loading ? "..." : (stats.totalDocs + stats.totalImages)}</div>
           <p className="text-[10px] text-slate-500 mt-1">
             {stats.totalDocs} PDFs / {stats.totalImages} Images
           </p>
@@ -88,7 +103,7 @@ export function LearningAnalyticsTab() {
 
         <div className="p-5 rounded-2xl border border-white/5 bg-[#141414]/50 backdrop-blur-md">
           <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest block">Avg. Session Time</span>
-          <div className="text-2xl font-bold text-cyan-400 mt-1.5">{stats.avgDurationMinutes}m</div>
+          <div className="text-2xl font-bold text-cyan-400 mt-1.5">{loading ? "..." : `${stats.avgDurationMinutes}m`}</div>
           <p className="text-[10px] text-slate-500 mt-1">Minutes per active session</p>
         </div>
       </div>
@@ -102,23 +117,27 @@ export function LearningAnalyticsTab() {
           </div>
 
           <div className="space-y-4">
-            {Object.entries(stats.categoryDistribution).map(([category, count], idx) => {
-              const total = Object.values(stats.categoryDistribution).reduce((a, b) => a + b, 0);
-              const pct = total > 0 ? (count / total) * 100 : 0;
-              return (
-                <div key={idx} className="space-y-1.5">
-                  <div className="flex justify-between text-xs">
-                    <span className="text-slate-300 font-medium">{category}</span>
-                    <span className="text-slate-500 font-medium">
-                      {count} sessions ({pct.toFixed(0)}%)
-                    </span>
+            {Object.keys(stats.categoryDistribution).length === 0 ? (
+              <p className="text-xs text-slate-500 italic text-center py-8">No topic data available</p>
+            ) : (
+              Object.entries(stats.categoryDistribution).map(([category, count], idx) => {
+                const total = Object.values(stats.categoryDistribution).reduce((a, b) => a + b, 0);
+                const pct = total > 0 ? (count / total) * 100 : 0;
+                return (
+                  <div key={idx} className="space-y-1.5">
+                    <div className="flex justify-between text-xs">
+                      <span className="text-slate-300 font-medium">{category}</span>
+                      <span className="text-slate-500 font-medium">
+                        {count} sessions ({pct.toFixed(0)}%)
+                      </span>
+                    </div>
+                    <div className="h-2 w-full bg-[#0a0a0a] rounded-full overflow-hidden">
+                      <div className="h-full bg-gradient-to-r from-cyan-600 to-cyan-400 rounded-full" style={{ width: `${pct}%` }} />
+                    </div>
                   </div>
-                  <div className="h-2 w-full bg-[#0a0a0a] rounded-full overflow-hidden">
-                    <div className="h-full bg-gradient-to-r from-cyan-600 to-cyan-400 rounded-full" style={{ width: `${pct}%` }} />
-                  </div>
-                </div>
-              );
-            })}
+                );
+              })
+            )}
           </div>
         </div>
 
@@ -130,18 +149,18 @@ export function LearningAnalyticsTab() {
           </div>
 
           <div className="flex flex-col items-center py-4 space-y-2">
-            <div className="text-5xl font-black text-white">{stats.quizAccuracy}%</div>
+            <div className="text-5xl font-black text-white">{loading ? "..." : `${stats.quizAccuracy}%`}</div>
             <div className="text-xs text-slate-500 font-semibold tracking-wider uppercase">Average Score Accuracy</div>
           </div>
 
           <div className="space-y-3">
             <div className="p-3 rounded-xl bg-[#0a0a0a] border border-white/5 flex items-center justify-between text-xs">
               <span className="text-slate-400">Total Quiz Questions</span>
-              <span className="text-white font-bold">1,240</span>
+              <span className="text-white font-bold">{loading ? "..." : stats.totalQuizQuestions.toLocaleString()}</span>
             </div>
             <div className="p-3 rounded-xl bg-[#0a0a0a] border border-white/5 flex items-center justify-between text-xs">
               <span className="text-slate-400">Correct Answers</span>
-              <span className="text-cyan-400 font-bold">972</span>
+              <span className="text-cyan-400 font-bold">{loading ? "..." : stats.correctAnswers.toLocaleString()}</span>
             </div>
           </div>
         </div>

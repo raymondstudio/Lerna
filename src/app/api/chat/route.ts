@@ -236,6 +236,11 @@ export async function POST(req: Request) {
       role: "assistant",
       content: aiMessage.content,
       sources: aiMessage.sources ?? [],
+      model_used: aiMessage.usage?.modelUsed,
+      prompt_tokens: aiMessage.usage?.promptTokens,
+      completion_tokens: aiMessage.usage?.completionTokens,
+      total_tokens: aiMessage.usage?.totalTokens,
+      estimated_cost: aiMessage.usage?.estimatedCost,
     });
 
     if (assistantMessageError) {

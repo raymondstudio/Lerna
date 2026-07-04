@@ -32,58 +32,20 @@ export function MarketingTab() {
   useEffect(() => {
     void (async () => {
       try {
-        const res = await fetch("/api/admin/users?limit=100");
+        const res = await fetch("/api/admin/analytics");
         const json = await res.json();
-        if (json.success && Array.isArray(json.data) && json.data.length > 0) {
-          // Aggregate source attribution from real user data if present
-          const counts: AttributionStats = {
-            tiktok: 0,
-            whatsapp: 0,
-            discord: 0,
-            x: 0,
-            linkedin: 0,
-            google: 0,
-            direct: 0,
-            referral: 0,
-          };
-
-          let hasAnyRealAttribution = false;
-
-          json.data.forEach((user: any) => {
-            const provider = (user.provider || "").toLowerCase();
-            const email = (user.email || "").toLowerCase();
-
-            // Check if there is provider attribution
-            if (provider.includes("google")) {
-              counts.google++;
-              hasAnyRealAttribution = true;
-            }
-
-            // Also check raw marketing fields if we have them
-            const src = (user.utm_source || "").toLowerCase();
-            if (src.includes("tiktok")) { counts.tiktok++; hasAnyRealAttribution = true; }
-            else if (src.includes("whatsapp")) { counts.whatsapp++; hasAnyRealAttribution = true; }
-            else if (src.includes("discord")) { counts.discord++; hasAnyRealAttribution = true; }
-            else if (src.includes("x") || src === "twitter") { counts.x++; hasAnyRealAttribution = true; }
-            else if (src.includes("linkedin")) { counts.linkedin++; hasAnyRealAttribution = true; }
-            else if (src.includes("google")) { counts.google++; hasAnyRealAttribution = true; }
-            else if (src.includes("referral")) { counts.referral++; hasAnyRealAttribution = true; }
-            else if (src.includes("direct")) { counts.direct++; hasAnyRealAttribution = true; }
+        if (json.success && json.data && json.data.trafficSources) {
+          const src = json.data.trafficSources;
+          setStats({
+            tiktok: src.tiktok || 0,
+            whatsapp: src.whatsapp || 0,
+            discord: src.discord || 0,
+            x: src.x || src.twitter || 0,
+            linkedin: src.linkedin || 0,
+            google: src.google || 0,
+            direct: src.direct || 0,
+            referral: src.referral || 0,
           });
-
-          if (hasAnyRealAttribution) {
-            // Fill in placeholders for remaining if count is low, or apply
-            setStats((prev) => ({
-              tiktok: counts.tiktok || prev.tiktok,
-              whatsapp: counts.whatsapp || prev.whatsapp,
-              discord: counts.discord || prev.discord,
-              x: counts.x || prev.x,
-              linkedin: counts.linkedin || prev.linkedin,
-              google: counts.google || prev.google,
-              direct: counts.direct || prev.direct,
-              referral: counts.referral || prev.referral,
-            }));
-          }
         }
       } catch (err) {
         console.warn("[marketing] failed to fetch real telemetry stats, using defaults:", err);

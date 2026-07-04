@@ -86,6 +86,10 @@ export async function POST(req: Request) {
       title,
       score,
       totalQuestions,
+      type,
+      timeSpent,
+      difficulty,
+      topic,
       questions,
     } = body as {
       courseId?: string;
@@ -93,6 +97,10 @@ export async function POST(req: Request) {
       title: string;
       score: number;
       totalQuestions: number;
+      type?: string;
+      timeSpent?: number;
+      difficulty?: string;
+      topic?: string;
       questions: Array<{
         questionText: string;
         options: string[];
@@ -127,6 +135,10 @@ export async function POST(req: Request) {
         title,
         score,
         total_questions: totalQuestions,
+        type: type || "mcq",
+        time_spent: timeSpent || null,
+        difficulty: difficulty || "Medium",
+        topic: topic || "General",
       })
       .select()
       .single();

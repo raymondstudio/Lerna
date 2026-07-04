@@ -1,6 +1,5 @@
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 export async function requireAdmin() {
   const supabase = await createSupabaseServerClient();
@@ -11,8 +10,7 @@ export async function requireAdmin() {
   }
 
   try {
-    const adminClient = createSupabaseAdminClient();
-    const { data: isAdmin, error } = await adminClient.rpc("is_admin", {
+    const { data: isAdmin, error } = await supabase.rpc("is_admin", {
       user_id: data.user.id,
     });
 

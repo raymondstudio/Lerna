@@ -17,4 +17,11 @@ export interface ChatMessage {
   content: string;
   timestamp: number;
   sources?: ChatSource[];
+  usage?: {
+    modelUsed: string;
+    promptTokens: number;
+    completionTokens: number;
+    totalTokens: number;
+    estimatedCost: number;
+  };
 }

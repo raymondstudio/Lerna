@@ -135,7 +135,19 @@ export async function PATCH(req: Request, context: { params: Promise<{ sessionId
     if (title || firstPrompt) {
       updateFields.title = title ? title.trim() : generateStudySessionTitle(firstPrompt);
     }
-    if (notes !== null) updateFields.notes = notes;
+    if (typeof notes === "string") {
+      updateFields.notes = notes;
+      const wordCount = notes.trim() === "" ? 0 : notes.trim().split(/\s+/).length;
+      await supabase
+        .from("notes")
+        .upsert({
+          user_id: user.id,
+          session_id: sessionId,
+          content: notes,
+          word_count: wordCount,
+          updated_at: new Date().toISOString()
+        });
+    }
     if (durationSeconds !== null) updateFields.duration_seconds = durationSeconds;
     if (topicsCovered !== null) updateFields.topics_covered = topicsCovered;
     if (status !== null) updateFields.status = status;

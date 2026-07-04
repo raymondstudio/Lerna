@@ -66,6 +66,8 @@ export async function processMaterial(params: {
 
   await updateMaterialStatus(params.supabase, material.id, params.userId, {
     status: "processing",
+    ocr_status: "processing",
+    embedding_status: "processing",
     error_message: null,
   });
 
@@ -139,6 +141,8 @@ export async function processMaterial(params: {
     console.log(`[ingestion] Marking material as ready in database...`);
     await updateMaterialStatus(params.supabase, material.id, params.userId, {
       status: "ready",
+      ocr_status: "completed",
+      embedding_status: "completed",
       error_message: null,
       processed_at: processedAt,
       chunk_count: chunks.length,
@@ -165,6 +169,8 @@ export async function processMaterial(params: {
 
     await updateMaterialStatus(params.supabase, material.id, params.userId, {
       status: "failed",
+      ocr_status: "failed",
+      embedding_status: "failed",
       error_message: message,
     });
 

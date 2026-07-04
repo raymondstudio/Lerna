@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
 
@@ -12,8 +11,7 @@ export async function GET() {
     return NextResponse.json({ success: false, error: "Unauthenticated" }, { status: 401 });
   }
 
-  const adminClient = createSupabaseAdminClient();
-  const { data: isAdmin } = await adminClient.rpc("is_admin", { user_id: userData.user.id });
+  const { data: isAdmin } = await supabase.rpc("is_admin", { user_id: userData.user.id });
   
   const adminEmails = process.env.ADMIN_EMAILS
     ? process.env.ADMIN_EMAILS.split(",").map((e) => e.trim())
@@ -26,7 +24,7 @@ export async function GET() {
   }
 
   try {
-    const { data: flags, error } = await adminClient
+    const { data: flags, error } = await supabase
       .from("feature_flags")
       .select("key, enabled, description, updated_at")
       .order("key", { ascending: true });
@@ -48,8 +46,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ success: false, error: "Unauthenticated" }, { status: 401 });
   }
 
-  const adminClient = createSupabaseAdminClient();
-  const { data: isAdmin } = await adminClient.rpc("is_admin", { user_id: userData.user.id });
+  const { data: isAdmin } = await supabase.rpc("is_admin", { user_id: userData.user.id });
   
   const adminEmails = process.env.ADMIN_EMAILS
     ? process.env.ADMIN_EMAILS.split(",").map((e) => e.trim())
@@ -68,7 +65,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, error: "Invalid parameters" }, { status: 400 });
     }
 
-    const { error } = await adminClient
+    const { error } = await supabase
       .from("feature_flags")
       .update({ enabled, updated_at: new Date().toISOString() })
       .eq("key", key);

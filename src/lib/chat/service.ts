@@ -14,7 +14,7 @@ const SYSTEM_PROMPT = `You are EduAgent AI, a professional AI tutor. When respon
 
 Respond in a supportive, encouraging tone suitable for learners.`;
 
-async function callGeminiAPI(prompt: string, userId?: string): Promise<string> {
+async function callGeminiAPI(prompt: string, userId?: string): Promise<{ text: string; usage: any }> {
   try {
     const promptWithSystem = `${SYSTEM_PROMPT}\n\n${prompt}`;
     const result = await generateText(promptWithSystem, { userId, requestType: "chat" });
@@ -22,17 +22,37 @@ async function callGeminiAPI(prompt: string, userId?: string): Promise<string> {
 
     if (!text) {
       console.error("[chat] Gemini returned empty payload", { raw: result?.raw });
-      return "Sorry, the tutoring service did not return a response. Please try again.";
+      return {
+        text: "Sorry, the tutoring service did not return a response. Please try again.",
+        usage: { promptTokens: 0, completionTokens: 0, totalTokens: 0, modelUsed: "gemini-2.5-flash", estimatedCost: 0 }
+      };
     }
 
-    return text;
+    const raw: any = result?.raw;
+    const promptTokens = raw?.usageMetadata?.promptTokenCount || Math.ceil(promptWithSystem.length / 4);
+    const completionTokens = raw?.usageMetadata?.candidatesTokenCount || Math.ceil(text.length / 4);
+    const modelUsed = "gemini-2.5-flash";
+
+    return {
+      text,
+      usage: {
+        modelUsed,
+        promptTokens,
+        completionTokens,
+        totalTokens: promptTokens + completionTokens,
+        estimatedCost: (promptTokens * 0.000000075) + (completionTokens * 0.00000030)
+      }
+    };
   } catch (err) {
     const errorDetails = err instanceof Error ? err.message : String(err);
     console.error("[chat] callGeminiAPI error", {
       error: errorDetails,
       timestamp: new Date().toISOString(),
     });
-    return `Sorry, the tutoring service encountered an error: ${errorDetails}. Please check your API key and try again.`;
+    return {
+      text: `Sorry, the tutoring service encountered an error: ${errorDetails}. Please check your API key and try again.`,
+      usage: { promptTokens: 0, completionTokens: 0, totalTokens: 0, modelUsed: "gemini-2.5-flash", estimatedCost: 0 }
+    };
   }
 }
 
@@ -73,7 +93,7 @@ export async function getAIResponse(
 
   const prompt = `Conversation transcript:\n${transcript}${contextText}`;
 
-  const aiText = await callGeminiAPI(prompt, userId);
+  const { text: aiText, usage } = await callGeminiAPI(prompt, userId);
 
   return {
     id: `ai-${Date.now()}`,
@@ -81,5 +101,6 @@ export async function getAIResponse(
     content: aiText,
     timestamp: Date.now(),
     sources,
+    usage,
   };
 }

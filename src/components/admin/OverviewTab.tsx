@@ -59,35 +59,37 @@ export function OverviewTab() {
   const [events, setEvents] = useState<LiveEvent[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const fetchKPIStats = async () => {
+    try {
+      const res = await fetch("/api/admin/stats");
+      const json = await res.json();
+      if (json.success && json.data) {
+        const s = json.data;
+        setStats({
+          totalUsers: s.total_users || 0,
+          newUsersToday: s.new_users_today || 0,
+          activeUsersToday: s.active_users_today || 0,
+          mau: s.mau || 0,
+          totalSessions: s.total_sessions || 0,
+          totalMessages: s.total_messages || 0,
+          totalDocs: s.total_docs || 0,
+          totalImages: s.total_images || 0,
+          aiRequests: s.ai_requests || 0,
+          aiCost: s.ai_cost || 0,
+          revenue: s.revenue || 0,
+          premiumUsers: s.premium_users || 0,
+        });
+      }
+    } catch (err) {
+      console.warn("[overview] Failed to fetch live KPI stats, using mockup defaults:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     // 1. Fetch live KPIs
-    void (async () => {
-      try {
-        const res = await fetch("/api/admin/stats");
-        const json = await res.json();
-        if (json.success && json.data) {
-          const s = json.data;
-          setStats({
-            totalUsers: s.total_users || 0,
-            newUsersToday: s.new_users_today || 0,
-            activeUsersToday: s.active_users_today || 0,
-            mau: s.mau || 0,
-            totalSessions: s.total_sessions || 0,
-            totalMessages: s.total_messages || 0,
-            totalDocs: s.total_docs || 0,
-            totalImages: s.total_images || 0,
-            aiRequests: s.ai_requests || 0,
-            aiCost: s.ai_cost || 0,
-            revenue: 0, 
-            premiumUsers: 0,
-          });
-        }
-      } catch (err) {
-        console.warn("[overview] Failed to fetch live KPI stats, using mockup defaults:", err);
-      } finally {
-        setLoading(false);
-      }
-    })();
+    fetchKPIStats();
 
     // 2. Fetch recent events & subscribe to real-time additions
     const supabase = createSupabaseBrowserClient();
@@ -127,6 +129,35 @@ export function OverviewTab() {
             time: new Date(payload.new.created_at).toLocaleTimeString()
           };
           setEvents((prev) => [newEvent, ...prev.slice(0, 9)]);
+          fetchKPIStats(); // Sync KPIs in real-time
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "study_sessions" },
+        () => {
+          fetchKPIStats();
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "uploaded_materials" },
+        () => {
+          fetchKPIStats();
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "quizzes" },
+        () => {
+          fetchKPIStats();
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "ai_requests" },
+        () => {
+          fetchKPIStats();
         }
       )
       .subscribe();

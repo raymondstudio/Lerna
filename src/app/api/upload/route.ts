@@ -61,6 +61,10 @@ export async function POST(req: Request) {
         file_name: file.name,
         file_type: file.type || "application/octet-stream",
         storage_path: storagePath,
+        file_size: file.size,
+        ocr_status: "processing",
+        embedding_status: "processing",
+        last_accessed_at: new Date().toISOString(),
       })
       .select("id")
       .single();

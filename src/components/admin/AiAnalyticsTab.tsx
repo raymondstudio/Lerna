@@ -14,24 +14,12 @@ type AiStats = {
 
 export function AiAnalyticsTab() {
   const [stats, setStats] = useState<AiStats>({
-    totalRequests: 840,
-    successRate: 98.2,
-    totalTokens: 14520000,
-    estimatedCost: 1.25,
-    modelCounts: {
-      "gemini-2.5-flash": 620,
-      "gemini-embedding-001": 210,
-      "gemini-pro-fallback": 10,
-    },
-    monthlyTrends: [
-      { date: "June 25", cost: 0.12 },
-      { date: "June 26", cost: 0.18 },
-      { date: "June 27", cost: 0.22 },
-      { date: "June 28", cost: 0.15 },
-      { date: "June 29", cost: 0.28 },
-      { date: "June 30", cost: 0.32 },
-      { date: "July 01", cost: 0.45 },
-    ],
+    totalRequests: 0,
+    successRate: 100.0,
+    totalTokens: 0,
+    estimatedCost: 0.0,
+    modelCounts: {},
+    monthlyTrends: [],
   });
 
   const [loading, setLoading] = useState(true);
@@ -39,19 +27,36 @@ export function AiAnalyticsTab() {
   useEffect(() => {
     void (async () => {
       try {
-        const res = await fetch("/api/admin/stats");
-        const json = await res.json();
-        if (json.success && json.data) {
-          const apiStats = json.data;
-          setStats((prev) => ({
-            ...prev,
-            totalRequests: apiStats.ai_requests || prev.totalRequests,
-            estimatedCost: apiStats.ai_cost || prev.estimatedCost,
-            totalTokens: apiStats.ai_requests * 1250 || prev.totalTokens, // estimate tokens
-          }));
+        const [statsRes, analyticsRes] = await Promise.all([
+          fetch("/api/admin/stats"),
+          fetch("/api/admin/analytics")
+        ]);
+        const statsJson = await statsRes.json();
+        const analyticsJson = await analyticsRes.json();
+
+        let updatedStats = { ...stats };
+
+        if (statsJson.success && statsJson.data) {
+          const s = statsJson.data;
+          updatedStats.totalRequests = s.ai_requests || 0;
+          updatedStats.estimatedCost = s.ai_cost || 0;
+          updatedStats.totalTokens = Number(s.total_tokens) || 0;
+          updatedStats.successRate = Number(s.success_rate) || 100.0;
         }
+
+        if (analyticsJson.success && analyticsJson.data) {
+          const a = analyticsJson.data;
+          if (a.modelCounts) {
+            updatedStats.modelCounts = a.modelCounts;
+          }
+          if (a.costTrends && Array.isArray(a.costTrends)) {
+            updatedStats.monthlyTrends = a.costTrends;
+          }
+        }
+
+        setStats(updatedStats);
       } catch (err) {
-        console.warn("[ai-analytics] failed to load live stats, using mockup defaults:", err);
+        console.warn("[ai-analytics] failed to load live stats:", err);
       } finally {
         setLoading(false);
       }
@@ -71,25 +76,25 @@ export function AiAnalyticsTab() {
         {/* KPI blocks */}
         <div className="p-5 rounded-2xl border border-white/5 bg-[#141414]/50 backdrop-blur-md">
           <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest block">AI Requests</span>
-          <div className="text-2xl font-bold text-white mt-1.5">{stats.totalRequests.toLocaleString()}</div>
+          <div className="text-2xl font-bold text-white mt-1.5">{loading ? "..." : stats.totalRequests.toLocaleString()}</div>
           <p className="text-[10px] text-slate-500 mt-1">Queries submitted to API</p>
         </div>
 
         <div className="p-5 rounded-2xl border border-white/5 bg-[#141414]/50 backdrop-blur-md">
           <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest block">Success Rate</span>
-          <div className="text-2xl font-bold text-cyan-400 mt-1.5">{stats.successRate}%</div>
+          <div className="text-2xl font-bold text-cyan-400 mt-1.5">{loading ? "..." : `${stats.successRate}%`}</div>
           <p className="text-[10px] text-emerald-500 mt-1">Errors cached & handled</p>
         </div>
 
         <div className="p-5 rounded-2xl border border-white/5 bg-[#141414]/50 backdrop-blur-md">
           <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest block">Total Tokens</span>
-          <div className="text-2xl font-bold text-white mt-1.5">{stats.totalTokens.toLocaleString()}</div>
+          <div className="text-2xl font-bold text-white mt-1.5">{loading ? "..." : stats.totalTokens.toLocaleString()}</div>
           <p className="text-[10px] text-slate-500 mt-1">Prompt + Completion</p>
         </div>
 
         <div className="p-5 rounded-2xl border border-white/5 bg-[#141414]/50 backdrop-blur-md">
           <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest block">Estimated Cost</span>
-          <div className="text-2xl font-bold text-emerald-400 mt-1.5">${stats.estimatedCost.toFixed(4)}</div>
+          <div className="text-2xl font-bold text-emerald-400 mt-1.5">{loading ? "..." : `$${stats.estimatedCost.toFixed(4)}`}</div>
           <p className="text-[10px] text-slate-500 mt-1">USD equivalent pricing</p>
         </div>
       </div>

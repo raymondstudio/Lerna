@@ -390,6 +390,7 @@ function QuizPageContent() {
 
   // Last recorded user answer option/text
   const [lastUserAnswerVal, setLastUserAnswerVal] = useState('');
+  const [startTime, setStartTime] = useState<number | null>(null);
 
   // ─── Fetch courses & materials ─────────────────────────────────────────────
   const fetchSetupData = useCallback(async () => {
@@ -401,7 +402,7 @@ function QuizPageContent() {
 
       if (coursesRes.ok) {
         const data = await coursesRes.json();
-        const list: Course[] = data.courses ?? [];
+        const list: Course[] = data.data?.courses ?? data.courses ?? [];
         setCourses(list);
 
         // Preselect course from query
@@ -413,7 +414,7 @@ function QuizPageContent() {
 
       if (materialsRes.ok) {
         const payload = await materialsRes.json();
-        const list: Material[] = payload.data?.materials ?? [];
+        const list: Material[] = payload.data?.materials ?? payload.materials ?? [];
         setMaterials(list);
 
         // Preselect material from query
@@ -438,19 +439,20 @@ function QuizPageContent() {
 
   // ─── Fetch Past Quizzes ────────────────────────────────────────────────────
   const fetchPastQuizzes = useCallback(async () => {
+    if (!user) return;
     setLoadingPastQuizzes(true);
     try {
       const res = await fetch('/api/quiz');
-      if (res.ok) {
-        const payload = await res.json();
-        setPastQuizzes(payload.data?.quizzes ?? []);
+      const payload = await res.json();
+      if (payload.success) {
+        setPastQuizzes(payload.data.quizzes || []);
       }
     } catch (e) {
       console.error('Failed to fetch past quizzes', e);
     } finally {
       setLoadingPastQuizzes(false);
     }
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     if (user && setupTab === 'history') {
@@ -464,37 +466,36 @@ function QuizPageContent() {
     : materials.filter(m => m.status === 'ready');
 
   // ─── Generate quiz ────────────────────────────────────────────────────────
-  const handleGenerate = async () => {
-    setGenerating(true);
+  const handleGenerate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user || generating) return;
     setSetupError(null);
+    setGenerating(true);
 
     try {
       const res = await fetch('/api/quiz/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          materialId: selectedMaterialId || null,
           courseId: selectedCourseId || null,
-          type: quizType,
+          materialId: selectedMaterialId || null,
           count: questionCount,
+          type: quizType,
         }),
       });
 
-      if (res.ok) {
-        const data = await res.json();
-        const questionsList = data.data?.questions ?? data.questions;
-        if (questionsList && questionsList.length > 0) {
-          const qs: Question[] = questionsList.map((q: any, i: number) => ({
-            id: q.id || `q-${i}-${Date.now()}`,
-            question: q.question,
-            options: q.options,
-            correct_answer: q.correct_answer,
-            explanation: q.explanation,
-            topic: q.topic || 'General',
-          }));
-          startQuiz(qs);
-          return;
-        }
+      const payload = await res.json();
+      if (res.ok && payload.success && Array.isArray(payload.data?.questions)) {
+        const qs = payload.data.questions.map((q: any, idx: number) => ({
+          id: `q-${idx}`,
+          question: q.question,
+          options: q.options,
+          correct_answer: q.correct_answer,
+          explanation: q.explanation,
+          topic: q.topic || 'General',
+        }));
+        startQuiz(qs);
+        return;
       }
     } catch (e) {
       console.warn('AI Quiz generation failed, falling back to course content.', e);
@@ -510,6 +511,7 @@ function QuizPageContent() {
     setAnswers([]);
     setCurrentAnswered(false);
     setCurrentAnswer(null);
+    setStartTime(Date.now());
     setPhase('quiz');
   };
 
@@ -546,6 +548,7 @@ function QuizPageContent() {
 
         const currentCourse = courses.find((c) => c.id === selectedCourseId);
         const title = `Quiz — ${currentCourse ? currentCourse.code : 'General Knowledge'} (${new Date().toLocaleDateString()})`;
+        const timeSpent = startTime ? Math.round((Date.now() - startTime) / 1000) : 0;
 
         await fetch('/api/quiz', {
           method: 'POST',
@@ -556,6 +559,10 @@ function QuizPageContent() {
             title,
             score: accuracyPct,
             totalQuestions: questions.length,
+            type: quizType,
+            timeSpent,
+            difficulty: 'Medium',
+            topic: questions[0]?.topic || 'General',
             questions: updatedAnswers.map((a, idx) => ({
               questionText: a.question.question,
               options: a.question.options || [],

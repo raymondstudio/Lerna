@@ -1,22 +1,85 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Activity, Clock, Cpu, Server } from "lucide-react";
+import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
 export function AnalyticsTab() {
   const [latencyData, setLatencyData] = useState({
-    apiGateway: 45,
-    geminiResponse: 850,
-    searchRetrieval: 120,
-    pdfProcessing: 1450,
+    apiGateway: 35,
+    geminiResponse: 720,
+    searchRetrieval: 95,
+    pdfProcessing: 1280,
   });
 
-  const [recentEvents, setRecentEvents] = useState([
-    { id: 1, event: "user_login", properties: { provider: "google" }, timestamp: "Just now" },
-    { id: 2, event: "pdf_uploaded", properties: { size_kb: 1420 }, timestamp: "2 mins ago" },
-    { id: 3, event: "quiz_completed", properties: { accuracy: 0.8 }, timestamp: "5 mins ago" },
-    { id: 4, event: "ai_chat_completed", properties: { prompt_tokens: 152, completion_tokens: 284 }, timestamp: "8 mins ago" },
-  ]);
+  const [recentEvents, setRecentEvents] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const supabase = createSupabaseBrowserClient();
+    if (!supabase) return;
+
+    const loadData = async () => {
+      try {
+        const { data: events } = await supabase
+          .from("analytics_events")
+          .select("id, event_name, event_properties, created_at")
+          .order("created_at", { ascending: false })
+          .limit(20);
+        
+        if (events) {
+          setRecentEvents(events.map(e => ({
+            id: e.id,
+            event: e.event_name,
+            properties: e.event_properties,
+            timestamp: new Date(e.created_at).toLocaleTimeString()
+          })));
+        }
+
+        const { data: aiReqs } = await supabase
+          .from("ai_requests")
+          .select("latency_ms")
+          .not("latency_ms", "is", null)
+          .order("created_at", { ascending: false })
+          .limit(10);
+          
+        if (aiReqs && aiReqs.length > 0) {
+          const avgGemini = Math.round(aiReqs.reduce((acc, curr) => acc + (curr.latency_ms || 0), 0) / aiReqs.length);
+          setLatencyData(prev => ({
+            ...prev,
+            geminiResponse: avgGemini || prev.geminiResponse
+          }));
+        }
+      } catch (e) {
+        console.warn("[analytics-tab] failed to fetch real data:", e);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
+
+    const channel = supabase
+      .channel("live_analytics_tab")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "analytics_events" },
+        (payload) => {
+          const newEvent = {
+            id: payload.new.id,
+            event: payload.new.event_name,
+            properties: payload.new.event_properties,
+            timestamp: new Date(payload.new.created_at).toLocaleTimeString()
+          };
+          setRecentEvents(prev => [newEvent, ...prev.slice(0, 19)]);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -40,7 +103,7 @@ export function AnalyticsTab() {
         <div className="p-5 rounded-2xl border border-white/5 bg-[#141414]/50 backdrop-blur-md flex items-center justify-between gap-4">
           <div>
             <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest block">Gemini API</span>
-            <div className="text-xl font-bold text-white mt-1">{latencyData.geminiResponse}ms</div>
+            <div className="text-xl font-bold text-white mt-1">{loading ? "..." : `${latencyData.geminiResponse}ms`}</div>
           </div>
           <Cpu className="h-5 w-5 text-cyan-400" />
         </div>
@@ -69,17 +132,21 @@ export function AnalyticsTab() {
         </div>
 
         <div className="space-y-3">
-          {recentEvents.map((evt) => (
-            <div key={evt.id} className="flex items-center justify-between p-3.5 rounded-xl bg-[#0a0a0a]/50 border border-white/5 hover:bg-[#0a0a0a]/80 transition-colors">
-              <div className="flex items-center gap-4">
-                <span className="font-mono text-xs text-cyan-400 font-semibold">{evt.event}</span>
-                <span className="font-mono text-[10px] text-slate-500 truncate max-w-md">
-                  {JSON.stringify(evt.properties)}
-                </span>
+          {recentEvents.length === 0 ? (
+            <p className="text-xs text-slate-500 italic py-10 text-center">Awaiting platform activities...</p>
+          ) : (
+            recentEvents.map((evt) => (
+              <div key={evt.id} className="flex items-center justify-between p-3.5 rounded-xl bg-[#0a0a0a]/50 border border-white/5 hover:bg-[#0a0a0a]/80 transition-colors">
+                <div className="flex items-center gap-4">
+                  <span className="font-mono text-xs text-cyan-400 font-semibold">{evt.event}</span>
+                  <span className="font-mono text-[10px] text-slate-500 truncate max-w-md">
+                    {JSON.stringify(evt.properties)}
+                  </span>
+                </div>
+                <span className="text-[11px] text-slate-500 shrink-0 font-medium">{evt.timestamp}</span>
               </div>
-              <span className="text-[11px] text-slate-500 shrink-0 font-medium">{evt.timestamp}</span>
-            </div>
-          ))}
+            ))
+          )}
         </div>
       </div>
     </div>

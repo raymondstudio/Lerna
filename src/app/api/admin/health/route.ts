@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
 
@@ -12,8 +11,7 @@ export async function GET() {
     return NextResponse.json({ success: false, error: "Unauthenticated" }, { status: 401 });
   }
 
-  const adminClient = createSupabaseAdminClient();
-  const { data: isAdmin } = await adminClient.rpc("is_admin", { user_id: userData.user.id });
+  const { data: isAdmin } = await supabase.rpc("is_admin", { user_id: userData.user.id });
   
   const adminEmails = process.env.ADMIN_EMAILS
     ? process.env.ADMIN_EMAILS.split(",").map((e) => e.trim())
@@ -27,7 +25,7 @@ export async function GET() {
 
   try {
     // 1. Fetch latency performance metrics
-    const { data: latencies } = await adminClient
+    const { data: latencies } = await supabase
       .from("performance_metrics")
       .select("metric_name, metric_value, created_at")
       .order("created_at", { ascending: false })
@@ -52,7 +50,7 @@ export async function GET() {
     });
 
     // 2. Fetch failed AI requests
-    const { data: failedAi } = await adminClient
+    const { data: failedAi } = await supabase
       .from("ai_requests")
       .select("id, model_used, request_type, error_message, created_at")
       .eq("status", "failed")
@@ -60,7 +58,7 @@ export async function GET() {
       .limit(20);
 
     // 3. Fetch general system errors and upload failures
-    const { data: failedEvents } = await adminClient
+    const { data: failedEvents } = await supabase
       .from("analytics_events")
       .select("id, event_name, event_properties, created_at")
       .ilike("event_name", "%failed%")

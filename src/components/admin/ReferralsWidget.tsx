@@ -1,21 +1,61 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { Gift, Heart, Link, TrendingUp, Users } from "lucide-react";
 
 export function ReferralsWidget() {
-  const stats = {
-    totalInvited: 342,
-    activeCodes: 88,
-    conversionRate: 64.5,
-    rewardsIssued: 210,
-  };
+  const [data, setData] = useState<{
+    referralStats: {
+      totalInvited: number;
+      activeCodes: number;
+      conversionRate: number;
+      rewardsIssued: number;
+    };
+    topPromoters: Array<{
+      name: string;
+      email: string;
+      referrals: number;
+      rewardStatus: string;
+    }>;
+  }>({
+    referralStats: {
+      totalInvited: 0,
+      activeCodes: 0,
+      conversionRate: 0.0,
+      rewardsIssued: 0,
+    },
+    topPromoters: [],
+  });
 
-  const topReferrers = [
-    { id: 1, name: "David Miller", email: "dmiller@mit.edu", referrals: 24, rewardStatus: "Active" },
-    { id: 2, name: "Sophia Zhang", email: "szhang@berkeley.edu", referrals: 18, rewardStatus: "Active" },
-    { id: 3, name: "James Peterson", email: "james.p@utoronto.ca", referrals: 15, rewardStatus: "Active" },
-    { id: 4, name: "Lucas Vance", email: "lvance@gmail.com", referrals: 11, rewardStatus: "Active" },
-  ];
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        const res = await fetch("/api/admin/analytics");
+        const json = await res.json();
+        if (json.success && json.data) {
+          const a = json.data;
+          setData({
+            referralStats: {
+              totalInvited: a.referralStats?.totalInvited || 0,
+              activeCodes: a.referralStats?.activeCodes || 0,
+              conversionRate: Number(a.referralStats?.conversionRate) || 0.0,
+              rewardsIssued: a.referralStats?.rewardsIssued || 0,
+            },
+            topPromoters: a.topPromoters || [],
+          });
+        }
+      } catch (err) {
+        console.warn("[referrals] failed to fetch real referral data:", err);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+
+  const stats = data.referralStats;
+  const topReferrers = data.topPromoters;
 
   return (
     <div className="space-y-6 pt-4 border-t border-white/5">
@@ -67,7 +107,7 @@ export function ReferralsWidget() {
             </thead>
             <tbody className="divide-y divide-white/5 text-slate-300">
               {topReferrers.map((ref) => (
-                <tr key={ref.id} className="group">
+                <tr key={ref.email} className="group">
                   <td className="py-3">
                     <div className="space-y-0.5">
                       <span className="font-semibold text-white block">{ref.name}</span>

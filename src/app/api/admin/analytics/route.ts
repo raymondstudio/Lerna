@@ -3,10 +3,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(
-  req: Request,
-  { params }: { params: Promise<{ userId: string }> }
-) {
+export async function GET() {
   const supabase = await createSupabaseServerClient();
   const { data: userData } = await supabase.auth.getUser();
 
@@ -27,28 +24,16 @@ export async function GET(
   }
 
   try {
-    const { userId } = await params;
-
-    const { data, error } = await supabase.rpc("get_admin_user_details", {
-      target_user_id: userId,
-    });
-
+    const { data, error } = await supabase.rpc("get_historical_analytics");
+    
     if (error) {
-      console.error("[api:admin:user-details] RPC failed:", error.message);
+      console.error("[api:admin:analytics] RPC failed:", error.message);
       return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
 
-    if (!data) {
-      return NextResponse.json({ success: false, error: "User not found" }, { status: 404 });
-    }
-
-    return NextResponse.json({
-      success: true,
-      data,
-    });
+    return NextResponse.json({ success: true, data });
   } catch (err) {
-    console.error("[api:admin:user-details] Exception:", err);
+    console.error("[api:admin:analytics] Exception:", err);
     return NextResponse.json({ success: false, error: String(err) }, { status: 500 });
   }
 }
-
