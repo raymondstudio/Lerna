@@ -20,7 +20,8 @@ import {
   Users, 
   Bell,
   ArrowLeft,
-  Activity
+  Activity,
+  HelpCircle
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -32,9 +33,12 @@ import { AnalyticsTab } from "./AnalyticsTab";
 import { LearningAnalyticsTab } from "./LearningAnalyticsTab";
 import { AiAnalyticsTab } from "./AiAnalyticsTab";
 import { MarketingTab } from "./MarketingTab";
-import { AgentTab } from "./AgentTab";
-import { MockSection } from "./MockSection";
 import { HealthTab } from "./HealthTab";
+import { AgentTab } from "./AgentTab";
+import { SupportTab } from "./SupportTab";
+import { FeedbackTab } from "./FeedbackTab";
+import { AnnouncementsTab } from "./AnnouncementsTab";
+import { SettingsTab } from "./SettingsTab";
 
 type NavItem = {
   name: string;
@@ -59,6 +63,7 @@ export function AdminDashboardShell() {
     { name: "AI Analytics", tab: "ai", icon: Cpu },
     { name: "Marketing", tab: "marketing", icon: Megaphone },
     { name: "System Health", tab: "health", icon: Activity },
+    { name: "Support Helpdesk", tab: "support", icon: HelpCircle },
     { name: "Feedback", tab: "feedback", icon: MessageSquare },
     { name: "Announcements", tab: "announcements", icon: Bell },
     { name: "Settings", tab: "settings", icon: Settings },
@@ -91,12 +96,14 @@ export function AdminDashboardShell() {
         return <HealthTab />;
       case "agents":
         return <AgentTab />;
+      case "support":
+        return <SupportTab />;
       case "feedback":
-        return <MockSection title="Student Feedback Submissions" type="feedback" />;
+        return <FeedbackTab />;
       case "announcements":
-        return <MockSection title="Broadcast Announcements" type="announcements" />;
+        return <AnnouncementsTab />;
       case "settings":
-        return <MockSection title="Platform Settings & Rules" type="settings" />;
+        return <SettingsTab />;
       default:
         return <OverviewTab />;
     }

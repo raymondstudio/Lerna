@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { 
-  User, 
+  User as UserIcon, 
   Settings, 
   CreditCard, 
   Shield, 
@@ -16,7 +16,11 @@ import {
   EyeOff,
   Sparkles,
   Lock,
-  Plus
+  MessageSquare,
+  Globe,
+  Bell,
+  Monitor,
+  Loader2
 } from "lucide-react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
@@ -28,28 +32,43 @@ type TabId = "profile" | "preferences" | "subscription" | "security" | "stats" |
 
 export default function AccountPage() {
   const router = useRouter();
-  const { user, loading, signOut } = useAuth();
+  const { user, profile, refreshProfile, loading, signOut } = useAuth();
   const [activeTab, setActiveTab] = useState<TabId>("profile");
 
   // Profile Form States
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
-  const [email, setEmail] = useState("");
   const [institution, setInstitution] = useState("");
   const [department, setDepartment] = useState("");
   const [studyLevel, setStudyLevel] = useState("");
   const [studyGoals, setStudyGoals] = useState<string[]>([]);
-  const [avatarUrl, setAvatarUrl] = useState("");
+  const [isStudent, setIsStudent] = useState(true);
+  const [gender, setGender] = useState("");
+  const [age, setAge] = useState<number | "">("");
+
+  // Email update
+  const [newEmail, setNewEmail] = useState("");
+  const [updatingEmail, setUpdatingEmail] = useState(false);
+  const [emailMessage, setEmailMessage] = useState<string | null>(null);
+  const [emailError, setEmailError] = useState<string | null>(null);
 
   // Preferences States
   const [teachingStyle, setTeachingStyle] = useState("Intermediate");
-  const [preferredQuestionType, setPreferredQuestionType] = useState("Mixed");
+  const [difficulty, setDifficulty] = useState("Medium");
+  const [preferredQuizFormat, setPreferredQuizFormat] = useState("Mixed");
+  const [flashcardPreference, setFlashcardPreference] = useState("Standard");
+  const [preferredLanguage, setPreferredLanguage] = useState("English");
+  const [responseLength, setResponseLength] = useState("Medium");
+  const [voicePreference, setVoicePreference] = useState("Default");
+
+  // Notifications
   const [studyReminderEnabled, setStudyReminderEnabled] = useState(true);
+  const [marketingUpdatesEnabled, setMarketingUpdatesEnabled] = useState(true);
+  const [securityAlertsEnabled, setSecurityAlertsEnabled] = useState(true);
   const [dailyGoalMinutes, setDailyGoalMinutes] = useState(15);
   const [preferredTheme, setPreferredTheme] = useState("dark");
 
   // Security Form States
-  const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showNewPassword, setShowNewPassword] = useState(false);
@@ -57,6 +76,21 @@ export default function AccountPage() {
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [passwordSuccess, setPasswordSuccess] = useState<string | null>(null);
   const [updatingPassword, setUpdatingPassword] = useState(false);
+
+  // Support Tickets States
+  const [tickets, setTickets] = useState<any[]>([]);
+  const [ticketSubject, setTicketSubject] = useState("");
+  const [ticketMessage, setTicketMessage] = useState("");
+  const [submittingTicket, setSubmittingTicket] = useState(false);
+  const [ticketSuccess, setTicketSuccess] = useState<string | null>(null);
+
+  // Feedback States
+  const [feedbacks, setFeedbacks] = useState<any[]>([]);
+  const [feedbackType, setFeedbackType] = useState<"general" | "bug" | "feature">("general");
+  const [feedbackMsg, setFeedbackMsg] = useState("");
+  const [feedbackRating, setFeedbackRating] = useState(5);
+  const [submittingFeedback, setSubmittingFeedback] = useState(false);
+  const [feedbackSuccess, setFeedbackSuccess] = useState<string | null>(null);
 
   // Stats States
   const [stats, setStats] = useState({
@@ -71,6 +105,7 @@ export default function AccountPage() {
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileMessage, setProfileMessage] = useState<string | null>(null);
   const [profileError, setProfileError] = useState<string | null>(null);
+  const [loadingData, setLoadingData] = useState(true);
 
   const supabase = createSupabaseBrowserClient();
 
@@ -80,36 +115,40 @@ export default function AccountPage() {
     }
   }, [user, loading, router]);
 
-  // Load profile and stats
+  // Load profile details and stats
   useEffect(() => {
     if (!user || !supabase) return;
 
     async function loadData() {
-      if (!supabase) return;
+      const client = supabase;
+      if (!client || !user) return;
       try {
-        // Fetch profile
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("*")
-          .eq("id", user?.id)
-          .single();
-
+        setLoadingData(true);
         if (profile) {
           setFirstName(profile.first_name || "");
           setLastName(profile.last_name || "");
-          setEmail(profile.email || user?.email || "");
           setInstitution(profile.institution || "");
           setDepartment(profile.department || "");
           setStudyLevel(profile.study_level || "");
           setStudyGoals(profile.study_goals || []);
-          setAvatarUrl(profile.avatar_url || "");
+          setIsStudent(profile.is_student ?? true);
+          setGender(profile.gender || "Prefer not to say");
+          setAge(profile.age || "");
           
           setTeachingStyle(profile.teaching_style || "Intermediate");
-          setPreferredQuestionType(profile.preferred_question_type || "Mixed");
+          setDifficulty(profile.difficulty || "Medium");
+          setPreferredQuizFormat(profile.preferred_quiz_format || "Mixed");
+          setFlashcardPreference(profile.flashcard_preference || "Standard");
+          setPreferredLanguage(profile.preferred_language || "English");
+          setResponseLength(profile.response_length || "Medium");
+          setVoicePreference(profile.voice_preference || "Default");
+
           setStudyReminderEnabled(profile.study_reminder_enabled ?? true);
+          setMarketingUpdatesEnabled(profile.marketing_updates_enabled ?? true);
+          setSecurityAlertsEnabled(profile.security_alerts_enabled ?? true);
           setDailyGoalMinutes(profile.daily_goal_minutes || 15);
           setPreferredTheme(profile.preferred_theme || "dark");
-          
+
           setStats(prev => ({
             ...prev,
             streak: profile.learning_streak || 0,
@@ -117,21 +156,13 @@ export default function AccountPage() {
           }));
         }
 
-        // Fetch counts for live aggregates
-        const [docsRes, sessionsRes, aiRequestsRes] = await Promise.all([
-          supabase
-            .from("uploaded_materials")
-            .select("*", { count: "exact", head: true })
-            .eq("user_id", user?.id)
-            .is("deleted_at", null),
-          supabase
-            .from("study_sessions")
-            .select("*", { count: "exact", head: true })
-            .eq("user_id", user?.id),
-          supabase
-            .from("ai_requests")
-            .select("*", { count: "exact", head: true })
-            .eq("user_id", user?.id)
+        // Fetch counts for stats
+        const [docsRes, sessionsRes, aiRequestsRes, ticketsRes, feedbackRes] = await Promise.all([
+          client.from("uploaded_materials").select("*", { count: "exact", head: true }).eq("user_id", user.id).is("deleted_at", null),
+          client.from("study_sessions").select("*", { count: "exact", head: true }).eq("user_id", user.id),
+          client.from("ai_requests").select("*", { count: "exact", head: true }).eq("user_id", user.id),
+          client.from("support_tickets").select("*").eq("user_id", user.id).order("created_at", { ascending: false }),
+          client.from("feedback").select("*").eq("user_id", user.id).order("created_at", { ascending: false })
         ]);
 
         setStats(prev => ({
@@ -140,13 +171,18 @@ export default function AccountPage() {
           sessions: sessionsRes.count || 0,
           questions: aiRequestsRes.count || 0,
         }));
+
+        if (ticketsRes.data) setTickets(ticketsRes.data);
+        if (feedbackRes.data) setFeedbacks(feedbackRes.data);
       } catch (err) {
-        console.error("[account] Error loading settings:", err);
+        console.error("[account] Error loading details:", err);
+      } finally {
+        setLoadingData(false);
       }
     }
 
     void loadData();
-  }, [user, supabase]);
+  }, [user, supabase, profile]);
 
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -160,15 +196,25 @@ export default function AccountPage() {
       const { error } = await supabase
         .from("profiles")
         .update({
-          first_name: firstName,
-          last_name: lastName,
-          institution,
-          department,
+          first_name: firstName.trim(),
+          last_name: lastName.trim(),
+          institution: institution.trim(),
+          department: department.trim(),
           study_level: studyLevel,
           study_goals: studyGoals,
+          is_student: isStudent,
+          gender,
+          age: age === "" ? null : Number(age),
           teaching_style: teachingStyle,
-          preferred_question_type: preferredQuestionType,
+          difficulty,
+          preferred_quiz_format: preferredQuizFormat,
+          flashcard_preference: flashcardPreference,
+          preferred_language: preferredLanguage,
+          response_length: responseLength,
+          voice_preference: voicePreference,
           study_reminder_enabled: studyReminderEnabled,
+          marketing_updates_enabled: marketingUpdatesEnabled,
+          security_alerts_enabled: securityAlertsEnabled,
           daily_goal_minutes: dailyGoalMinutes,
           preferred_theme: preferredTheme,
           updated_at: new Date().toISOString()
@@ -176,11 +222,35 @@ export default function AccountPage() {
         .eq("id", user.id);
 
       if (error) throw error;
-      setProfileMessage("Account settings updated successfully.");
+      setProfileMessage("Your preferences and account settings have been saved.");
+      await refreshProfile();
     } catch (err) {
-      setProfileError(err instanceof Error ? err.message : "Failed to update profile.");
+      setProfileError(err instanceof Error ? err.message : "Failed to save details.");
     } finally {
       setProfileSaving(false);
+    }
+  };
+
+  const handleUpdateEmail = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!supabase || !newEmail.trim()) return;
+
+    try {
+      setUpdatingEmail(true);
+      setEmailMessage(null);
+      setEmailError(null);
+
+      const { error } = await supabase.auth.updateUser({
+        email: newEmail.trim()
+      });
+
+      if (error) throw error;
+      setEmailMessage("Verification link sent. Check both your current and new email address to complete the change.");
+      setNewEmail("");
+    } catch (err) {
+      setEmailError(err instanceof Error ? err.message : "Failed to update email.");
+    } finally {
+      setUpdatingEmail(false);
     }
   };
 
@@ -229,11 +299,68 @@ export default function AccountPage() {
     }
   };
 
+  const handleSubmitTicket = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!ticketSubject.trim() || !ticketMessage.trim()) return;
+
+    try {
+      setSubmittingTicket(true);
+      setTicketSuccess(null);
+
+      const res = await fetch("/api/tickets", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ subject: ticketSubject, message: ticketMessage })
+      });
+      const json = await res.json();
+      if (json.success) {
+        setTicketSuccess("Support ticket created. Support team will respond shortly.");
+        setTicketSubject("");
+        setTicketMessage("");
+        setTickets(prev => [json.data, ...prev]);
+      } else {
+        alert(json.error || "Failed to submit support ticket.");
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setSubmittingTicket(false);
+    }
+  };
+
+  const handleSubmitFeedback = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!feedbackMsg.trim()) return;
+
+    try {
+      setSubmittingFeedback(true);
+      setFeedbackSuccess(null);
+
+      const res = await fetch("/api/feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: feedbackType, message: feedbackMsg, rating: feedbackRating })
+      });
+      const json = await res.json();
+      if (json.success) {
+        setFeedbackSuccess("Thank you! Your feedback has been recorded.");
+        setFeedbackMsg("");
+        setFeedbacks(prev => [json.data, ...prev]);
+      } else {
+        alert(json.error || "Failed to submit feedback.");
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setSubmittingFeedback(false);
+    }
+  };
+
   const isGoogleConnected = user?.app_metadata?.providers?.includes("google") || false;
 
   const sidebarTabs = [
-    { id: "profile", label: "My Profile", icon: User },
-    { id: "preferences", label: "Learning Preferences", icon: Settings },
+    { id: "profile", label: "My Profile", icon: UserIcon },
+    { id: "preferences", label: "Learning Settings", icon: Settings },
     { id: "subscription", label: "Billing & Plans", icon: CreditCard },
     { id: "security", label: "Security & Access", icon: Shield },
     { id: "stats", label: "Performance Stats", icon: BarChart3 },
@@ -241,14 +368,37 @@ export default function AccountPage() {
     { id: "about", label: "Release Info", icon: Info },
   ] as const;
 
+  // Render browser details
+  const getDeviceDetails = () => {
+    if (typeof window === "undefined") return { browser: "Server", os: "Unknown", device: "Desktop" };
+    const ua = navigator.userAgent;
+    let browser = "Unknown Browser";
+    let os = "Unknown OS";
+
+    if (ua.includes("Chrome")) browser = "Google Chrome";
+    else if (ua.includes("Safari")) browser = "Apple Safari";
+    else if (ua.includes("Firefox")) browser = "Mozilla Firefox";
+
+    if (ua.includes("Windows")) os = "Windows OS";
+    else if (ua.includes("Mac")) os = "macOS";
+    else if (ua.includes("Android")) os = "Android OS";
+    else if (ua.includes("iPhone")) os = "iOS";
+
+    const device = ua.includes("Mobi") ? "Mobile Device" : "Desktop PC";
+
+    return { browser, os, device };
+  };
+
+  const currentDevice = getDeviceDetails();
+
   return (
     <DashboardShell>
       <div className="h-full flex flex-col md:flex-row overflow-hidden bg-[#0d0f12]">
         
-        {/* Settings Left Tab Menu */}
-        <div className="w-full md:w-64 shrink-0 bg-[#111317] border-b md:border-b-0 md:border-r border-white/5 flex flex-row md:flex-col overflow-x-auto md:overflow-x-visible p-2.5 gap-1 shrink-0 scrollbar-none">
+        {/* Responsive Side Navigation Menu */}
+        <div className="w-full md:w-64 shrink-0 bg-[#111317] border-b md:border-b-0 md:border-r border-white/5 flex flex-row md:flex-col overflow-x-auto md:overflow-x-visible p-3 gap-1 shrink-0 scrollbar-none">
           <div className="hidden md:block px-3 py-4 text-xs font-semibold text-slate-500 uppercase tracking-widest">
-            Settings Workspace
+            SaaS Panel
           </div>
           {sidebarTabs.map((tab) => {
             const Icon = tab.icon;
@@ -257,9 +407,9 @@ export default function AccountPage() {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors select-none ${
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all select-none ${
                   active 
-                    ? "bg-cyan-500/10 text-cyan-400 font-semibold" 
+                    ? "bg-cyan-500/10 text-cyan-400 font-bold shadow-sm" 
                     : "text-slate-400 hover:text-slate-200 hover:bg-[#1a1c22]"
                 }`}
               >
@@ -270,508 +420,662 @@ export default function AccountPage() {
           })}
         </div>
 
-        {/* Settings Panel Content Area */}
-        <div className="flex-1 overflow-y-auto p-6 md:p-8 space-y-8 max-w-4xl">
-          {activeTab === "profile" && (
-            <form onSubmit={handleSaveProfile} className="space-y-6">
-              <div>
-                <h2 className="text-xl font-bold text-white">Profile settings</h2>
-                <p className="text-xs text-slate-500 mt-1">Personalize your academic identities and workspace labels.</p>
-              </div>
-
-              {/* Success/Error displays */}
-              {profileMessage && (
-                <div className="flex items-center gap-2 p-3.5 rounded-xl border border-emerald-500/20 bg-emerald-500/5 text-xs text-emerald-300">
-                  <Check className="h-4 w-4 shrink-0" /> {profileMessage}
-                </div>
-              )}
-              {profileError && (
-                <div className="flex items-center gap-2 p-3.5 rounded-xl border border-red-500/20 bg-red-500/5 text-xs text-red-300">
-                  <AlertCircle className="h-4 w-4 shrink-0" /> {profileError}
-                </div>
-              )}
-
-              <div className="flex items-center gap-4 p-4 rounded-xl border border-white/5 bg-[#14161a]">
-                <div className="h-16 w-16 rounded-full bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400 text-lg font-bold uppercase shrink-0">
-                  {firstName ? `${firstName[0]}${lastName?.[0] || ""}` : email?.[0] || "U"}
-                </div>
-                <div className="space-y-1">
-                  <span className="text-xs font-bold text-white block">Profile Picture</span>
-                  <span className="text-[10px] text-slate-500 block">Avatar is managed dynamically from your connected signup profile.</span>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">First Name</label>
-                  <Input 
-                    value={firstName} 
-                    onChange={e => setFirstName(e.target.value)} 
-                    className="bg-[#14161a] border-white/5 h-11"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Last Name</label>
-                  <Input 
-                    value={lastName} 
-                    onChange={e => setLastName(e.target.value)} 
-                    className="bg-[#14161a] border-white/5 h-11"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Email Address</label>
-                <Input 
-                  value={email} 
-                  disabled
-                  className="bg-[#14161a]/40 border-white/5 h-11 text-slate-500"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Institution Name</label>
-                  <Input 
-                    value={institution} 
-                    onChange={e => setInstitution(e.target.value)} 
-                    className="bg-[#14161a] border-white/5 h-11"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Department / Course</label>
-                  <Input 
-                    value={department} 
-                    onChange={e => setDepartment(e.target.value)} 
-                    className="bg-[#14161a] border-white/5 h-11"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Current Study Level</label>
-                  <Input 
-                    value={studyLevel} 
-                    onChange={e => setStudyLevel(e.target.value)} 
-                    className="bg-[#14161a] border-white/5 h-11"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Learning Goals</label>
-                  <Input 
-                    value={studyGoals.join(", ")} 
-                    onChange={e => setStudyGoals(e.target.value.split(",").map(s => s.trim()))} 
-                    placeholder="e.g. Exam prep, assignments"
-                    className="bg-[#14161a] border-white/5 h-11"
-                  />
-                </div>
-              </div>
-
-              <Button 
-                type="submit" 
-                disabled={profileSaving}
-                className="w-full bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold h-11 rounded-lg"
-              >
-                {profileSaving ? "Saving..." : "Save Profile Details"}
-              </Button>
-            </form>
-          )}
-
-          {activeTab === "preferences" && (
-            <form onSubmit={handleSaveProfile} className="space-y-6">
-              <div>
-                <h2 className="text-xl font-bold text-white">Learning preferences</h2>
-                <p className="text-xs text-slate-500 mt-1">Configure your AI tutor's explanation difficulty and styles.</p>
-              </div>
-
-              {profileMessage && (
-                <div className="flex items-center gap-2 p-3.5 rounded-xl border border-emerald-500/20 bg-emerald-500/5 text-xs text-emerald-300">
-                  <Check className="h-4 w-4 shrink-0" /> {profileMessage}
-                </div>
-              )}
-
-              <div className="space-y-4">
-                {/* Teaching Style */}
-                <div className="space-y-2">
-                  <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Tutor Teaching Style</label>
-                  <div className="grid grid-cols-3 gap-2">
-                    {["Beginner", "Intermediate", "Advanced"].map((style) => (
-                      <button
-                        key={style}
-                        type="button"
-                        onClick={() => setTeachingStyle(style)}
-                        className={`py-3.5 text-xs font-semibold rounded-xl border transition-all ${
-                          teachingStyle === style
-                            ? "border-cyan-500 bg-cyan-500/5 text-white"
-                            : "border-white/5 bg-[#14161a] text-slate-400"
-                        }`}
-                      >
-                        {style}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Preferred Question style */}
-                <div className="space-y-2">
-                  <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Preferred Question Type</label>
-                  <div className="grid grid-cols-4 gap-2">
-                    {["Essay", "Flashcards", "Multiple Choice", "Mixed"].map((type) => (
-                      <button
-                        key={type}
-                        type="button"
-                        onClick={() => setPreferredQuestionType(type)}
-                        className={`py-3 text-[10px] font-semibold rounded-xl border transition-all ${
-                          preferredQuestionType === type
-                            ? "border-cyan-500 bg-cyan-500/5 text-white"
-                            : "border-white/5 bg-[#14161a] text-slate-400"
-                        }`}
-                      >
-                        {type}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Daily Study target */}
-                <div className="grid grid-cols-2 gap-4 pt-2">
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Daily Target (minutes)</label>
-                    <Input
-                      type="number"
-                      value={dailyGoalMinutes}
-                      onChange={e => setDailyGoalMinutes(Number(e.target.value))}
-                      className="bg-[#14161a] border-white/5 h-11"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Preferred Theme</label>
-                    <div className="grid grid-cols-2 gap-2 h-11 border border-white/5 rounded-lg p-1 bg-[#14161a] text-xs font-semibold">
-                      {["dark", "light"].map(theme => (
-                        <button
-                          key={theme}
-                          type="button"
-                          onClick={() => setPreferredTheme(theme)}
-                          className={`rounded-md capitalize ${preferredTheme === theme ? "bg-cyan-500/10 text-cyan-400" : "text-slate-400"}`}
-                        >
-                          {theme}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Reminders switch */}
-                <div className="p-4 rounded-xl border border-white/5 bg-[#14161a] flex justify-between items-center">
-                  <div className="space-y-0.5">
-                    <span className="text-xs font-bold text-white block">Email Study Reminders</span>
-                    <span className="text-[9px] text-slate-500 block">Receive nudge alerts when you are behind on your daily learning target.</span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setStudyReminderEnabled(!studyReminderEnabled)}
-                    className={`w-11 h-6 rounded-full transition-colors relative ${studyReminderEnabled ? "bg-cyan-500" : "bg-white/10"}`}
-                  >
-                    <div className={`absolute top-1 left-1 bg-slate-950 w-4 h-4 rounded-full transition-transform ${studyReminderEnabled ? "translate-x-5" : ""}`} />
-                  </button>
-                </div>
-              </div>
-
-              <Button 
-                type="submit" 
-                disabled={profileSaving}
-                className="w-full bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold h-11 rounded-lg"
-              >
-                {profileSaving ? "Saving..." : "Save Preferences"}
-              </Button>
-            </form>
-          )}
-
-          {activeTab === "subscription" && (
-            <div className="space-y-6">
-              <div>
-                <h2 className="text-xl font-bold text-white">Subscription & Plan</h2>
-                <p className="text-xs text-slate-500 mt-1">Review your usage metrics and upgrade your account settings.</p>
-              </div>
-
-              <div className="p-5 rounded-2xl border border-cyan-500/20 bg-gradient-to-br from-cyan-500/5 to-transparent space-y-4">
-                <div className="flex justify-between items-start">
-                  <div className="space-y-1">
-                    <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">Current active plan</span>
-                    <h3 className="text-2xl font-bold text-white flex items-center gap-2">
-                      EduAgent Free <span className="text-xs px-2 py-0.5 bg-cyan-500/10 text-cyan-400 rounded-full font-normal border border-cyan-500/10">Active</span>
-                    </h3>
-                  </div>
-                  <span className="text-3xl font-bold text-white">$0 <span className="text-sm text-slate-500 font-normal">/mo</span></span>
-                </div>
-
-                <div className="h-[1px] bg-white/5 w-full" />
-
-                <div className="grid grid-cols-2 gap-4 text-xs">
-                  <div className="space-y-1">
-                    <span className="text-slate-500">AI Tokens Used</span>
-                    <span className="text-white font-bold block">{stats.questions * 2}k / 20k tokens</span>
-                  </div>
-                  <div className="space-y-1">
-                    <span className="text-slate-500">Upload Workspace Storage</span>
-                    <span className="text-white font-bold block">{stats.documents * 2}MB / 100MB</span>
-                  </div>
-                </div>
-
-                <Button className="w-full h-11 bg-cyan-500 text-slate-950 hover:bg-cyan-400 font-bold rounded-lg flex items-center justify-center gap-2">
-                  <Sparkles className="h-4 w-4" /> Upgrade to Pro ($12/mo)
-                </Button>
-              </div>
-
-              {/* Billing list */}
-              <div className="space-y-3">
-                <h3 className="text-sm font-bold text-white">Invoices & Billing History</h3>
-                <div className="p-6 rounded-xl border border-white/5 bg-[#14161a] text-center text-xs text-slate-500">
-                  You are currently on the Free plan. No invoice records are available.
-                </div>
-              </div>
+        {/* Panel Content Area */}
+        <div className="flex-1 overflow-y-auto p-6 md:p-8 space-y-8 max-w-4xl scrollbar-thin">
+          
+          {loadingData ? (
+            <div className="h-96 w-full flex items-center justify-center">
+              <Loader2 className="h-8 w-8 text-cyan-500 animate-spin" />
             </div>
-          )}
-
-          {activeTab === "security" && (
-            <div className="space-y-6">
-              <div>
-                <h2 className="text-xl font-bold text-white">Security & sessions</h2>
-                <p className="text-xs text-slate-500 mt-1">Modify login details, manage OAuth links, and active device sessions.</p>
-              </div>
-
-              {/* Change Password Form */}
-              <form onSubmit={handleChangePassword} className="p-5 rounded-xl border border-white/5 bg-[#14161a] space-y-4">
-                <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                  <Lock className="h-4 w-4 text-cyan-400" /> Change Password
-                </h3>
-
-                {passwordSuccess && (
-                  <div className="flex items-center gap-2 p-3.5 rounded-xl border border-emerald-500/20 bg-emerald-500/5 text-xs text-emerald-300">
-                    <Check className="h-4 w-4 shrink-0" /> {passwordSuccess}
-                  </div>
-                )}
-                {passwordError && (
-                  <div className="flex items-center gap-2 p-3.5 rounded-xl border border-red-500/20 bg-red-500/5 text-xs text-red-300">
-                    <AlertCircle className="h-4 w-4 shrink-0" /> {passwordError}
-                  </div>
-                )}
-
-                <div className="space-y-1.5">
-                  <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">New Password</label>
-                  <div className="relative">
-                    <Input
-                      type={showNewPassword ? "text" : "password"}
-                      value={newPassword}
-                      onChange={e => setNewPassword(e.target.value)}
-                      className="bg-[#0d0f12] border-white/5 h-11 pr-10"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowNewPassword(!showNewPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
-                    >
-                      {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </button>
-                  </div>
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Confirm New Password</label>
-                  <div className="relative">
-                    <Input
-                      type={showConfirmPassword ? "text" : "password"}
-                      value={confirmPassword}
-                      onChange={e => setConfirmPassword(e.target.value)}
-                      className="bg-[#0d0f12] border-white/5 h-11 pr-10"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
-                    >
-                      {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </button>
-                  </div>
-                </div>
-
-                <Button 
-                  type="submit" 
-                  disabled={updatingPassword}
-                  className="bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold h-10 px-6 rounded-lg text-xs"
-                >
-                  {updatingPassword ? "Updating..." : "Update Password"}
-                </Button>
-              </form>
-
-              {/* Connected Accounts */}
-              <div className="p-5 rounded-xl border border-white/5 bg-[#14161a] space-y-3">
-                <h3 className="text-sm font-bold text-white">Linked Identities</h3>
-                <div className="flex justify-between items-center text-xs">
-                  <div className="flex items-center gap-2">
-                    <svg className="h-5 w-5" viewBox="0 0 24 24">
-                      <path
-                        d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                        fill="#4285F4"
-                      />
-                      <path
-                        d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                        fill="#34A853"
-                      />
-                      <path
-                        d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
-                        fill="#FBBC05"
-                      />
-                      <path
-                        d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-                        fill="#EA4335"
-                      />
-                    </svg>
-                    <span>Google Authentication Account</span>
-                  </div>
-                  {isGoogleConnected ? (
-                    <span className="px-2.5 py-1 bg-emerald-500/10 text-emerald-400 rounded-lg font-semibold text-[10px] border border-emerald-500/10 flex items-center gap-1">
-                      <Check className="h-3 w-3 stroke-[3]" /> Connected
-                    </span>
-                  ) : (
-                    <span className="text-slate-500 text-[10px]">Not Linked</span>
-                  )}
-                </div>
-              </div>
-
-              {/* Active Sessions */}
-              <div className="p-5 rounded-xl border border-white/5 bg-[#14161a] space-y-4">
-                <div className="flex justify-between items-start">
+          ) : (
+            <>
+              {activeTab === "profile" && (
+                <form onSubmit={handleSaveProfile} className="space-y-6">
                   <div>
-                    <h3 className="text-sm font-bold text-white">Active login sessions</h3>
-                    <p className="text-[10px] text-slate-500 mt-0.5">Logout from other browser devices to protect your educational assets.</p>
+                    <h2 className="text-xl font-bold text-white">Profile settings</h2>
+                    <p className="text-xs text-slate-500 mt-1">Configure your personal and academic metadata fields.</p>
                   </div>
+
+                  {profileMessage && (
+                    <div className="flex items-center gap-2 p-3.5 rounded-xl border border-emerald-500/20 bg-emerald-500/5 text-xs text-emerald-300">
+                      <Check className="h-4 w-4 shrink-0" /> {profileMessage}
+                    </div>
+                  )}
+                  {profileError && (
+                    <div className="flex items-center gap-2 p-3.5 rounded-xl border border-red-500/20 bg-red-500/5 text-xs text-red-300">
+                      <AlertCircle className="h-4 w-4 shrink-0" /> {profileError}
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">First Name</label>
+                      <Input 
+                        value={firstName} 
+                        onChange={e => setFirstName(e.target.value)} 
+                        className="bg-[#14161a] border-white/5 h-11"
+                        required
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Last Name</label>
+                      <Input 
+                        value={lastName} 
+                        onChange={e => setLastName(e.target.value)} 
+                        className="bg-[#14161a] border-white/5 h-11"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Age</label>
+                      <Input 
+                        type="number"
+                        value={age} 
+                        onChange={e => setAge(e.target.value === "" ? "" : Number(e.target.value))} 
+                        className="bg-[#14161a] border-white/5 h-11"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Gender</label>
+                      <select
+                        value={gender}
+                        onChange={e => setGender(e.target.value)}
+                        className="w-full h-11 px-3.5 rounded-lg border border-white/5 bg-[#14161a] text-xs font-semibold text-slate-300 focus:outline-none"
+                      >
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                        <option value="Other">Other</option>
+                        <option value="Prefer not to say">Prefer not to say</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="p-4 rounded-xl border border-white/5 bg-[#14161a] flex justify-between items-center">
+                    <div className="space-y-0.5">
+                      <span className="text-xs font-bold text-white block">Student Account status</span>
+                      <span className="text-[9px] text-slate-500 block">Flag this to configure custom study courses and levels.</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setIsStudent(!isStudent)}
+                      className={`w-11 h-6 rounded-full transition-colors relative ${isStudent ? "bg-cyan-500" : "bg-white/10"}`}
+                    >
+                      <div className={`absolute top-1 left-1 bg-slate-950 w-4 h-4 rounded-full transition-transform ${isStudent ? "translate-x-5" : ""}`} />
+                    </button>
+                  </div>
+
+                  {isStudent && (
+                    <div className="grid grid-cols-2 gap-4 animate-in fade-in duration-200">
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Institution / School</label>
+                        <Input 
+                          value={institution} 
+                          onChange={e => setInstitution(e.target.value)} 
+                          className="bg-[#14161a] border-white/5 h-11"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Department / Course</label>
+                        <Input 
+                          value={department} 
+                          onChange={e => setDepartment(e.target.value)} 
+                          className="bg-[#14161a] border-white/5 h-11"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Study Level</label>
+                      <Input 
+                        value={studyLevel} 
+                        onChange={e => setStudyLevel(e.target.value)} 
+                        className="bg-[#14161a] border-white/5 h-11"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Learning Goals</label>
+                      <Input 
+                        value={studyGoals.join(", ")} 
+                        onChange={e => setStudyGoals(e.target.value.split(",").map(s => s.trim()))} 
+                        className="bg-[#14161a] border-white/5 h-11"
+                      />
+                    </div>
+                  </div>
+
                   <Button 
-                    onClick={handleLogoutAllDevices}
-                    variant="outline"
-                    className="h-8 border-red-500/20 text-red-400 bg-red-500/5 hover:bg-red-500/10 text-[10px] font-semibold"
+                    type="submit" 
+                    disabled={profileSaving}
+                    className="w-full bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold h-11 rounded-lg"
                   >
-                    Logout All Devices
+                    {profileSaving ? "Saving..." : "Save Profile Details"}
                   </Button>
-                </div>
-                <div className="divide-y divide-white/5 text-xs">
-                  <div className="py-2.5 flex justify-between items-center">
-                    <div>
-                      <span className="font-semibold block text-slate-300">This Device (Active Browser)</span>
-                      <span className="text-[10px] text-slate-500">Currently active session</span>
+                </form>
+              )}
+
+              {activeTab === "preferences" && (
+                <form onSubmit={handleSaveProfile} className="space-y-6">
+                  <div>
+                    <h2 className="text-xl font-bold text-white">Tutor learning preferences</h2>
+                    <p className="text-xs text-slate-500 mt-1">Fine-tune the complexity, size, and style of your AI assistant's responses.</p>
+                  </div>
+
+                  {profileMessage && (
+                    <div className="flex items-center gap-2 p-3.5 rounded-xl border border-emerald-500/20 bg-emerald-500/5 text-xs text-emerald-300">
+                      <Check className="h-4 w-4 shrink-0" /> {profileMessage}
                     </div>
-                    <span className="px-2 py-0.5 bg-cyan-500/10 text-cyan-400 rounded-md border border-cyan-500/10 text-[10px] font-medium">Online</span>
+                  )}
+
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Teaching Style</label>
+                        <select value={teachingStyle} onChange={e => setTeachingStyle(e.target.value)} className="w-full h-11 px-3 bg-[#14161a] border border-white/5 rounded-lg text-xs">
+                          <option value="Beginner">Beginner (Simpler analogies)</option>
+                          <option value="Intermediate">Intermediate (Standard)</option>
+                          <option value="Advanced">Advanced (Academic terms)</option>
+                        </select>
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Difficulty Threshold</label>
+                        <select value={difficulty} onChange={e => setDifficulty(e.target.value)} className="w-full h-11 px-3 bg-[#14161a] border border-white/5 rounded-lg text-xs">
+                          <option value="Easy">Easy</option>
+                          <option value="Medium">Medium</option>
+                          <option value="Hard">Hard</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Preferred Quiz format</label>
+                        <select value={preferredQuizFormat} onChange={e => setPreferredQuizFormat(e.target.value)} className="w-full h-11 px-3 bg-[#14161a] border border-white/5 rounded-lg text-xs">
+                          <option value="Multiple Choice">Multiple Choice</option>
+                          <option value="Essay">Essay style</option>
+                          <option value="Flashcards">Flashcard style</option>
+                          <option value="Mixed">Mixed Questions</option>
+                        </select>
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Flashcard style</label>
+                        <select value={flashcardPreference} onChange={e => setFlashcardPreference(e.target.value)} className="w-full h-11 px-3 bg-[#14161a] border border-white/5 rounded-lg text-xs">
+                          <option value="Standard">Standard Flashcards</option>
+                          <option value="Detailed">Detailed explanations</option>
+                          <option value="Quick">Quick Summary card</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Preferred Language</label>
+                        <select value={preferredLanguage} onChange={e => setPreferredLanguage(e.target.value)} className="w-full h-11 px-3 bg-[#14161a] border border-white/5 rounded-lg text-xs">
+                          <option value="English">English</option>
+                          <option value="Spanish">Spanish</option>
+                          <option value="French">French</option>
+                          <option value="German">German</option>
+                          <option value="Chinese">Chinese</option>
+                          <option value="Japanese">Japanese</option>
+                        </select>
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Response Length</label>
+                        <select value={responseLength} onChange={e => setResponseLength(e.target.value)} className="w-full h-11 px-3 bg-[#14161a] border border-white/5 rounded-lg text-xs">
+                          <option value="Short">Short & Concise</option>
+                          <option value="Medium">Medium</option>
+                          <option value="Long">Long & Thorough</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Voice preference</label>
+                      <select value={voicePreference} onChange={e => setVoicePreference(e.target.value)} className="w-full h-11 px-3 bg-[#14161a] border border-white/5 rounded-lg text-xs">
+                        <option value="Default">Default</option>
+                        <option value="Female">Female Accent</option>
+                        <option value="Male">Male Accent</option>
+                      </select>
+                    </div>
+
+                    {/* Alert Preference section */}
+                    <div className="space-y-3 pt-4 border-t border-white/5">
+                      <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                        <Bell className="h-4 w-4 text-cyan-400" /> Notifications & alerts
+                      </h3>
+
+                      <div className="space-y-2.5">
+                        {[
+                          { label: "Study Reminders", desc: "Receive email warnings when daily goal is incomplete.", state: studyReminderEnabled, setter: setStudyReminderEnabled },
+                          { label: "Marketing & updates", desc: "Periodic platform changelogs and newsletters.", state: marketingUpdatesEnabled, setter: setMarketingUpdatesEnabled },
+                          { label: "Security alerts", desc: "Immediate notification on profile email/password mutations.", state: securityAlertsEnabled, setter: setSecurityAlertsEnabled }
+                        ].map((reminder, i) => (
+                          <div key={i} className="p-3 rounded-lg border border-white/5 bg-[#14161a] flex justify-between items-center text-xs">
+                            <div>
+                              <span className="font-semibold text-white block">{reminder.label}</span>
+                              <span className="text-[10px] text-slate-500 block">{reminder.desc}</span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => reminder.setter(!reminder.state)}
+                              className={`w-10 h-5 rounded-full transition-colors relative shrink-0 ${reminder.state ? "bg-cyan-500" : "bg-white/10"}`}
+                            >
+                              <div className={`absolute top-0.5 left-0.5 bg-slate-950 w-4 h-4 rounded-full transition-transform ${reminder.state ? "translate-x-5" : ""}`} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  <Button 
+                    type="submit" 
+                    disabled={profileSaving}
+                    className="w-full bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold h-11 rounded-lg"
+                  >
+                    {profileSaving ? "Saving..." : "Save Preferences"}
+                  </Button>
+                </form>
+              )}
+
+              {activeTab === "subscription" && (
+                <div className="space-y-6">
+                  <div>
+                    <h2 className="text-xl font-bold text-white">Billing workspace</h2>
+                    <p className="text-xs text-slate-500 mt-1">Monitor plan usage storage quotas and upgrades.</p>
+                  </div>
+
+                  <div className="p-5 rounded-2xl border border-cyan-500/20 bg-gradient-to-br from-cyan-500/5 to-transparent space-y-4">
+                    <div className="flex justify-between items-start">
+                      <div className="space-y-1">
+                        <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">Plan level</span>
+                        <h3 className="text-2xl font-bold text-white capitalize flex items-center gap-2">
+                          EduAgent {profile?.plan || "Free"} <span className="text-xs px-2.5 py-0.5 bg-cyan-500/10 text-cyan-400 rounded-full font-semibold border border-cyan-500/10">Active</span>
+                        </h3>
+                      </div>
+                      <span className="text-3xl font-bold text-white">
+                        {profile?.plan === "premium" ? "$12" : "$0"} <span className="text-xs text-slate-500 font-normal">/mo</span>
+                      </span>
+                    </div>
+
+                    <div className="h-[1px] bg-white/5 w-full" />
+
+                    <div className="space-y-3 text-xs">
+                      {/* Chats quota limit */}
+                      <div className="space-y-1">
+                        <div className="flex justify-between text-slate-500 text-[10px]">
+                          <span>AI Chat Queries</span>
+                          <span className="text-slate-300 font-medium">{stats.questions} / {profile?.plan === "premium" ? "Unlimited" : "50 calls"}</span>
+                        </div>
+                        <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
+                          <div 
+                            className="h-full bg-cyan-500" 
+                            style={{ width: `${profile?.plan === "premium" ? 100 : Math.min((stats.questions / 50) * 100, 100)}%` }} 
+                          />
+                        </div>
+                      </div>
+
+                      {/* Storage quota */}
+                      <div className="space-y-1">
+                        <div className="flex justify-between text-slate-500 text-[10px]">
+                          <span>Uploads capacity</span>
+                          <span className="text-slate-300 font-medium">{stats.documents} / {profile?.plan === "premium" ? "200 files" : "10 files"}</span>
+                        </div>
+                        <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
+                          <div 
+                            className="h-full bg-cyan-500" 
+                            style={{ width: `${profile?.plan === "premium" ? Math.min((stats.documents / 200) * 100, 100) : Math.min((stats.documents / 10) * 100, 100)}%` }} 
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {profile?.plan !== "premium" && (
+                      <Button className="w-full h-11 bg-cyan-500 text-slate-950 hover:bg-cyan-400 font-bold rounded-lg flex items-center justify-center gap-2">
+                        <Sparkles className="h-4 w-4" /> Upgrade to Premium Tier ($12/mo)
+                      </Button>
+                    )}
+                  </div>
+
+                  <div className="space-y-3">
+                    <h3 className="text-sm font-bold text-white">Invoices & Logs</h3>
+                    <div className="p-6 rounded-xl border border-white/5 bg-[#14161a] text-center text-xs text-slate-500">
+                      No invoices found. Standard accounts are created with free test plans.
+                    </div>
                   </div>
                 </div>
-              </div>
-            </div>
-          )}
+              )}
 
-          {activeTab === "stats" && (
-            <div className="space-y-6">
-              <div>
-                <h2 className="text-xl font-bold text-white">Performance statistics</h2>
-                <p className="text-xs text-slate-500 mt-1">Review live study aggregate data and user telemetry.</p>
-              </div>
-
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                {[
-                  { label: "Learning Streak", value: `${stats.streak} days`, desc: "Consecutive study days" },
-                  { label: "Questions Asked", value: stats.questions, desc: "Prompts sent to AI Tutor" },
-                  { label: "Documents Uploaded", value: stats.documents, desc: "Lecture slides & PDFs" },
-                  { label: "Study Sessions", value: stats.sessions, desc: "Total sessions generated" },
-                  { label: "Hours Studied", value: `${stats.hours.toFixed(1)} hrs`, desc: "Accumulated dashboard time" },
-                  { label: "Topics Learned", value: stats.sessions * 2, desc: "Concepts checked" },
-                ].map((stat) => (
-                  <div key={stat.label} className="p-4 rounded-xl border border-white/5 bg-[#14161a] space-y-1">
-                    <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">{stat.label}</span>
-                    <span className="text-2xl font-bold text-white block">{stat.value}</span>
-                    <span className="text-[10px] text-slate-500 block">{stat.desc}</span>
+              {activeTab === "security" && (
+                <div className="space-y-6">
+                  <div>
+                    <h2 className="text-xl font-bold text-white">Security & login access</h2>
+                    <p className="text-xs text-slate-500 mt-1">Configure passwords, change emails, or sign out active browser devices.</p>
                   </div>
-                ))}
-              </div>
-            </div>
-          )}
 
-          {activeTab === "support" && (
-            <div className="space-y-6">
-              <div>
-                <h2 className="text-xl font-bold text-white">Support & Community</h2>
-                <p className="text-xs text-slate-500 mt-1">Find tutorials, query support pipelines, or join social communities.</p>
-              </div>
+                  {/* Change email form */}
+                  <form onSubmit={handleUpdateEmail} className="p-5 rounded-xl border border-white/5 bg-[#14161a] space-y-4">
+                    <h3 className="text-sm font-bold text-white flex items-center gap-1.5">
+                      <Globe className="h-4 w-4 text-cyan-400" /> Change Login Email
+                    </h3>
 
-              {/* Actions Grid */}
-              <div className="grid grid-cols-2 gap-4">
-                <a 
-                  href="mailto:support@eduagentai.com?subject=Support Request" 
-                  className="p-4 rounded-xl border border-white/5 bg-[#14161a] hover:border-cyan-500/30 transition-colors block space-y-1"
-                >
-                  <span className="text-xs font-bold text-white block">Email Support</span>
-                  <span className="text-[10px] text-slate-500 block">Get direct troubleshooting help.</span>
-                </a>
-                <a 
-                  href="mailto:support@eduagentai.com?subject=Feature Request" 
-                  className="p-4 rounded-xl border border-white/5 bg-[#14161a] hover:border-cyan-500/30 transition-colors block space-y-1"
-                >
-                  <span className="text-xs font-bold text-white block">Request Feature</span>
-                  <span className="text-[10px] text-slate-500 block">Suggest extensions or abstractions.</span>
-                </a>
-              </div>
+                    {emailMessage && (
+                      <div className="flex items-center gap-2 p-3.5 rounded-xl border border-emerald-500/20 bg-emerald-500/5 text-xs text-emerald-300">
+                        <Check className="h-4 w-4 shrink-0" /> {emailMessage}
+                      </div>
+                    )}
+                    {emailError && (
+                      <div className="flex items-center gap-2 p-3.5 rounded-xl border border-red-500/20 bg-red-500/5 text-xs text-red-300">
+                        <AlertCircle className="h-4 w-4 shrink-0" /> {emailError}
+                      </div>
+                    )}
 
-              {/* FAQs */}
-              <div className="space-y-3">
-                <h3 className="text-sm font-bold text-white">Frequently Asked Questions</h3>
-                <div className="divide-y divide-white/5 border border-white/5 rounded-xl bg-[#14161a] px-4">
-                  {[
-                    { q: "How do I reset my statistics?", a: "To clear analytics metrics, please contact administrators via the support email." },
-                    { q: "Can I connect multiple Google accounts?", a: "No, a single profile identity is linked to one Google account at a time." },
-                    { q: "How do I upgrade to Pro?", a: "The Pro tier upgrade is currently in prototype mode. Click 'Upgrade' in billing to see options." }
-                  ].map((faq) => (
-                    <div key={faq.q} className="py-3 text-xs space-y-1">
-                      <span className="font-semibold text-slate-300 block">Q: {faq.q}</span>
-                      <span className="text-slate-500 block">A: {faq.a}</span>
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Current Email Address</label>
+                      <Input value={user?.email || ""} disabled className="bg-[#0d0f12] border-white/5 text-slate-500 h-11" />
                     </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
 
-          {activeTab === "about" && (
-            <div className="space-y-6">
-              <div>
-                <h2 className="text-xl font-bold text-white">Platform Information</h2>
-                <p className="text-xs text-slate-500 mt-1">Review deployment details and client release versions.</p>
-              </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">New Email Address</label>
+                      <Input 
+                        type="email" 
+                        placeholder="e.g. name@university.edu" 
+                        value={newEmail} 
+                        onChange={e => setNewEmail(e.target.value)} 
+                        className="bg-[#0d0f12] border-white/5 h-11" 
+                        disabled={updatingEmail}
+                        required
+                      />
+                    </div>
 
-              <div className="p-5 rounded-xl border border-white/5 bg-[#14161a] divide-y divide-white/5 text-xs">
-                <div className="py-2.5 flex justify-between">
-                  <span className="text-slate-500">EduAgent Version</span>
-                  <span className="text-white font-bold">v1.1.0-production</span>
-                </div>
-                <div className="py-2.5 flex justify-between">
-                  <span className="text-slate-500">Framework Runtime</span>
-                  <span className="text-white font-bold">Next.js 16.2 (Turbopack)</span>
-                </div>
-                <div className="py-2.5 flex justify-between">
-                  <span className="text-slate-500">Database & Auth</span>
-                  <span className="text-white font-bold">Supabase PostgreSQL 15</span>
-                </div>
-              </div>
+                    <Button type="submit" disabled={updatingEmail} className="bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold h-10 px-5 text-xs">
+                      {updatingEmail ? "Sending Links..." : "Change Email Address"}
+                    </Button>
+                  </form>
 
-              <div className="space-y-2.5">
-                <h3 className="text-sm font-bold text-white">Recent Release Notes</h3>
-                <div className="p-4 rounded-xl border border-white/5 bg-[#14161a]/60 text-xs text-slate-400 space-y-2 leading-relaxed">
-                  <p className="font-semibold text-white">July 2026 Updates:</p>
-                  <ul className="list-disc pl-4 space-y-1">
-                    <li>Added onboarding personalization wizard for custom AI prompt tutoring context.</li>
-                    <li>Introduced premium client accounts interface with settings, learning targets, and billing.</li>
-                    <li>Connected dynamic database metrics aggregates for real-time statistical calculations.</li>
-                  </ul>
+                  {/* Password Form */}
+                  <form onSubmit={handleChangePassword} className="p-5 rounded-xl border border-white/5 bg-[#14161a] space-y-4">
+                    <h3 className="text-sm font-bold text-white flex items-center gap-1.5">
+                      <Lock className="h-4 w-4 text-cyan-400" /> Create New Password
+                    </h3>
+
+                    {passwordSuccess && (
+                      <div className="flex items-center gap-2 p-3.5 rounded-xl border border-emerald-500/20 bg-emerald-500/5 text-xs text-emerald-300">
+                        <Check className="h-4 w-4 shrink-0" /> {passwordSuccess}
+                      </div>
+                    )}
+                    {passwordError && (
+                      <div className="flex items-center gap-2 p-3.5 rounded-xl border border-red-500/20 bg-red-500/5 text-xs text-red-300">
+                        <AlertCircle className="h-4 w-4 shrink-0" /> {passwordError}
+                      </div>
+                    )}
+
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">New Password</label>
+                      <div className="relative">
+                        <Input
+                          type={showNewPassword ? "text" : "password"}
+                          value={newPassword}
+                          onChange={e => setNewPassword(e.target.value)}
+                          className="bg-[#0d0f12] border-white/5 h-11 pr-10"
+                          disabled={updatingPassword}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowNewPassword(!showNewPassword)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+                        >
+                          {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Confirm New Password</label>
+                      <div className="relative">
+                        <Input
+                          type={showConfirmPassword ? "text" : "password"}
+                          value={confirmPassword}
+                          onChange={e => setConfirmPassword(e.target.value)}
+                          className="bg-[#0d0f12] border-white/5 h-11 pr-10"
+                          disabled={updatingPassword}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+                        >
+                          {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </button>
+                      </div>
+                    </div>
+
+                    <Button type="submit" disabled={updatingPassword} className="bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold h-10 px-5 text-xs">
+                      {updatingPassword ? "Updating..." : "Update Password"}
+                    </Button>
+                  </form>
+
+                  {/* Connected Accounts */}
+                  <div className="p-5 rounded-xl border border-white/5 bg-[#14161a] space-y-4">
+                    <h3 className="text-sm font-bold text-white flex items-center gap-1.5">
+                      <Monitor className="h-4 w-4 text-cyan-400" /> Active Session Info
+                    </h3>
+
+                    <div className="divide-y divide-white/5 text-xs">
+                      <div className="py-2.5 flex justify-between">
+                        <span className="text-slate-500">Authentication Method</span>
+                        <span className="text-white font-bold capitalize">{isGoogleConnected ? "Google sign-in" : "Email / Password"}</span>
+                      </div>
+                      <div className="py-2.5 flex justify-between">
+                        <span className="text-slate-500">OS Platform</span>
+                        <span className="text-white font-semibold">{currentDevice.os}</span>
+                      </div>
+                      <div className="py-2.5 flex justify-between">
+                        <span className="text-slate-500">Browser</span>
+                        <span className="text-white font-semibold">{currentDevice.browser}</span>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-2">
+                      <Button onClick={handleLogoutAllDevices} className="flex-1 bg-red-500/10 hover:bg-red-500/20 text-red-400 font-semibold border border-red-500/20 text-xs h-10 rounded-lg">
+                        Logout Everywhere
+                      </Button>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
+              )}
+
+              {activeTab === "stats" && (
+                <div className="space-y-6">
+                  <div>
+                    <h2 className="text-xl font-bold text-white">Performance metrics</h2>
+                    <p className="text-xs text-slate-500 mt-1">Review live study statistics and metrics compiled from the database.</p>
+                  </div>
+
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    {[
+                      { label: "Learning Streak", value: `${stats.streak} days`, desc: "Consecutive study days" },
+                      { label: "Questions Asked", value: stats.questions, desc: "Total chat tutor calls" },
+                      { label: "Files Uploaded", value: stats.documents, desc: "Materials indexed in RAG" },
+                      { label: "Study Workspaces", value: stats.sessions, desc: "Active workspace logs" },
+                      { label: "Hours Studied", value: `${stats.hours.toFixed(1)} hrs`, desc: "Total session elapsed hours" },
+                      { label: "Last Active", value: profile?.last_active ? new Date(profile.last_active).toLocaleDateString() : "Today", desc: "Profile metadata update" },
+                    ].map((stat) => (
+                      <div key={stat.label} className="p-4 rounded-xl border border-white/5 bg-[#14161a] space-y-1">
+                        <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">{stat.label}</span>
+                        <span className="text-2xl font-bold text-white block">{stat.value}</span>
+                        <span className="text-[10px] text-slate-500 block">{stat.desc}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {activeTab === "support" && (
+                <div className="space-y-8">
+                  <div>
+                    <h2 className="text-xl font-bold text-white">FAQ, Support & feedback</h2>
+                    <p className="text-xs text-slate-500 mt-1">Submit bug reports, register support tickets, and check helpdesk logs.</p>
+                  </div>
+
+                  {/* Support Form */}
+                  <form onSubmit={handleSubmitTicket} className="p-5 rounded-xl border border-white/5 bg-[#14161a] space-y-4">
+                    <h3 className="text-sm font-bold text-white flex items-center gap-1.5">
+                      <HelpCircle className="h-4 w-4 text-cyan-400" /> Create Support Ticket
+                    </h3>
+
+                    {ticketSuccess && (
+                      <div className="flex items-center gap-2 p-3.5 rounded-xl border border-emerald-500/20 bg-emerald-500/5 text-xs text-emerald-300">
+                        <Check className="h-4 w-4 shrink-0" /> {ticketSuccess}
+                      </div>
+                    )}
+
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Subject</label>
+                      <Input
+                        placeholder="What problem are you facing?"
+                        value={ticketSubject}
+                        onChange={e => setTicketSubject(e.target.value)}
+                        className="bg-[#0d0f12] border-white/5 h-11"
+                        required
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Message Description</label>
+                      <textarea
+                        rows={4}
+                        placeholder="Detail your request..."
+                        value={ticketMessage}
+                        onChange={e => setTicketMessage(e.target.value)}
+                        className="w-full p-3 rounded-lg border border-white/5 bg-[#0d0f12] text-xs focus:outline-none focus:border-cyan-500/50"
+                        required
+                      />
+                    </div>
+
+                    <Button type="submit" disabled={submittingTicket} className="bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold h-10 px-5 text-xs">
+                      {submittingTicket ? "Submitting..." : "Submit Support Ticket"}
+                    </Button>
+                  </form>
+
+                  {/* Feedback Form */}
+                  <form onSubmit={handleSubmitFeedback} className="p-5 rounded-xl border border-white/5 bg-[#14161a] space-y-4">
+                    <h3 className="text-sm font-bold text-white flex items-center gap-1.5">
+                      <MessageSquare className="h-4 w-4 text-cyan-400" /> Platform Feedback
+                    </h3>
+
+                    {feedbackSuccess && (
+                      <div className="flex items-center gap-2 p-3.5 rounded-xl border border-emerald-500/20 bg-emerald-500/5 text-xs text-emerald-300">
+                        <Check className="h-4 w-4 shrink-0" /> {feedbackSuccess}
+                      </div>
+                    )}
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Feedback Type</label>
+                        <select value={feedbackType} onChange={e => setFeedbackType(e.target.value as any)} className="w-full h-11 px-3 bg-[#0d0f12] border border-white/5 rounded-lg text-xs">
+                          <option value="general">General Feedback</option>
+                          <option value="bug">Report a Bug</option>
+                          <option value="feature">Request a Feature</option>
+                        </select>
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Rating (1-5)</label>
+                        <select value={feedbackRating} onChange={e => setFeedbackRating(Number(e.target.value))} className="w-full h-11 px-3 bg-[#0d0f12] border border-white/5 rounded-lg text-xs">
+                          <option value={5}>⭐⭐⭐⭐⭐ (Excellent)</option>
+                          <option value={4}>⭐⭐⭐⭐ (Good)</option>
+                          <option value={3}>⭐⭐⭐ (Average)</option>
+                          <option value={2}>⭐⭐ (Poor)</option>
+                          <option value={1}>⭐ (Terrible)</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Your Comments</label>
+                      <textarea
+                        rows={3}
+                        placeholder="Help us improve EduAgent..."
+                        value={feedbackMsg}
+                        onChange={e => setFeedbackMsg(e.target.value)}
+                        className="w-full p-3 rounded-lg border border-white/5 bg-[#0d0f12] text-xs focus:outline-none focus:border-cyan-500/50"
+                        required
+                      />
+                    </div>
+
+                    <Button type="submit" disabled={submittingFeedback} className="bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold h-10 px-5 text-xs">
+                      {submittingFeedback ? "Sending..." : "Submit Feedback"}
+                    </Button>
+                  </form>
+
+                  {/* Active Support Tickets */}
+                  <div className="space-y-3">
+                    <h3 className="text-sm font-bold text-white">Your Submitted Tickets ({tickets.length})</h3>
+                    {tickets.length === 0 ? (
+                      <p className="text-[10px] text-slate-500 italic">No tickets submitted.</p>
+                    ) : (
+                      <div className="divide-y divide-white/5 border border-white/5 rounded-xl bg-[#14161a] overflow-hidden">
+                        {tickets.map((t: any) => (
+                          <div key={t.id} className="p-4 flex justify-between items-start gap-4 text-xs">
+                            <div className="space-y-1">
+                              <span className="font-semibold text-white block">{t.subject}</span>
+                              <p className="text-slate-400 text-[10px]">{t.message}</p>
+                              <span className="text-[9px] text-slate-500 block">{new Date(t.created_at).toLocaleDateString()}</span>
+                            </div>
+                            <span className={`px-2 py-0.5 rounded text-[9px] font-bold capitalize ${
+                              t.status === "resolved" ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" :
+                              t.status === "pending" ? "bg-yellow-500/10 text-yellow-400 border border-yellow-500/20" :
+                              "bg-cyan-500/10 text-cyan-400 border border-cyan-500/20"
+                            }`}>{t.status}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {activeTab === "about" && (
+                <div className="space-y-6">
+                  <div>
+                    <h2 className="text-xl font-bold text-white">Version and Changelog</h2>
+                    <p className="text-xs text-slate-500 mt-1">Deployment metrics and client release schedules.</p>
+                  </div>
+
+                  <div className="p-5 rounded-xl border border-white/5 bg-[#14161a] divide-y divide-white/5 text-xs">
+                    <div className="py-2.5 flex justify-between">
+                      <span className="text-slate-500">EduAgent Client Version</span>
+                      <span className="text-white font-bold">v1.2.0-stable</span>
+                    </div>
+                    <div className="py-2.5 flex justify-between">
+                      <span className="text-slate-500">SaaS Framework Core</span>
+                      <span className="text-white font-semibold">Next.js 16 (Turbopack)</span>
+                    </div>
+                    <div className="py-2.5 flex justify-between">
+                      <span className="text-slate-500">Active Database Schema</span>
+                      <span className="text-white font-semibold">Supabase PostgreSQL 15</span>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <h3 className="text-sm font-bold text-white">Changelog Updates</h3>
+                    <div className="p-5 rounded-xl border border-white/5 bg-[#14161a]/60 text-xs text-slate-400 space-y-3 leading-relaxed">
+                      <div>
+                        <span className="font-bold text-white block mb-1">Release v1.2.0 (Stable Edition)</span>
+                        <ul className="list-disc pl-4 space-y-1">
+                          <li>Redesigned account configurations and user profile data fields.</li>
+                          <li>Connected support tickets queues and client feedback databases.</li>
+                          <li>Enabled live student aggregate telemetry grids.</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>

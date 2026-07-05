@@ -1,7 +1,19 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Loader2, MoreVertical, Search, ShieldCheck, UserX, Users, ShieldAlert } from "lucide-react";
+import { 
+  Loader2, 
+  MoreVertical, 
+  Search, 
+  ShieldCheck, 
+  UserX, 
+  Users, 
+  ShieldAlert, 
+  Download,
+  AlertOctagon,
+  UserCheck,
+  Trash2
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { UserDetailDrawer } from "./UserDetailDrawer";
@@ -18,14 +30,28 @@ type UserRecord = {
   total_messages: number;
   documents_uploaded: number;
   current_plan: string;
+  institution?: string;
+  department?: string;
+  country?: string;
 };
 
 export function UsersTab() {
   const [users, setUsers] = useState<UserRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  // Filtering States
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
+  
   const [planFilter, setPlanFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
+  
+  const [institutionFilter, setInstitutionFilter] = useState("");
+  const [debouncedInstitution, setDebouncedInstitution] = useState("");
+  
+  const [departmentFilter, setDepartmentFilter] = useState("");
+  const [debouncedDepartment, setDebouncedDepartment] = useState("");
+
   const [page, setPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const limit = 10;
@@ -43,11 +69,29 @@ export function UsersTab() {
     return () => clearTimeout(handler);
   }, [searchQuery]);
 
+  // Debounce institution filter
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedInstitution(institutionFilter);
+      setPage(1);
+    }, 450);
+    return () => clearTimeout(handler);
+  }, [institutionFilter]);
+
+  // Debounce department filter
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedDepartment(departmentFilter);
+      setPage(1);
+    }, 450);
+    return () => clearTimeout(handler);
+  }, [departmentFilter]);
+
   const fetchUsers = async () => {
     try {
       setLoading(true);
       const res = await fetch(
-        `/api/admin/users?search=${encodeURIComponent(debouncedSearch)}&plan=${planFilter}&page=${page}&limit=${limit}`
+        `/api/admin/users?search=${encodeURIComponent(debouncedSearch)}&plan=${planFilter}&status=${statusFilter}&institution=${encodeURIComponent(debouncedInstitution)}&department=${encodeURIComponent(debouncedDepartment)}&page=${page}&limit=${limit}`
       );
       const json = await res.json();
       if (json.success && Array.isArray(json.data)) {
@@ -67,29 +111,63 @@ export function UsersTab() {
 
   useEffect(() => {
     void fetchUsers();
-  }, [debouncedSearch, planFilter, page]);
+  }, [debouncedSearch, planFilter, statusFilter, debouncedInstitution, debouncedDepartment, page]);
 
-  const handleToggleAdmin = async (userId: string, currentStatus: string) => {
+  const handleUserAction = async (userId: string, action: "suspend" | "restore" | "delete" | "change-role", value?: string) => {
+    if (action === "delete") {
+      const confirmDelete = window.confirm("Are you sure you want to permanently delete this user? This action is irreversible.");
+      if (!confirmDelete) return;
+    }
+
     try {
       setTogglingUserId(userId);
-      const action = currentStatus === "Admin" ? "remove" : "add";
-      const res = await fetch("/api/admin/toggle-admin", {
+      const res = await fetch(`/api/admin/users/${userId}/actions`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ targetUserId: userId, action }),
+        body: JSON.stringify({ action, value })
       });
       const data = await res.json();
       if (data.success) {
         await fetchUsers();
       } else {
-        alert(data.error || "Failed to update user role");
+        alert(data.error || `Failed to perform ${action}`);
       }
     } catch (err) {
-      console.error("[users-tab] Error toggling admin role:", err);
+      console.error(`[users-tab] Error performing ${action}:`, err);
     } finally {
       setTogglingUserId(null);
       setActionMenuOpen(null);
     }
+  };
+
+  // Client-side CSV export
+  const handleExportCSV = () => {
+    if (users.length === 0) return;
+    const headers = ["ID", "Name", "Email", "Provider", "Joined Date", "Last Login", "Status", "Sessions", "Messages", "Uploads", "Plan", "Institution", "Department"];
+    const rows = users.map(u => [
+      u.id,
+      u.name,
+      u.email,
+      u.provider,
+      u.joined_date,
+      u.last_login || "Never",
+      u.status,
+      u.total_sessions,
+      u.total_messages,
+      u.documents_uploaded,
+      u.current_plan,
+      u.institution || "",
+      u.department || ""
+    ]);
+    const csvContent = "data:text/csv;charset=utf-8," 
+      + [headers.join(","), ...rows.map(e => e.map(val => `"${String(val).replace(/"/g, '""')}"`).join(","))].join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `eduagent_users_export_${new Date().toISOString().slice(0,10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const totalPages = Math.ceil(totalCount / limit) || 1;
@@ -105,32 +183,66 @@ export function UsersTab() {
             Search, filter, and audit user permissions or check their platform interaction metrics.
           </p>
         </div>
+        <Button onClick={handleExportCSV} className="h-9 text-xs font-semibold bg-cyan-500 hover:bg-cyan-600 text-black flex items-center gap-1.5 shadow-md">
+          <Download className="h-4 w-4" /> Export CSV
+        </Button>
       </div>
 
       {/* Control Bar: Search and Filters */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1">
+      <div className="flex flex-col gap-3">
+        <div className="relative w-full">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
           <Input
             type="text"
             placeholder="Search users by name or email address..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10 h-10 bg-[#141414] border-white/5 rounded-xl text-white placeholder-slate-500 focus-visible:ring-cyan-500/30"
+            className="pl-10 h-10 bg-[#141414] border-white/5 rounded-xl text-white placeholder-slate-500 focus-visible:ring-cyan-500/30 w-full"
           />
         </div>
-        <select
-          value={planFilter}
-          onChange={(e) => {
-            setPlanFilter(e.target.value);
-            setPage(1);
-          }}
-          className="h-10 px-4 rounded-xl border border-white/5 bg-[#141414] text-xs font-semibold text-slate-300 focus:outline-none focus:border-cyan-500/30 cursor-pointer"
-        >
-          <option value="all">All Plans</option>
-          <option value="free">Free Tier</option>
-          <option value="premium">Premium Tier</option>
-        </select>
+
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <select
+            value={planFilter}
+            onChange={(e) => {
+              setPlanFilter(e.target.value);
+              setPage(1);
+            }}
+            className="h-10 px-4 rounded-xl border border-white/5 bg-[#141414] text-xs font-semibold text-slate-300 focus:outline-none focus:border-cyan-500/30 cursor-pointer w-full"
+          >
+            <option value="all">All Plans</option>
+            <option value="free">Free Tier</option>
+            <option value="premium">Premium Tier</option>
+          </select>
+
+          <select
+            value={statusFilter}
+            onChange={(e) => {
+              setStatusFilter(e.target.value);
+              setPage(1);
+            }}
+            className="h-10 px-4 rounded-xl border border-white/5 bg-[#141414] text-xs font-semibold text-slate-300 focus:outline-none focus:border-cyan-500/30 cursor-pointer w-full"
+          >
+            <option value="all">All Statuses</option>
+            <option value="Active">Active</option>
+            <option value="Admin">Admin</option>
+            <option value="Suspended">Suspended</option>
+          </select>
+
+          <Input
+            placeholder="Filter by school..."
+            value={institutionFilter}
+            onChange={(e) => setInstitutionFilter(e.target.value)}
+            className="h-10 bg-[#141414] border-white/5 rounded-xl text-white placeholder-slate-500 text-xs w-full"
+          />
+
+          <Input
+            placeholder="Filter by course..."
+            value={departmentFilter}
+            onChange={(e) => setDepartmentFilter(e.target.value)}
+            className="h-10 bg-[#141414] border-white/5 rounded-xl text-white placeholder-slate-500 text-xs w-full"
+          />
+        </div>
       </div>
 
       {/* Table grid */}
@@ -186,7 +298,9 @@ export function UsersTab() {
                   </td>
                   <td className="p-4 text-center">
                     <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-semibold ${
-                      u.status === "Admin" ? "bg-cyan-500/10 text-cyan-400 border border-cyan-500/20" : "bg-emerald-500/10 text-emerald-400"
+                      u.status === "Admin" ? "bg-cyan-500/10 text-cyan-400 border border-cyan-500/20" :
+                      u.status === "Suspended" ? "bg-red-500/10 text-red-400 border border-red-500/20" :
+                      "bg-emerald-500/10 text-emerald-400"
                     }`}>
                       {u.status}
                     </span>
@@ -213,29 +327,51 @@ export function UsersTab() {
                       )}
                     </button>
                     {actionMenuOpen === u.id && (
-                      <div className="absolute right-12 top-2 z-10 w-44 rounded-xl border border-white/10 bg-[#1c1c1e] p-1 shadow-2xl text-left">
+                      <div className="absolute right-12 top-2 z-10 w-44 rounded-xl border border-white/10 bg-[#1c1c1e] p-1 shadow-2xl text-left space-y-0.5">
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleToggleAdmin(u.id, u.status);
+                            const nextRole = u.status === "Admin" ? "user" : "admin";
+                            handleUserAction(u.id, "change-role", nextRole);
                           }}
                           className="w-full px-3 py-2 text-xs rounded-lg text-slate-200 hover:bg-white/5 flex items-center gap-2 font-medium"
                         >
                           {u.status === "Admin" ? (
                             <>
-                              <ShieldAlert className="h-3.5 w-3.5 text-yellow-500" /> Remove Admin
+                              <ShieldAlert className="h-3.5 w-3.5 text-yellow-500" /> Demote User
                             </>
                           ) : (
                             <>
-                              <ShieldCheck className="h-3.5 w-3.5 text-cyan-400" /> Make Admin
+                              <ShieldCheck className="h-3.5 w-3.5 text-cyan-400" /> Promote to Admin
+                            </>
+                          )}
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const nextAct = u.status === "Suspended" ? "restore" : "suspend";
+                            handleUserAction(u.id, nextAct);
+                          }}
+                          className="w-full px-3 py-2 text-xs rounded-lg text-slate-200 hover:bg-white/5 flex items-center gap-2 font-medium"
+                        >
+                          {u.status === "Suspended" ? (
+                            <>
+                              <UserCheck className="h-3.5 w-3.5 text-emerald-400" /> Restore Access
+                            </>
+                          ) : (
+                            <>
+                              <AlertOctagon className="h-3.5 w-3.5 text-red-500" /> Suspend User
                             </>
                           )}
                         </button>
                         <button 
-                          onClick={(e) => e.stopPropagation()}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleUserAction(u.id, "delete");
+                          }}
                           className="w-full px-3 py-2 text-xs rounded-lg text-red-400 hover:bg-red-500/10 flex items-center gap-2 font-medium"
                         >
-                          <UserX className="h-3.5 w-3.5 text-red-500" /> Ban User
+                          <Trash2 className="h-3.5 w-3.5 text-red-500" /> Delete User
                         </button>
                       </div>
                     )}

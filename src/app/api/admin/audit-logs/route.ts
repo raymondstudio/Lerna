@@ -24,35 +24,36 @@ export async function GET(req: Request) {
   }
 
   try {
-    const { searchParams } = new URL(req.url);
-    const search = searchParams.get("search") || "";
-    const plan = searchParams.get("plan") || "all";
-    const status = searchParams.get("status") || "all";
-    const institution = searchParams.get("institution") || "all";
-    const department = searchParams.get("department") || "all";
-    const page = parseInt(searchParams.get("page") || "1");
-    const limit = parseInt(searchParams.get("limit") || "10");
-    const offset = (page - 1) * limit;
+    const { data: logs, error } = await supabase
+      .from("audit_logs")
+      .select(`
+        id,
+        action,
+        details,
+        created_at,
+        profiles (
+          email,
+          first_name,
+          last_name
+        )
+      `)
+      .order("created_at", { ascending: false })
+      .limit(100);
 
-    const { data, error } = await supabase.rpc("get_admin_users", {
-      search_query: search,
-      filter_plan: plan,
-      filter_institution: institution,
-      filter_department: department,
-      filter_status: status,
-      page_offset: offset,
-      page_limit: limit,
-    });
+    if (error) throw error;
 
-    if (error) {
-      console.error("[api:admin:users] RPC failed:", error.message);
-      return NextResponse.json({ success: false, error: error.message }, { status: 500 });
-    }
+    const formatted = logs.map((l: any) => ({
+      id: l.id,
+      action: l.action,
+      details: l.details,
+      created_at: l.created_at,
+      user_email: l.profiles?.email || "system",
+      user_name: l.profiles ? `${l.profiles.first_name || ""} ${l.profiles.last_name || ""}`.trim() : "System"
+    }));
 
-    return NextResponse.json({ success: true, data });
+    return NextResponse.json({ success: true, data: formatted });
   } catch (err) {
-    console.error("[api:admin:users] Exception:", err);
+    console.error("[api:admin:audit-logs:GET] Exception:", err);
     return NextResponse.json({ success: false, error: String(err) }, { status: 500 });
   }
 }
-

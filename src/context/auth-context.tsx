@@ -22,6 +22,8 @@ export type AuthContextValue = {
   signUp: (credentials: SignUpCredentials) => Promise<{ needsEmailConfirmation: boolean }>;
   signOut: () => Promise<void>;
   signInWithProvider?: (provider: string, redirectTo?: string) => Promise<void>;
+  profile: any | null;
+  refreshProfile: () => Promise<void>;
 };
 
 export const AuthContext = createContext<AuthContextValue | undefined>(undefined);

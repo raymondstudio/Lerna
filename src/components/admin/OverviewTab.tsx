@@ -31,6 +31,9 @@ type KpiStats = {
   aiCost: number;
   revenue: number;
   premiumUsers: number;
+  countries: Array<{ label: string; value: number }>;
+  universities: Array<{ label: string; value: number }>;
+  departments: Array<{ label: string; value: number }>;
 };
 
 type LiveEvent = {
@@ -54,6 +57,9 @@ export function OverviewTab() {
     aiCost: 0.045,
     revenue: 0,
     premiumUsers: 0,
+    countries: [],
+    universities: [],
+    departments: []
   });
 
   const [events, setEvents] = useState<LiveEvent[]>([]);
@@ -78,10 +84,13 @@ export function OverviewTab() {
           aiCost: s.ai_cost || 0,
           revenue: s.revenue || 0,
           premiumUsers: s.premium_users || 0,
+          countries: s.countries || [],
+          universities: s.universities || [],
+          departments: s.departments || []
         });
       }
     } catch (err) {
-      console.warn("[overview] Failed to fetch live KPI stats, using mockup defaults:", err);
+      console.warn("[overview] Failed to fetch live KPI stats:", err);
     } finally {
       setLoading(false);
     }
@@ -214,8 +223,8 @@ export function OverviewTab() {
     
     { name: "AI Requests", value: stats.aiRequests, icon: Cpu, desc: "Total Gemini calls" },
     { name: "Estimated AI Cost", value: `$${stats.aiCost.toFixed(4)}`, icon: Coins, desc: "USD equivalent token cost" },
-    { name: "Revenue", value: `$${stats.revenue.toFixed(2)}`, icon: Coins, desc: "Subscription earnings (Placeholder)", highlight: true },
-    { name: "Premium Users", value: stats.premiumUsers, icon: Users, desc: "Paid accounts (Placeholder)", highlight: true },
+    { name: "Revenue", value: `$${stats.revenue.toFixed(2)}`, icon: Coins, desc: "Subscription earnings", highlight: true },
+    { name: "Premium Users", value: stats.premiumUsers, icon: Users, desc: "Paid premium accounts", highlight: true },
   ];
 
   return (
@@ -255,7 +264,7 @@ export function OverviewTab() {
           <div className="space-y-1">
             <span className="text-[10px] text-slate-500 uppercase tracking-widest block font-semibold">Most Active University</span>
             <div className="text-base font-bold text-cyan-400 flex items-center gap-1.5">
-              <GraduationCap className="h-4 w-4" /> Stanford University
+              <GraduationCap className="h-4 w-4" /> {stats.universities[0]?.label || "N/A"}
             </div>
           </div>
         </div>
@@ -297,7 +306,7 @@ export function OverviewTab() {
         })}
       </div>
 
-      {/* Live activity feed & graphs */}
+      {/* Live activity feed & Demographics */}
       <div className="grid gap-6 md:grid-cols-3">
         {/* Real-time Activity feed panel */}
         <div className="p-6 rounded-2xl border border-white/5 bg-[#141414]/50 backdrop-blur-md space-y-4 md:col-span-1">
@@ -348,7 +357,7 @@ export function OverviewTab() {
                 stroke="#06b6d4"
                 strokeWidth="2.5"
                 strokeLinecap="round"
-              />
+               />
               <path
                 d="M 0,110 C 50,85 100,95 150,55 C 200,65 250,30 300,45 C 350,15 400,10 400,10 L 400,120 L 0,120 Z"
                 fill="url(#chartGradient)"
@@ -366,6 +375,61 @@ export function OverviewTab() {
           </div>
         </div>
       </div>
+
+      {/* Demographics Distributions Row */}
+      <div className="grid gap-6 md:grid-cols-3">
+        {/* Universities Card */}
+        <div className="p-6 rounded-2xl border border-white/5 bg-[#141414]/50 backdrop-blur-md space-y-4">
+          <h3 className="text-sm font-semibold text-white">Active Universities</h3>
+          <div className="space-y-2 text-xs">
+            {stats.universities.length === 0 ? (
+              <p className="text-slate-500 italic">No university metrics recorded.</p>
+            ) : (
+              stats.universities.map(u => (
+                <div key={u.label} className="flex justify-between items-center bg-[#0a0a0a]/30 p-2 rounded-lg">
+                  <span className="text-slate-300 font-medium truncate max-w-[180px]">{u.label || "Direct"}</span>
+                  <span className="text-cyan-400 font-bold">{u.value} users</span>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        {/* Departments Card */}
+        <div className="p-6 rounded-2xl border border-white/5 bg-[#141414]/50 backdrop-blur-md space-y-4">
+          <h3 className="text-sm font-semibold text-white">Course Departments</h3>
+          <div className="space-y-2 text-xs">
+            {stats.departments.length === 0 ? (
+              <p className="text-slate-500 italic">No department metrics recorded.</p>
+            ) : (
+              stats.departments.map(d => (
+                <div key={d.label} className="flex justify-between items-center bg-[#0a0a0a]/30 p-2 rounded-lg">
+                  <span className="text-slate-300 font-medium truncate max-w-[180px]">{d.label}</span>
+                  <span className="text-cyan-400 font-bold">{d.value} users</span>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        {/* Countries Card */}
+        <div className="p-6 rounded-2xl border border-white/5 bg-[#141414]/50 backdrop-blur-md space-y-4">
+          <h3 className="text-sm font-semibold text-white">Geographic Demographics</h3>
+          <div className="space-y-2 text-xs">
+            {stats.countries.length === 0 ? (
+              <p className="text-slate-500 italic">No geographic metrics recorded.</p>
+            ) : (
+              stats.countries.map(c => (
+                <div key={c.label} className="flex justify-between items-center bg-[#0a0a0a]/30 p-2 rounded-lg">
+                  <span className="text-slate-300 font-medium">{c.label}</span>
+                  <span className="text-cyan-400 font-bold">{c.value} users</span>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      </div>
+
     </div>
   );
 }

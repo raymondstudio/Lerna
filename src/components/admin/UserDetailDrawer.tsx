@@ -1,12 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Loader2, X, User, Calendar, Cpu, FolderOpen, Globe, Laptop, HelpCircle, GraduationCap, Coins } from "lucide-react";
+import { Loader2, X, User, Calendar, Cpu, FolderOpen, Globe, Laptop, HelpCircle, GraduationCap, Coins, MessageSquare, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 type UserDetails = {
   profile: {
     id: string;
+    firstName?: string;
+    lastName?: string;
     name: string;
     email: string;
     provider: string;
@@ -15,6 +17,18 @@ type UserDetails = {
     status: string;
     device: string;
     subscriptionStatus: string;
+    gender?: string;
+    age?: number;
+    isStudent?: boolean;
+    institution?: string;
+    department?: string;
+    studyLevel?: string;
+    studyGoals?: string[];
+  };
+  preferences?: {
+    teachingStyle?: string;
+    preferredQuizFormat?: string;
+    preferredLanguage?: string;
   };
   attribution: {
     utm_source: string | null;
@@ -33,6 +47,26 @@ type UserDetails = {
     id: string;
     file_name: string;
     file_type: string;
+    created_at: string;
+  }>;
+  supportTickets?: Array<{
+    id: string;
+    subject: string;
+    message: string;
+    status: string;
+    created_at: string;
+  }>;
+  feedback?: Array<{
+    id: string;
+    type: string;
+    message: string;
+    rating: number;
+    created_at: string;
+  }>;
+  loginHistory?: Array<{
+    id: string;
+    path: string;
+    user_agent: string;
     created_at: string;
   }>;
   aiUsage: {
@@ -110,10 +144,18 @@ export function UserDetailDrawer({ userId, onClose }: { userId: string; onClose:
               <div className="p-4 rounded-xl border border-white/5 bg-[#0a0a0a]/30 space-y-3">
                 <div className="flex justify-between items-start gap-4">
                   <div>
-                    <h4 className="text-base font-bold text-white leading-tight">{data.profile.name}</h4>
+                    <h4 className="text-base font-bold text-white leading-tight">
+                      {data.profile.firstName || data.profile.lastName 
+                        ? `${data.profile.firstName || ""} ${data.profile.lastName || ""}`.trim() 
+                        : data.profile.name}
+                    </h4>
                     <span className="text-slate-500 font-mono text-[11px] block mt-0.5">{data.profile.email}</span>
                   </div>
-                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
+                  <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-semibold ${
+                    data.profile.status === "Admin" ? "bg-cyan-500/10 text-cyan-400 border border-cyan-500/20" :
+                    data.profile.status === "Suspended" ? "bg-red-500/10 text-red-400 border border-red-500/20" :
+                    "bg-emerald-500/10 text-emerald-400"
+                  }`}>
                     {data.profile.status}
                   </span>
                 </div>
@@ -123,8 +165,28 @@ export function UserDetailDrawer({ userId, onClose }: { userId: string; onClose:
                   <div>Last Login: <strong>{new Date(data.profile.lastLogin).toLocaleDateString()}</strong></div>
                   <div>Provider: <strong className="capitalize">{data.profile.provider}</strong></div>
                   <div>Device: <strong>{data.profile.device}</strong></div>
+                  <div>Age: <strong>{data.profile.age || "N/A"}</strong></div>
+                  <div>Gender: <strong>{data.profile.gender || "N/A"}</strong></div>
+                  <div>Student: <strong>{data.profile.isStudent ? "Yes" : "No"}</strong></div>
+                  <div>Level: <strong>{data.profile.studyLevel || "N/A"}</strong></div>
+                  <div className="col-span-2 truncate">School: <strong>{data.profile.institution || "N/A"} ({data.profile.department || "N/A"})</strong></div>
+                  <div className="col-span-2 truncate">Goals: <strong>{data.profile.studyGoals?.join(", ") || "N/A"}</strong></div>
                 </div>
               </div>
+
+              {/* Preferences Block */}
+              {data.preferences && (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-1.5 text-slate-400 font-semibold border-b border-white/5 pb-1.5">
+                    <Laptop className="h-4 w-4 text-cyan-400" /> Learning Settings
+                  </div>
+                  <div className="grid grid-cols-2 gap-3 p-3 bg-[#0a0a0a]/20 border border-white/5 rounded-xl text-[10px] text-slate-400">
+                    <div>Teaching style: <strong className="text-white">{data.preferences.teachingStyle || "Intermediate"}</strong></div>
+                    <div>Quiz Format: <strong className="text-white">{data.preferences.preferredQuizFormat || "Mixed"}</strong></div>
+                    <div className="col-span-2">Language: <strong className="text-white">{data.preferences.preferredLanguage || "English"}</strong></div>
+                  </div>
+                </div>
+              )}
 
               {/* KPI metrics */}
               <div className="grid grid-cols-3 gap-2.5">
@@ -167,6 +229,73 @@ export function UserDetailDrawer({ userId, onClose }: { userId: string; onClose:
                 )}
               </div>
 
+              {/* Support Tickets Section */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-1.5 text-slate-400 font-semibold border-b border-white/5 pb-1.5">
+                  <HelpCircle className="h-4 w-4 text-cyan-400" /> Helpdesk Tickets ({data.supportTickets?.length || 0})
+                </div>
+                {data.supportTickets && data.supportTickets.length > 0 ? (
+                  <div className="space-y-1.5 max-h-[120px] overflow-y-auto pr-1">
+                    {data.supportTickets.map((t) => (
+                      <div key={t.id} className="p-2.5 rounded-lg bg-[#0a0a0a]/40 border border-white/5 flex items-center justify-between text-[10px]">
+                        <div className="truncate max-w-[280px]">
+                          <span className="font-semibold text-white block">{t.subject}</span>
+                          <span className="text-slate-500 font-mono">{t.message.slice(0, 50)}...</span>
+                        </div>
+                        <span className={`px-2 py-0.5 rounded text-[8px] font-bold uppercase ${
+                          t.status === "resolved" ? "bg-emerald-500/10 text-emerald-400" :
+                          t.status === "pending" ? "bg-yellow-500/10 text-yellow-400" :
+                          "bg-cyan-500/10 text-cyan-400"
+                        }`}>{t.status}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-[10px] text-slate-500 italic">No support tickets submitted.</p>
+                )}
+              </div>
+
+              {/* User Feedback Section */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-1.5 text-slate-400 font-semibold border-b border-white/5 pb-1.5">
+                  <MessageSquare className="h-4 w-4 text-cyan-400" /> Feedback Reviews ({data.feedback?.length || 0})
+                </div>
+                {data.feedback && data.feedback.length > 0 ? (
+                  <div className="space-y-1.5 max-h-[120px] overflow-y-auto pr-1">
+                    {data.feedback.map((f) => (
+                      <div key={f.id} className="p-2.5 rounded-lg bg-[#0a0a0a]/40 border border-white/5 space-y-1 text-[10px]">
+                        <div className="flex justify-between font-bold text-yellow-400">
+                          <span>{"★".repeat(f.rating)}</span>
+                          <span className="text-[8px] px-1.5 py-0.5 bg-white/5 rounded text-slate-400 uppercase">{f.type}</span>
+                        </div>
+                        <p className="text-slate-300 italic">"{f.message}"</p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-[10px] text-slate-500 italic">No feedback entries.</p>
+                )}
+              </div>
+
+              {/* Login History Section */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-1.5 text-slate-400 font-semibold border-b border-white/5 pb-1.5">
+                  <ShieldAlert className="h-4 w-4 text-cyan-400" /> Recent Page Views (Login Logs)
+                </div>
+                {data.loginHistory && data.loginHistory.length > 0 ? (
+                  <div className="space-y-1 max-h-[120px] overflow-y-auto pr-1 font-mono text-[9px] text-slate-500">
+                    {data.loginHistory.map((l) => (
+                      <div key={l.id} className="flex justify-between p-1 hover:bg-white/[0.02] rounded">
+                        <span className="truncate max-w-[250px]">{l.path}</span>
+                        <span>{new Date(l.created_at).toLocaleString()}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-[10px] text-slate-500 italic">No access logs.</p>
+                )}
+              </div>
+
               {/* AI Compute details */}
               <div className="space-y-2">
                 <div className="flex items-center gap-1.5 text-slate-400 font-semibold border-b border-white/5 pb-1.5">
@@ -196,7 +325,7 @@ export function UserDetailDrawer({ userId, onClose }: { userId: string; onClose:
                 {data.sessions.length === 0 ? (
                   <p className="text-[10px] text-slate-500 italic">No active workspaces.</p>
                 ) : (
-                  <div className="space-y-1.5 max-h-[150px] overflow-y-auto pr-1">
+                  <div className="space-y-1.5 max-h-[120px] overflow-y-auto pr-1">
                     {data.sessions.map((s) => (
                       <div key={s.id} className="p-2.5 rounded-lg bg-[#0a0a0a]/40 border border-white/5 flex items-center justify-between text-[11px]">
                         <span className="font-semibold text-white truncate max-w-[250px]">{s.title || "Untitled Session"}</span>
@@ -217,7 +346,7 @@ export function UserDetailDrawer({ userId, onClose }: { userId: string; onClose:
                 {data.uploads.length === 0 ? (
                   <p className="text-[10px] text-slate-500 italic">No scanned files.</p>
                 ) : (
-                  <div className="space-y-1.5 max-h-[150px] overflow-y-auto pr-1">
+                  <div className="space-y-1.5 max-h-[120px] overflow-y-auto pr-1">
                     {data.uploads.map((u) => (
                       <div key={u.id} className="p-2.5 rounded-lg bg-[#0a0a0a]/40 border border-white/5 flex items-center justify-between text-[11px]">
                         <span className="font-medium text-white truncate max-w-[300px]">{u.file_name}</span>

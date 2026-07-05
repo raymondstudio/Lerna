@@ -15,6 +15,30 @@ export function AuthProvider({ children, initialSession }: { children: ReactNode
   const [session, setSession] = useState<Session | null>(initialSession ?? null);
   const [loading, setLoading] = useState(!initialSession);
   const [error, setError] = useState<string | null>(null);
+  const [profile, setProfile] = useState<any | null>(null);
+
+  const refreshProfile = async () => {
+    if (!supabase || !session?.user) {
+      setProfile(null);
+      return;
+    }
+    try {
+      const { data, error: profileError } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", session.user.id)
+        .single();
+      if (!profileError && data) {
+        setProfile(data);
+      }
+    } catch (err) {
+      console.warn("[auth:provider] Failed to fetch profile:", err);
+    }
+  };
+
+  useEffect(() => {
+    void refreshProfile();
+  }, [session, supabase]);
 
   useEffect(() => {
     if (!supabase) {
@@ -70,25 +94,34 @@ export function AuthProvider({ children, initialSession }: { children: ReactNode
   useEffect(() => {
     if (!supabase || !session?.user) return;
 
-    const isIgnoredRoute = 
-      pathname === "/onboarding" || 
-      pathname === "/" || 
-      pathname.startsWith("/auth/");
-
-    if (isIgnoredRoute) return;
-
     let active = true;
     void (async () => {
       try {
-        const { data: profile } = await supabase
+        const { data: prof } = await supabase
           .from("profiles")
-          .select("onboarding_completed")
+          .select("onboarding_completed, is_suspended")
           .eq("id", session.user.id)
           .single();
 
-        if (active && profile && !profile.onboarding_completed) {
-          console.info("[auth:provider] onboarding incomplete, redirecting to wizard");
-          router.push("/onboarding");
+        if (active && prof) {
+          if (prof.is_suspended) {
+            console.warn("[auth:provider] user is suspended, logging out");
+            await supabase.auth.signOut();
+            setSession(null);
+            setProfile(null);
+            router.push("/?auth=login&error=Your account has been suspended by an administrator.");
+            return;
+          }
+
+          const isIgnoredRoute = 
+            pathname === "/onboarding" || 
+            pathname === "/" || 
+            pathname.startsWith("/auth/");
+
+          if (!isIgnoredRoute && !prof.onboarding_completed) {
+            console.info("[auth:provider] onboarding incomplete, redirecting to wizard");
+            router.push("/onboarding");
+          }
         }
       } catch (err) {
         console.warn("[auth:provider] failed to verify onboarding completion:", err);
@@ -106,6 +139,8 @@ export function AuthProvider({ children, initialSession }: { children: ReactNode
     loading,
     ready: Boolean(supabase),
     error,
+    profile,
+    refreshProfile,
     signIn: async ({ email, password }: AuthCredentials) => {
       if (!supabase) {
         throw new Error("Supabase is not configured.");

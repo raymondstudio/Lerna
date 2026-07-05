@@ -24,35 +24,37 @@ export async function GET(req: Request) {
   }
 
   try {
-    const { searchParams } = new URL(req.url);
-    const search = searchParams.get("search") || "";
-    const plan = searchParams.get("plan") || "all";
-    const status = searchParams.get("status") || "all";
-    const institution = searchParams.get("institution") || "all";
-    const department = searchParams.get("department") || "all";
-    const page = parseInt(searchParams.get("page") || "1");
-    const limit = parseInt(searchParams.get("limit") || "10");
-    const offset = (page - 1) * limit;
+    const { data: feedbacks, error } = await supabase
+      .from("feedback")
+      .select(`
+        id,
+        type,
+        message,
+        rating,
+        created_at,
+        profiles (
+          email,
+          first_name,
+          last_name
+        )
+      `)
+      .order("created_at", { ascending: false });
 
-    const { data, error } = await supabase.rpc("get_admin_users", {
-      search_query: search,
-      filter_plan: plan,
-      filter_institution: institution,
-      filter_department: department,
-      filter_status: status,
-      page_offset: offset,
-      page_limit: limit,
-    });
+    if (error) throw error;
 
-    if (error) {
-      console.error("[api:admin:users] RPC failed:", error.message);
-      return NextResponse.json({ success: false, error: error.message }, { status: 500 });
-    }
+    const formatted = feedbacks.map((f: any) => ({
+      id: f.id,
+      type: f.type,
+      message: f.message,
+      rating: f.rating,
+      created_at: f.created_at,
+      user_email: f.profiles?.email || "unknown",
+      user_name: f.profiles ? `${f.profiles.first_name || ""} ${f.profiles.last_name || ""}`.trim() : "Unknown User"
+    }));
 
-    return NextResponse.json({ success: true, data });
+    return NextResponse.json({ success: true, data: formatted });
   } catch (err) {
-    console.error("[api:admin:users] Exception:", err);
+    console.error("[api:admin:feedback:GET] Exception:", err);
     return NextResponse.json({ success: false, error: String(err) }, { status: 500 });
   }
 }
-
