@@ -31,6 +31,8 @@ import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
 import { LoginForm } from "@/components/auth/login-form";
 import { SignupForm } from "@/components/auth/signup-form";
+import { ForgotPasswordModal } from "@/components/auth/forgot-password-modal";
+import { ResetPasswordModal } from "@/components/auth/reset-password-modal";
 
 // 9 benefits-focused features
 const features = [
@@ -374,7 +376,7 @@ function DemoChat({ onTriggerSignup }: { onTriggerSignup: () => void }) {
 }
 
 function HomePageContent() {
-  const [activeModal, setActiveModal] = useState<"login" | "signup" | null>(null);
+  const [activeModal, setActiveModal] = useState<"login" | "signup" | "forgot" | "reset" | null>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const searchParams = useSearchParams();
 
@@ -382,6 +384,7 @@ function HomePageContent() {
     const auth = searchParams.get("auth");
     if (auth === "login") setActiveModal("login");
     if (auth === "signup") setActiveModal("signup");
+    if (auth === "reset") setActiveModal("reset");
   }, [searchParams]);
 
   return (
@@ -1015,6 +1018,7 @@ function HomePageContent() {
       <Modal isOpen={activeModal === "login"} onClose={() => setActiveModal(null)}>
         <LoginForm 
           onSwitchToSignup={() => setActiveModal("signup")} 
+          onSwitchToForgot={() => setActiveModal("forgot")}
           redirectTo="/chat" 
         />
       </Modal>
@@ -1023,6 +1027,22 @@ function HomePageContent() {
         <SignupForm 
           onSwitchToLogin={() => setActiveModal("login")} 
           redirectTo="/chat" 
+        />
+      </Modal>
+
+      <Modal isOpen={activeModal === "forgot"} onClose={() => setActiveModal(null)}>
+        <ForgotPasswordModal
+          onSwitchToLogin={() => setActiveModal("login")}
+          onClose={() => setActiveModal(null)}
+        />
+      </Modal>
+
+      <Modal isOpen={activeModal === "reset"} onClose={() => setActiveModal(null)}>
+        <ResetPasswordModal
+          onClose={() => setActiveModal(null)}
+          onSuccess={() => {
+            setActiveModal("login");
+          }}
         />
       </Modal>
     </main>

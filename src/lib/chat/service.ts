@@ -91,7 +91,33 @@ export async function getAIResponse(
     }
   }
 
-  const prompt = `Conversation transcript:\n${transcript}${contextText}`;
+  let profileContext = "";
+  if (userId) {
+    try {
+      const { createSupabaseServerClient } = await import("@/lib/supabase/server");
+      const supabase = await createSupabaseServerClient();
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("account_type, institution, department, study_level, study_goals, teaching_style, preferred_question_type, onboarding_completed")
+        .eq("id", userId)
+        .single();
+
+      if (profile && profile.onboarding_completed) {
+        profileContext = `\n\n=== STUDENT PROFILE (TAILOR EXPLANATIONS TO THESE DETAILS) ===
+- Role / Account Type: ${profile.account_type || "N/A"}
+- Institution: ${profile.institution || "N/A"}
+- Department / Major: ${profile.department || "N/A"}
+- Study Level: ${profile.study_level || "N/A"}
+- Learning Goals: ${Array.isArray(profile.study_goals) ? profile.study_goals.join(", ") : "N/A"}
+- Preferred Difficulty/Style: ${profile.teaching_style || "Intermediate"}
+- Preferred Question Format: ${profile.preferred_question_type || "Mixed"}`;
+      }
+    } catch (err) {
+      console.error("[chat] Failed to fetch profile context for prompt personalization:", err);
+    }
+  }
+
+  const prompt = `Conversation transcript:\n${transcript}${profileContext}${contextText}`;
 
   const { text: aiText, usage } = await callGeminiAPI(prompt, userId);
 

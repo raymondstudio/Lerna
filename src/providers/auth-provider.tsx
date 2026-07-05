@@ -2,12 +2,15 @@
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import type { AuthChangeEvent, Session } from "@supabase/supabase-js";
+import { usePathname, useRouter } from "next/navigation";
 
 import { AuthContext, type AuthCredentials, type SignUpCredentials } from "@/context/auth-context";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { buildOAuthRedirectUrl } from "@/lib/auth/oauth";
 
 export function AuthProvider({ children, initialSession }: { children: ReactNode; initialSession?: Session | null }) {
+  const router = useRouter();
+  const pathname = usePathname();
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const [session, setSession] = useState<Session | null>(initialSession ?? null);
   const [loading, setLoading] = useState(!initialSession);
@@ -63,6 +66,39 @@ export function AuthProvider({ children, initialSession }: { children: ReactNode
       data.subscription.unsubscribe();
     };
   }, [supabase]);
+
+  useEffect(() => {
+    if (!supabase || !session?.user) return;
+
+    const isIgnoredRoute = 
+      pathname === "/onboarding" || 
+      pathname === "/" || 
+      pathname.startsWith("/auth/");
+
+    if (isIgnoredRoute) return;
+
+    let active = true;
+    void (async () => {
+      try {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("onboarding_completed")
+          .eq("id", session.user.id)
+          .single();
+
+        if (active && profile && !profile.onboarding_completed) {
+          console.info("[auth:provider] onboarding incomplete, redirecting to wizard");
+          router.push("/onboarding");
+        }
+      } catch (err) {
+        console.warn("[auth:provider] failed to verify onboarding completion:", err);
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, [session, pathname, supabase, router]);
 
   const value = {
     user: session?.user ?? null,

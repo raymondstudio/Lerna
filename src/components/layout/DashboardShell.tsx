@@ -12,8 +12,9 @@ import {
   PanelLeftClose, 
   PanelLeftOpen, 
   Menu, 
-  Plus, 
-  Search 
+  Plus,
+  Search,
+  User 
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -169,7 +170,20 @@ export function DashboardShell({ children }: { children: ReactNode }) {
       </div>
 
       {/* Footer */}
-      <div className="p-3 border-t border-white/5 mt-auto">
+      <div className="p-3 border-t border-white/5 mt-auto space-y-1">
+        <Link href="/account" className="block w-full">
+          <Button
+            variant="ghost"
+            className={`w-full justify-start h-10 ${
+              pathname === "/account"
+                ? "bg-cyan-500/10 text-cyan-400 font-medium"
+                : "text-slate-300 hover:text-white hover:bg-[#202020]"
+            }`}
+          >
+            <User className={`mr-2 h-4 w-4 ${pathname === "/account" ? "text-cyan-400" : "text-slate-400"}`} />
+            Account settings
+          </Button>
+        </Link>
         <Button
           variant="ghost"
           className="w-full justify-start text-slate-300 hover:text-white hover:bg-[#202020] h-10"

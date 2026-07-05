@@ -9,11 +9,13 @@ import { Input } from "@/components/ui/input";
 export function LoginForm({
   redirectTo = "/chat",
   initialErrorMessage,
-  onSwitchToSignup
+  onSwitchToSignup,
+  onSwitchToForgot
 }: {
   redirectTo?: string;
   initialErrorMessage?: string;
   onSwitchToSignup?: () => void;
+  onSwitchToForgot?: () => void;
 }) {
   const router = useRouter();
   const { signIn, ready, error: authError, signInWithProvider } = useAuth();
@@ -118,6 +120,15 @@ export function LoginForm({
             onChange={(event) => setPassword(event.target.value)}
             className="bg-[#1c1f26] border-white/5 h-11 focus-visible:ring-cyan-500/50"
           />
+          <div className="text-right">
+            <button
+              type="button"
+              onClick={onSwitchToForgot}
+              className="text-xs text-slate-400 hover:text-white transition-colors"
+            >
+              Forgot Password?
+            </button>
+          </div>
         </div>
         {(error || authError) ? (
           <p className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">
