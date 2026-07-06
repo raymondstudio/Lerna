@@ -198,6 +198,7 @@ export default function AccountPage() {
         .update({
           first_name: firstName.trim(),
           last_name: lastName.trim(),
+          account_type: isStudent ? 'Student' : 'Non-Student',
           institution: institution.trim(),
           department: department.trim(),
           study_level: studyLevel,
@@ -207,6 +208,7 @@ export default function AccountPage() {
           age: age === "" ? null : Number(age),
           teaching_style: teachingStyle,
           difficulty,
+          preferred_question_type: preferredQuizFormat,
           preferred_quiz_format: preferredQuizFormat,
           flashcard_preference: flashcardPreference,
           preferred_language: preferredLanguage,
@@ -393,35 +395,40 @@ export default function AccountPage() {
 
   return (
     <DashboardShell>
-      <div className="h-full flex flex-col md:flex-row overflow-hidden bg-[#0d0f12]">
+      <div className="h-full flex flex-col overflow-hidden bg-[#0d0f12]">
         
-        {/* Responsive Side Navigation Menu */}
-        <div className="w-full md:w-64 shrink-0 bg-[#111317] border-b md:border-b-0 md:border-r border-white/5 flex flex-row md:flex-col overflow-x-auto md:overflow-x-visible p-3 gap-1 shrink-0 scrollbar-none">
-          <div className="hidden md:block px-3 py-4 text-xs font-semibold text-slate-500 uppercase tracking-widest">
-            SaaS Panel
+        {/* Premium Top Sub-Navigation Header */}
+        <div className="bg-[#111317] border-b border-white/5 px-6 md:px-8 py-3.5 shrink-0 sticky top-0 z-10">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none max-w-full py-0.5">
+              {sidebarTabs.map((tab) => {
+                const Icon = tab.icon;
+                const active = activeTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold whitespace-nowrap transition-all select-none ${
+                      active 
+                        ? "bg-cyan-500/10 text-cyan-400 font-bold border border-cyan-500/20 shadow-sm" 
+                        : "text-slate-400 hover:text-slate-200 hover:bg-[#1a1c22]"
+                    }`}
+                  >
+                    <Icon className="h-3.5 w-3.5 shrink-0" />
+                    {tab.label}
+                  </button>
+                );
+              })}
+            </div>
+            <div className="hidden lg:block text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+              SaaS Account Center
+            </div>
           </div>
-          {sidebarTabs.map((tab) => {
-            const Icon = tab.icon;
-            const active = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all select-none ${
-                  active 
-                    ? "bg-cyan-500/10 text-cyan-400 font-bold shadow-sm" 
-                    : "text-slate-400 hover:text-slate-200 hover:bg-[#1a1c22]"
-                }`}
-              >
-                <Icon className="h-4 w-4 shrink-0" />
-                {tab.label}
-              </button>
-            );
-          })}
         </div>
 
-        {/* Panel Content Area */}
-        <div className="flex-1 overflow-y-auto p-6 md:p-8 space-y-8 max-w-4xl scrollbar-thin">
+        {/* Content Area */}
+        <div className="flex-1 overflow-y-auto p-6 md:p-8 space-y-8 scrollbar-thin">
+          <div className="max-w-2xl mx-auto md:py-4">
           
           {loadingData ? (
             <div className="h-96 w-full flex items-center justify-center">
@@ -1077,6 +1084,7 @@ export default function AccountPage() {
               )}
             </>
           )}
+          </div>
         </div>
       </div>
     </DashboardShell>

@@ -64,6 +64,13 @@ export async function logPageView(
       user_agent: userAgent || null,
     });
     if (error) console.error("[tracker] logPageView error:", error);
+
+    if (userId) {
+      await adminClient
+        .from("profiles")
+        .update({ last_active: new Date().toISOString() })
+        .eq("id", userId);
+    }
   } catch (err) {
     console.error("[tracker] logPageView exception:", err);
   }

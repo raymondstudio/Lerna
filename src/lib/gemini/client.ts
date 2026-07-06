@@ -25,12 +25,12 @@ function getApiKey(): string {
 
 function isKeyValid(): boolean {
   const key = getApiKey();
-  return typeof key === "string" && key.startsWith("AIzaSy");
+  return typeof key === "string" && key.trim().length > 0;
 }
 
 function notifyMockMode() {
   if (!mockModeNotified) {
-    console.info("[Gemini Client] No valid API key starting with 'AIzaSy' detected. Running in silent simulated mock mode for development.");
+    console.info("[Gemini Client] Simulated mock mode enabled. Make sure to set GEMINI_API_KEY starting with 'AIzaSy' in .env for live AI responses.");
     mockModeNotified = true;
   }
 }
@@ -167,17 +167,36 @@ function getMockAnswer(prompt: string): string {
     return JSON.stringify({ questions: quizQuestions.slice(0, count) });
   }
 
-  for (const key of Object.keys(MOCK_ANSWERS)) {
-    if (key !== "default" && normalized.includes(key)) {
-      return MOCK_ANSWERS[key];
+  // Extract actual user query from transcript to prevent fallback topics like 'Mixed' or 'vacuum'
+  let userQuery = prompt;
+  
+  // Try matching last Student message
+  const studentMatches = Array.from(prompt.matchAll(/Student:\s*([^\n]+)/gi));
+  if (studentMatches.length > 0) {
+    userQuery = studentMatches[studentMatches.length - 1][1].trim();
+  } else {
+    // If it's a study session summary context or other formats, extract the topic/course
+    const courseMatch = prompt.match(/course:\s*([^\n]+)/i);
+    if (courseMatch) {
+      userQuery = courseMatch[1].trim();
     }
   }
 
-  const cleanPrompt = prompt.replace(/[^a-zA-Z0-9\s]/g, "");
+  const normalizedQuery = userQuery.toLowerCase();
+  for (const key of Object.keys(MOCK_ANSWERS)) {
+    if (key !== "default" && normalizedQuery.includes(key)) {
+      return `⚠️ [Offline Simulated Mode - Gemini Key Not Loaded]\n\n` + MOCK_ANSWERS[key];
+    }
+  }
+
+  const cleanPrompt = userQuery.replace(/[^a-zA-Z0-9\s]/g, "");
   const words = cleanPrompt.split(/\s+/).filter(w => w.length > 4);
   const subject = words.length > 0 ? words[words.length - 1] : "this topic";
 
-  return `Here is a structured explanation about **${subject}** to help you study:\n\n` +
+  const warningLabel = "⚠️ [Offline Simulated Mode - Gemini Key Not Loaded]\n\n";
+
+  return warningLabel + 
+         `Here is a structured explanation about **${subject}** to help you study:\n\n` +
          `### 1. Core Overview\n` +
          `When analyzing **${subject}**, it is important to first understand its foundational principles. It represents a structured approach to solving academic problems by breaking them down into manageable sub-components.\n\n` +
          `### 2. Key Concepts\n` +
@@ -199,12 +218,15 @@ function getMockEmbedding(text: string): number[] {
 }
 
 function isMockingNeeded(error: unknown): boolean {
-  const msg = error instanceof Error ? error.message : String(error);
+  const msg = (error instanceof Error ? error.message : String(error)).toLowerCase();
   return (
-    msg.includes("API key not valid") ||
-    msg.includes("API_KEY_INVALID") ||
-    msg.includes("INVALID_ARGUMENT") ||
-    msg.includes("Missing GEMINI_API_KEY")
+    msg.includes("api key") ||
+    msg.includes("api_key") ||
+    msg.includes("invalid_argument") ||
+    msg.includes("missing gemini_api_key") ||
+    msg.includes("unauthorized") ||
+    msg.includes("forbidden") ||
+    msg.includes("auth")
   );
 }
 
@@ -270,6 +292,7 @@ export async function generateText(
       raw: response,
     };
   } catch (error) {
+    console.error("[Gemini Client] Real API request failed. Error Details:", error);
     if (isMockingNeeded(error)) {
       notifyMockMode();
       const mockText = getMockAnswer(prompt);
@@ -365,6 +388,7 @@ export async function generateEmbedding(
 
     return embedding;
   } catch (error) {
+    console.error("[Gemini Client] Real Embedding request failed. Error Details:", error);
     if (isMockingNeeded(error)) {
       notifyMockMode();
       const mockEmb = getMockEmbedding(text);
