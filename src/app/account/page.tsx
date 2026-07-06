@@ -106,6 +106,15 @@ export default function AccountPage() {
   const [profileMessage, setProfileMessage] = useState<string | null>(null);
   const [profileError, setProfileError] = useState<string | null>(null);
   const [loadingData, setLoadingData] = useState(true);
+  const [quotaUsage, setQuotaUsage] = useState<any>(null);
+
+  const formatBytes = (bytes: number) => {
+    if (!bytes) return "0 Bytes";
+    const k = 1024;
+    const sizes = ["Bytes", "KB", "MB", "GB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+  };
 
   const supabase = createSupabaseBrowserClient();
 
@@ -174,6 +183,12 @@ export default function AccountPage() {
 
         if (ticketsRes.data) setTickets(ticketsRes.data);
         if (feedbackRes.data) setFeedbacks(feedbackRes.data);
+
+        // Fetch dynamic quota usage
+        const usageRes = await fetch("/api/account/usage").then(res => res.json()).catch(() => null);
+        if (usageRes) {
+          setQuotaUsage(usageRes);
+        }
       } catch (err) {
         console.error("[account] Error loading details:", err);
       } finally {
@@ -193,39 +208,74 @@ export default function AccountPage() {
       setProfileMessage(null);
       setProfileError(null);
 
-      const { error } = await supabase
+      // 1. Update profiles table (identity only)
+      const { error: profileErr } = await supabase
         .from("profiles")
         .update({
           first_name: firstName.trim(),
           last_name: lastName.trim(),
-          account_type: isStudent ? 'Student' : 'Non-Student',
           institution: institution.trim(),
           department: department.trim(),
           study_level: studyLevel,
-          study_goals: studyGoals,
           is_student: isStudent,
           gender,
           age: age === "" ? null : Number(age),
-          teaching_style: teachingStyle,
-          difficulty,
-          preferred_question_type: preferredQuizFormat,
-          preferred_quiz_format: preferredQuizFormat,
-          flashcard_preference: flashcardPreference,
-          preferred_language: preferredLanguage,
-          response_length: responseLength,
-          voice_preference: voicePreference,
-          study_reminder_enabled: studyReminderEnabled,
-          marketing_updates_enabled: marketingUpdatesEnabled,
-          security_alerts_enabled: securityAlertsEnabled,
-          daily_goal_minutes: dailyGoalMinutes,
-          preferred_theme: preferredTheme,
           updated_at: new Date().toISOString()
         })
         .eq("id", user.id);
 
-      if (error) throw error;
+      if (profileErr) throw profileErr;
+
+      // 2. Update user_preferences table
+      const { error: prefErr } = await supabase
+        .from("user_preferences")
+        .update({
+          teaching_style: teachingStyle,
+          difficulty,
+          preferred_quiz_format: preferredQuizFormat,
+          preferred_language: preferredLanguage,
+          flashcard_preference: flashcardPreference,
+          response_length: responseLength,
+          voice_preference: voicePreference,
+          learning_goals: studyGoals,
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", user.id);
+
+      if (prefErr) throw prefErr;
+
+      // 3. Update notification_preferences table
+      const { error: notifErr } = await supabase
+        .from("notification_preferences")
+        .update({
+          marketing: marketingUpdatesEnabled,
+          product_updates: marketingUpdatesEnabled, // keep synced
+          security_alerts: securityAlertsEnabled,
+          study_reminders: studyReminderEnabled,
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", user.id);
+
+      if (notifErr) throw notifErr;
+
+      // 4. Log event
+      await supabase.from("events").insert({
+        user_id: user.id,
+        event_type: "profile_updated",
+        properties: {
+          first_name: firstName.trim(),
+          last_name: lastName.trim(),
+        }
+      });
+
       setProfileMessage("Your preferences and account settings have been saved.");
       await refreshProfile();
+
+      // Refresh quota usage after save
+      const usageRes = await fetch("/api/account/usage").then(res => res.json()).catch(() => null);
+      if (usageRes) {
+        setQuotaUsage(usageRes);
+      }
     } catch (err) {
       setProfileError(err instanceof Error ? err.message : "Failed to save details.");
     } finally {
@@ -691,8 +741,8 @@ export default function AccountPage() {
               {activeTab === "subscription" && (
                 <div className="space-y-6">
                   <div>
-                    <h2 className="text-xl font-bold text-white">Billing workspace</h2>
-                    <p className="text-xs text-slate-500 mt-1">Monitor plan usage storage quotas and upgrades.</p>
+                    <h2 className="text-xl font-bold text-white">Billing & API Quotas</h2>
+                    <p className="text-xs text-slate-500 mt-1">Monitor plan quotas, monthly API limits, and storage usage.</p>
                   </div>
 
                   <div className="p-5 rounded-2xl border border-cyan-500/20 bg-gradient-to-br from-cyan-500/5 to-transparent space-y-4">
@@ -704,43 +754,67 @@ export default function AccountPage() {
                         </h3>
                       </div>
                       <span className="text-3xl font-bold text-white">
-                        {profile?.plan === "premium" ? "$12" : "$0"} <span className="text-xs text-slate-500 font-normal">/mo</span>
+                        {profile?.plan === "premium" || profile?.plan === "pro" ? "$12" : "$0"} <span className="text-xs text-slate-500 font-normal">/mo</span>
                       </span>
                     </div>
 
                     <div className="h-[1px] bg-white/5 w-full" />
 
-                    <div className="space-y-3 text-xs">
-                      {/* Chats quota limit */}
-                      <div className="space-y-1">
-                        <div className="flex justify-between text-slate-500 text-[10px]">
-                          <span>AI Chat Queries</span>
-                          <span className="text-slate-300 font-medium">{stats.questions} / {profile?.plan === "premium" ? "Unlimited" : "50 calls"}</span>
-                        </div>
-                        <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
-                          <div 
-                            className="h-full bg-cyan-500" 
-                            style={{ width: `${profile?.plan === "premium" ? 100 : Math.min((stats.questions / 50) * 100, 100)}%` }} 
-                          />
-                        </div>
-                      </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                      {[
+                        { 
+                          label: "Monthly AI Requests", 
+                          used: quotaUsage?.usage?.aiRequests || 0, 
+                          limit: quotaUsage?.limits?.aiRequests || 100 
+                        },
+                        { 
+                          label: "Daily AI Limit", 
+                          used: quotaUsage?.usage?.dailyAiRequests || 0, 
+                          limit: quotaUsage?.limits?.dailyRequests || 20 
+                        },
+                        { 
+                          label: "Quiz Generations", 
+                          used: quotaUsage?.usage?.quizzes || 0, 
+                          limit: quotaUsage?.limits?.quizzes || 20 
+                        },
+                        { 
+                          label: "Flashcard Generations", 
+                          used: quotaUsage?.usage?.flashcards || 0, 
+                          limit: quotaUsage?.limits?.flashcards || 50 
+                        },
+                        { 
+                          label: "Material Uploads", 
+                          used: quotaUsage?.usage?.uploadsCount || 0, 
+                          limit: quotaUsage?.limits?.uploads || 10 
+                        },
+                        { 
+                          label: "Storage Usage", 
+                          used: formatBytes(quotaUsage?.usage?.storageBytes || 0), 
+                          limit: formatBytes(quotaUsage?.limits?.storage || 52428800), 
+                          percentage: Math.min(((quotaUsage?.usage?.storageBytes || 0) / (quotaUsage?.limits?.storage || 52428800)) * 100, 100) 
+                        }
+                      ].map((item, idx) => {
+                        const isStorage = item.label === "Storage Usage";
+                        const pct = isStorage 
+                          ? item.percentage 
+                          : Math.min(((item.used as number) / (item.limit as number)) * 100, 100);
 
-                      {/* Storage quota */}
-                      <div className="space-y-1">
-                        <div className="flex justify-between text-slate-500 text-[10px]">
-                          <span>Uploads capacity</span>
-                          <span className="text-slate-300 font-medium">{stats.documents} / {profile?.plan === "premium" ? "200 files" : "10 files"}</span>
-                        </div>
-                        <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
-                          <div 
-                            className="h-full bg-cyan-500" 
-                            style={{ width: `${profile?.plan === "premium" ? Math.min((stats.documents / 200) * 100, 100) : Math.min((stats.documents / 10) * 100, 100)}%` }} 
-                          />
-                        </div>
-                      </div>
+                        return (
+                          <div key={idx} className="p-4 rounded-xl border border-white/5 bg-[#14161a] space-y-2">
+                            <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">{item.label}</span>
+                            <div className="flex justify-between items-baseline">
+                              <span className="text-lg font-bold text-white">{item.used}</span>
+                              <span className="text-[10px] text-slate-500">limit: {item.limit}</span>
+                            </div>
+                            <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
+                              <div className="h-full bg-cyan-500 transition-all duration-300" style={{ width: `${pct}%` }} />
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
 
-                    {profile?.plan !== "premium" && (
+                    {(profile?.plan !== "premium" && profile?.plan !== "pro") && (
                       <Button className="w-full h-11 bg-cyan-500 text-slate-950 hover:bg-cyan-400 font-bold rounded-lg flex items-center justify-center gap-2">
                         <Sparkles className="h-4 w-4" /> Upgrade to Premium Tier ($12/mo)
                       </Button>

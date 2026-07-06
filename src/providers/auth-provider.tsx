@@ -23,13 +23,65 @@ export function AuthProvider({ children, initialSession }: { children: ReactNode
       return;
     }
     try {
-      const { data, error: profileError } = await supabase
+      const { data: rawProfile, error: profileError } = await supabase
         .from("profiles")
-        .select("*")
+        .select(`
+          *,
+          user_preferences(*),
+          notification_preferences(*),
+          subscriptions(plan, status),
+          user_roles(role)
+        `)
         .eq("id", session.user.id)
         .single();
-      if (!profileError && data) {
-        setProfile(data);
+
+      if (!profileError && rawProfile) {
+        const pref = Array.isArray(rawProfile.user_preferences) 
+          ? rawProfile.user_preferences[0] 
+          : rawProfile.user_preferences;
+
+        const notif = Array.isArray(rawProfile.notification_preferences) 
+          ? rawProfile.notification_preferences[0] 
+          : rawProfile.notification_preferences;
+
+        const sub = Array.isArray(rawProfile.subscriptions) 
+          ? rawProfile.subscriptions[0] 
+          : rawProfile.subscriptions;
+
+        const r = Array.isArray(rawProfile.user_roles) 
+          ? rawProfile.user_roles[0] 
+          : rawProfile.user_roles;
+
+        // Flatten database fields into flat profile object for backward-compatible UI consumption
+        const flatProfile = {
+          ...rawProfile,
+          
+          // User preferences mapping
+          teaching_style: pref?.teaching_style || "Intermediate",
+          difficulty: pref?.difficulty || "Medium",
+          preferred_language: pref?.preferred_language || "English",
+          preferred_quiz_format: pref?.preferred_quiz_format || "Mixed",
+          flashcard_preference: pref?.flashcard_preference || "Standard",
+          response_length: pref?.response_length || "Medium",
+          voice_preference: pref?.voice_preference || "Default",
+          study_goals: pref?.learning_goals || [],
+
+          // Notification preferences mapping
+          marketing_updates_enabled: notif?.marketing ?? true,
+          security_alerts_enabled: notif?.security_alerts ?? true,
+          study_reminder_enabled: notif?.study_reminders ?? true,
+          product_updates_enabled: notif?.product_updates ?? true,
+          announcements_enabled: notif?.announcements ?? true,
+
+          // Subscription details
+          plan: sub?.plan || "free",
+          subscriptionStatus: sub?.status || "active",
+
+          // Role
+          role: r?.role || "user",
+        };
+
+        setProfile(flatProfile);
       }
     } catch (err) {
       console.warn("[auth:provider] Failed to fetch profile:", err);
@@ -99,11 +151,20 @@ export function AuthProvider({ children, initialSession }: { children: ReactNode
       try {
         const { data: prof } = await supabase
           .from("profiles")
-          .select("onboarding_completed, is_suspended")
+          .select("onboarding_completed, is_suspended, is_deleted")
           .eq("id", session.user.id)
           .single();
 
         if (active && prof) {
+          if (prof.is_deleted) {
+            console.warn("[auth:provider] user account is soft-deleted, logging out");
+            await supabase.auth.signOut();
+            setSession(null);
+            setProfile(null);
+            router.push("/?auth=login&error=This account has been deleted.");
+            return;
+          }
+
           if (prof.is_suspended) {
             console.warn("[auth:provider] user is suspended, logging out");
             await supabase.auth.signOut();

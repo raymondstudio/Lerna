@@ -113,7 +113,7 @@ export function UsersTab() {
     void fetchUsers();
   }, [debouncedSearch, planFilter, statusFilter, debouncedInstitution, debouncedDepartment, page]);
 
-  const handleUserAction = async (userId: string, action: "suspend" | "restore" | "delete" | "change-role", value?: string) => {
+  const handleUserAction = async (userId: string, action: "suspend" | "restore" | "delete" | "change-role" | "restore-deleted", value?: string) => {
     if (action === "delete") {
       const confirmDelete = window.confirm("Are you sure you want to permanently delete this user? This action is irreversible.");
       if (!confirmDelete) return;
@@ -227,6 +227,7 @@ export function UsersTab() {
             <option value="Active">Active</option>
             <option value="Admin">Admin</option>
             <option value="Suspended">Suspended</option>
+            <option value="Deleted">Deleted (Soft)</option>
           </select>
 
           <Input
@@ -300,6 +301,7 @@ export function UsersTab() {
                     <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-semibold ${
                       u.status === "Admin" ? "bg-cyan-500/10 text-cyan-400 border border-cyan-500/20" :
                       u.status === "Suspended" ? "bg-red-500/10 text-red-400 border border-red-500/20" :
+                      u.status === "Deleted" ? "bg-slate-600/20 text-slate-400 border border-slate-600/30" :
                       "bg-emerald-500/10 text-emerald-400"
                     }`}>
                       {u.status}
@@ -328,51 +330,59 @@ export function UsersTab() {
                     </button>
                     {actionMenuOpen === u.id && (
                       <div className="absolute right-12 top-2 z-10 w-44 rounded-xl border border-white/10 bg-[#1c1c1e] p-1 shadow-2xl text-left space-y-0.5">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            const nextRole = u.status === "Admin" ? "user" : "admin";
-                            handleUserAction(u.id, "change-role", nextRole);
-                          }}
-                          className="w-full px-3 py-2 text-xs rounded-lg text-slate-200 hover:bg-white/5 flex items-center gap-2 font-medium"
-                        >
-                          {u.status === "Admin" ? (
-                            <>
-                              <ShieldAlert className="h-3.5 w-3.5 text-yellow-500" /> Demote User
-                            </>
-                          ) : (
-                            <>
-                              <ShieldCheck className="h-3.5 w-3.5 text-cyan-400" /> Promote to Admin
-                            </>
-                          )}
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            const nextAct = u.status === "Suspended" ? "restore" : "suspend";
-                            handleUserAction(u.id, nextAct);
-                          }}
-                          className="w-full px-3 py-2 text-xs rounded-lg text-slate-200 hover:bg-white/5 flex items-center gap-2 font-medium"
-                        >
-                          {u.status === "Suspended" ? (
-                            <>
-                              <UserCheck className="h-3.5 w-3.5 text-emerald-400" /> Restore Access
-                            </>
-                          ) : (
-                            <>
-                              <AlertOctagon className="h-3.5 w-3.5 text-red-500" /> Suspend User
-                            </>
-                          )}
-                        </button>
-                        <button 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleUserAction(u.id, "delete");
-                          }}
-                          className="w-full px-3 py-2 text-xs rounded-lg text-red-400 hover:bg-red-500/10 flex items-center gap-2 font-medium"
-                        >
-                          <Trash2 className="h-3.5 w-3.5 text-red-500" /> Delete User
-                        </button>
+                        {u.status === "Deleted" ? (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleUserAction(u.id, "restore-deleted");
+                            }}
+                            className="w-full px-3 py-2 text-xs rounded-lg text-slate-200 hover:bg-white/5 flex items-center gap-2 font-medium"
+                          >
+                            <UserCheck className="h-3.5 w-3.5 text-emerald-400" /> Restore Account
+                          </button>
+                        ) : (
+                          <>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const newRole = prompt("Enter new user role (user, support, moderator, admin, owner):", u.status === "Admin" ? "admin" : "user");
+                                if (newRole && ["user", "support", "moderator", "admin", "owner"].includes(newRole.toLowerCase().trim())) {
+                                  handleUserAction(u.id, "change-role", newRole.toLowerCase().trim());
+                                }
+                              }}
+                              className="w-full px-3 py-2 text-xs rounded-lg text-slate-200 hover:bg-white/5 flex items-center gap-2 font-medium"
+                            >
+                              <ShieldCheck className="h-3.5 w-3.5 text-cyan-400" /> Change Role
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const nextAct = u.status === "Suspended" ? "restore" : "suspend";
+                                handleUserAction(u.id, nextAct);
+                              }}
+                              className="w-full px-3 py-2 text-xs rounded-lg text-slate-200 hover:bg-white/5 flex items-center gap-2 font-medium"
+                            >
+                              {u.status === "Suspended" ? (
+                                <>
+                                  <UserCheck className="h-3.5 w-3.5 text-emerald-400" /> Restore Access
+                                </>
+                              ) : (
+                                <>
+                                  <AlertOctagon className="h-3.5 w-3.5 text-red-500" /> Suspend User
+                                </>
+                              )}
+                            </button>
+                            <button 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleUserAction(u.id, "delete");
+                              }}
+                              className="w-full px-3 py-2 text-xs rounded-lg text-red-400 hover:bg-red-500/10 flex items-center gap-2 font-medium"
+                            >
+                              <Trash2 className="h-3.5 w-3.5 text-red-500" /> Delete User
+                            </button>
+                          </>
+                        )}
                       </div>
                     )}
                   </td>

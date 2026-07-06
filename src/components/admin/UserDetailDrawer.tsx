@@ -81,6 +81,7 @@ export function UserDetailDrawer({ userId, onClose }: { userId: string; onClose:
   const [data, setData] = useState<UserDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [timeline, setTimeline] = useState<any[]>([]);
 
   useEffect(() => {
     void (async () => {
@@ -93,6 +94,13 @@ export function UserDetailDrawer({ userId, onClose }: { userId: string; onClose:
           setData(json.data);
         } else {
           setError(json.error || "Failed to load user metadata.");
+        }
+
+        // Fetch chronological timeline
+        const timelineRes = await fetch(`/api/admin/users/${userId}/timeline`);
+        const timelineJson = await timelineRes.json();
+        if (timelineJson.success && Array.isArray(timelineJson.data)) {
+          setTimeline(timelineJson.data);
         }
       } catch (err) {
         setError("Error connecting to server.");
@@ -351,6 +359,38 @@ export function UserDetailDrawer({ userId, onClose }: { userId: string; onClose:
                       <div key={u.id} className="p-2.5 rounded-lg bg-[#0a0a0a]/40 border border-white/5 flex items-center justify-between text-[11px]">
                         <span className="font-medium text-white truncate max-w-[300px]">{u.file_name}</span>
                         <span className="text-[9px] text-slate-500 font-bold uppercase">{u.file_type.split("/")[1] || "File"}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Chronological Event Timeline */}
+              <div className="space-y-2 pt-2">
+                <div className="flex items-center gap-1.5 text-slate-400 font-semibold border-b border-white/5 pb-1.5">
+                  <Calendar className="h-4 w-4 text-cyan-400" /> Chronological Activity Timeline
+                </div>
+                {timeline.length === 0 ? (
+                  <p className="text-[10px] text-slate-500 italic">No activity logs recorded.</p>
+                ) : (
+                  <div className="relative border-l border-white/10 ml-2 pl-4 space-y-3.5 max-h-[220px] overflow-y-auto pr-1">
+                    {timeline.map((evt, index) => (
+                      <div key={evt.id || index} className="relative text-[11px] text-slate-400">
+                        {/* Event bullet point */}
+                        <div className="absolute -left-[21px] top-1 bg-cyan-500 w-2 h-2 rounded-full border border-slate-900" />
+                        <div className="flex justify-between items-start">
+                          <span className="font-bold text-white capitalize">
+                            {evt.event_type.replace(/_/g, " ")}
+                          </span>
+                          <span className="text-[9px] text-slate-500">
+                            {new Date(evt.created_at).toLocaleDateString()}
+                          </span>
+                        </div>
+                        {evt.properties && Object.keys(evt.properties).length > 0 && (
+                          <div className="mt-1 p-2 rounded bg-white/5 text-[9px] font-mono text-slate-500 max-w-full overflow-x-auto">
+                            {JSON.stringify(evt.properties)}
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>

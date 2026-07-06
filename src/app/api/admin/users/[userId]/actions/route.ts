@@ -69,6 +69,15 @@ export async function POST(
       return NextResponse.json({ success: true, data });
     }
 
+    if (action === "restore-deleted") {
+      const { data, error } = await supabase.rpc("admin_toggle_soft_delete", {
+        target_user_id: userId,
+        delete_status: false
+      });
+      if (error) throw error;
+      return NextResponse.json({ success: true, data });
+    }
+
     return NextResponse.json({ success: false, error: "Invalid action." }, { status: 400 });
   } catch (err) {
     console.error("[api:admin:user-action] Exception:", err);

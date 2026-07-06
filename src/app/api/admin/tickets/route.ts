@@ -31,8 +31,17 @@ export async function GET(req: Request) {
         subject,
         message,
         status,
+        category,
+        priority,
+        assigned_to,
+        resolution_notes,
         created_at,
-        profiles (
+        profiles!user_id (
+          email,
+          first_name,
+          last_name
+        ),
+        assignee:profiles!assigned_to (
           email,
           first_name,
           last_name
@@ -48,9 +57,15 @@ export async function GET(req: Request) {
       subject: t.subject,
       message: t.message,
       status: t.status,
+      category: t.category || "General",
+      priority: t.priority || "Medium",
+      assigned_to: t.assigned_to,
+      resolution_notes: t.resolution_notes || "",
       created_at: t.created_at,
       user_email: t.profiles?.email || "unknown",
-      user_name: t.profiles ? `${t.profiles.first_name || ""} ${t.profiles.last_name || ""}`.trim() : "Unknown User"
+      user_name: t.profiles ? `${t.profiles.first_name || ""} ${t.profiles.last_name || ""}`.trim() : "Unknown User",
+      assignee_email: t.assignee?.email || "Unassigned",
+      assignee_name: t.assignee ? `${t.assignee.first_name || ""} ${t.assignee.last_name || ""}`.trim() : "Unassigned"
     }));
 
     return NextResponse.json({ success: true, data: formatted });
@@ -81,19 +96,28 @@ export async function PUT(req: Request) {
   }
 
   try {
-    const { ticketId, status } = await req.json();
+    const { ticketId, status, priority, category, assigned_to, resolution_notes } = await req.json();
 
-    if (!ticketId || !status) {
-      return NextResponse.json({ success: false, error: "Ticket ID and status are required." }, { status: 400 });
+    if (!ticketId) {
+      return NextResponse.json({ success: false, error: "Ticket ID is required." }, { status: 400 });
     }
 
-    if (!["open", "closed", "pending", "resolved"].includes(status)) {
-      return NextResponse.json({ success: false, error: "Invalid ticket status value." }, { status: 400 });
+    const updatePayload: any = {};
+    if (status !== undefined) updatePayload.status = status;
+    if (priority !== undefined) updatePayload.priority = priority;
+    if (category !== undefined) updatePayload.category = category;
+    if (assigned_to !== undefined) updatePayload.assigned_to = assigned_to;
+    if (resolution_notes !== undefined) {
+      updatePayload.resolution_notes = resolution_notes;
+      if (status === "resolved" || status === "closed") {
+        updatePayload.closed_at = new Date().toISOString();
+      }
     }
+    updatePayload.updated_at = new Date().toISOString();
 
     const { data, error } = await supabase
       .from("support_tickets")
-      .update({ status, updated_at: new Date().toISOString() })
+      .update(updatePayload)
       .eq("id", ticketId)
       .select()
       .single();
@@ -104,7 +128,7 @@ export async function PUT(req: Request) {
     await supabase.from("audit_logs").insert({
       user_id: userData.user.id,
       action: "ticket_updated",
-      details: { ticket_id: ticketId, new_status: status }
+      details: { ticket_id: ticketId, updates: updatePayload }
     });
 
     return NextResponse.json({ success: true, data });
