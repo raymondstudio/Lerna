@@ -20,7 +20,10 @@ import {
   Globe,
   Bell,
   Monitor,
-  Loader2
+  Loader2,
+  Search,
+  School,
+  GraduationCap
 } from "lucide-react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
@@ -39,12 +42,95 @@ export default function AccountPage() {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [institution, setInstitution] = useState("");
+  const [institutionId, setInstitutionId] = useState("");
+  const [institutionType, setInstitutionType] = useState("University");
   const [department, setDepartment] = useState("");
   const [studyLevel, setStudyLevel] = useState("");
   const [studyGoals, setStudyGoals] = useState<string[]>([]);
   const [isStudent, setIsStudent] = useState(true);
   const [gender, setGender] = useState("");
   const [age, setAge] = useState<number | "">("");
+
+  // Search and custom school integration states
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [showCustomForm, setShowCustomForm] = useState(false);
+
+  // States for custom institution creation inside settings
+  const [customName, setCustomName] = useState("");
+  const [customType, setCustomType] = useState("University");
+  const [customState, setCustomState] = useState("");
+  const [customCountry, setCustomCountry] = useState("Nigeria");
+  const [customSubmitting, setCustomSubmitting] = useState(false);
+
+  // Debounced search query for account settings
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      setSearchResults([]);
+      return;
+    }
+
+    const typeFilter = institutionType === "Organization" ? "Other" : institutionType;
+    const delayDebounceFn = setTimeout(async () => {
+      try {
+        setIsSearching(true);
+        const res = await fetch(`/api/institutions/search?query=${encodeURIComponent(searchQuery)}&type=${encodeURIComponent(typeFilter)}`);
+        const json = await res.json();
+        if (json.success && json.data) {
+          setSearchResults(json.data);
+        }
+      } catch (err) {
+        console.error("Failed to search institutions:", err);
+      } finally {
+        setIsSearching(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchQuery, institutionType]);
+
+  const handleSelectInstitution = (inst: any) => {
+    setInstitution(inst.name);
+    setInstitutionId(inst.id);
+    setInstitutionType(inst.institution_type);
+    setSearchQuery("");
+    setSearchResults([]);
+  };
+
+  const handleAddCustomInstitution = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!customName.trim()) return;
+    try {
+      setCustomSubmitting(true);
+      const res = await fetch("/api/institutions/custom", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: customName,
+          institution_type: customType,
+          state: customState,
+          country: customCountry
+        })
+      });
+      const json = await res.json();
+      if (json.success && json.data) {
+        setInstitution(json.data.name);
+        setInstitutionId(json.data.id);
+        setInstitutionType(json.data.institution_type);
+        setShowCustomForm(false);
+        setCustomName("");
+        setCustomState("");
+      } else {
+        alert(json.error || "Failed to create custom institution");
+      }
+    } catch (err) {
+      console.error("Error creating custom institution:", err);
+      alert("An error occurred. Please try again.");
+    } finally {
+      setCustomSubmitting(false);
+    }
+  };
 
   // Email update
   const [newEmail, setNewEmail] = useState("");
@@ -137,6 +223,8 @@ export default function AccountPage() {
           setFirstName(profile.first_name || "");
           setLastName(profile.last_name || "");
           setInstitution(profile.institution || "");
+          setInstitutionId(profile.institution_id || "");
+          setInstitutionType(profile.institution_type || "University");
           setDepartment(profile.department || "");
           setStudyLevel(profile.study_level || "");
           setStudyGoals(profile.study_goals || []);
@@ -215,6 +303,8 @@ export default function AccountPage() {
           first_name: firstName.trim(),
           last_name: lastName.trim(),
           institution: institution.trim(),
+          institution_id: institutionId || null,
+          institution_type: institutionType,
           department: department.trim(),
           study_level: studyLevel,
           is_student: isStudent,
@@ -565,22 +655,207 @@ export default function AccountPage() {
                   </div>
 
                   {isStudent && (
-                    <div className="grid grid-cols-2 gap-4 animate-in fade-in duration-200">
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Institution / School</label>
-                        <Input 
-                          value={institution} 
-                          onChange={e => setInstitution(e.target.value)} 
-                          className="bg-[#14161a] border-white/5 h-11"
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Department / Course</label>
-                        <Input 
-                          value={department} 
-                          onChange={e => setDepartment(e.target.value)} 
-                          className="bg-[#14161a] border-white/5 h-11"
-                        />
+                    <div className="space-y-4 animate-in fade-in duration-200">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-1.5 relative">
+                          <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Institution / School</label>
+                          {!showCustomForm ? (
+                            <>
+                              {/* Selection badge */}
+                              {institution ? (
+                                <div className="p-3 rounded-xl border border-cyan-500/20 bg-cyan-500/5 flex items-center justify-between text-xs h-11">
+                                  <div className="flex items-center gap-2 min-w-0">
+                                    <GraduationCap className="h-4 w-4 text-cyan-400 shrink-0" />
+                                    <div className="truncate">
+                                      <span className="text-white font-bold text-xs block truncate">{institution}</span>
+                                      <span className="text-[9px] text-slate-500 font-medium block uppercase tracking-wider">{institutionType}</span>
+                                    </div>
+                                  </div>
+                                  <Button 
+                                    type="button"
+                                    variant="ghost" 
+                                    onClick={() => {
+                                      setInstitution("");
+                                      setInstitutionId("");
+                                    }}
+                                    className="h-7 px-2 text-[10px] text-slate-400 hover:text-white border border-white/5 rounded-lg shrink-0"
+                                  >
+                                    Clear
+                                  </Button>
+                                </div>
+                              ) : (
+                                <div className="space-y-2">
+                                  {/* Filter Tabs */}
+                                  <div className="grid grid-cols-4 gap-1 p-0.5 bg-[#0a0a0a]/50 rounded-lg border border-white/5 text-[9px] font-semibold text-center text-slate-400">
+                                    {["University", "Polytechnic", "College of Education", "Secondary School"].map((t) => (
+                                      <button
+                                        key={t}
+                                        type="button"
+                                        onClick={() => {
+                                          setInstitutionType(t);
+                                          setSearchQuery("");
+                                          setSearchResults([]);
+                                        }}
+                                        className={`py-1 rounded transition-colors truncate ${
+                                          institutionType === t 
+                                            ? "bg-cyan-500/10 text-cyan-400 border border-cyan-500/10 font-bold" 
+                                            : "hover:text-white"
+                                        }`}
+                                      >
+                                        {t === "College of Education" ? "COE" : t}
+                                      </button>
+                                    ))}
+                                  </div>
+
+                                  <div className="relative">
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-500" />
+                                    <Input 
+                                      value={searchQuery} 
+                                      onChange={e => setSearchQuery(e.target.value)} 
+                                      placeholder={`Search ${institutionType.toLowerCase()}s...`}
+                                      className="bg-[#14161a] border-white/5 h-11 pl-9 pr-4 placeholder:text-slate-600 text-xs"
+                                    />
+                                  </div>
+
+                                  {isSearching && (
+                                    <div className="flex items-center justify-center py-4 bg-[#14161a]/30 rounded-xl border border-white/5">
+                                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-cyan-500 border-t-transparent"></div>
+                                    </div>
+                                  )}
+
+                                  {!isSearching && searchQuery.trim() !== "" && (
+                                    <div className="border border-white/5 bg-[#14161a] rounded-xl max-h-[160px] overflow-y-auto divide-y divide-white/5 absolute left-0 right-0 z-20 shadow-xl pr-1">
+                                      {searchResults.length > 0 ? (
+                                        searchResults.map((inst) => (
+                                          <button
+                                            key={inst.id}
+                                            type="button"
+                                            onClick={() => handleSelectInstitution(inst)}
+                                            className="w-full text-left px-3 py-2.5 hover:bg-cyan-500/5 hover:text-white text-xs transition-colors flex items-center justify-between gap-2"
+                                          >
+                                            <div className="flex items-center gap-2 min-w-0">
+                                              {inst.institution_type === "Secondary School" ? (
+                                                <School className="h-3.5 w-3.5 text-cyan-400 shrink-0" />
+                                              ) : (
+                                                <GraduationCap className="h-3.5 w-3.5 text-cyan-400 shrink-0" />
+                                              )}
+                                              <div className="truncate">
+                                                <span className="font-semibold text-slate-200 text-xs block truncate">
+                                                  {inst.name}
+                                                  {inst.short_name ? ` (${inst.short_name})` : ""}
+                                                </span>
+                                                <span className="text-[9px] text-slate-500 block">
+                                                  {inst.city ? `${inst.city}, ` : ""}{inst.state ? `${inst.state}, ` : ""}{inst.country}
+                                                </span>
+                                              </div>
+                                            </div>
+                                          </button>
+                                        ))
+                                      ) : (
+                                        <div className="p-3 text-center space-y-2">
+                                          <p className="text-[10px] text-slate-500">Can't find your school?</p>
+                                          <Button
+                                            type="button"
+                                            onClick={() => {
+                                              setCustomName(searchQuery);
+                                              setCustomType(institutionType);
+                                              setShowCustomForm(true);
+                                            }}
+                                            className="h-8 px-3 rounded-lg bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 border border-cyan-500/20 text-[10px] font-semibold"
+                                          >
+                                            + Add my institution
+                                          </Button>
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </>
+                          ) : (
+                            <div className="p-4 rounded-xl border border-white/5 bg-[#1a1c22] space-y-3 text-left">
+                              <span className="text-xs font-semibold text-white block">Add Custom Institution</span>
+                              
+                              <div className="space-y-1">
+                                <label className="text-[8px] text-slate-500 font-bold uppercase tracking-wider">Institution Name</label>
+                                <input
+                                  type="text"
+                                  required
+                                  placeholder="e.g. Lagos City Academy"
+                                  value={customName}
+                                  onChange={(e) => setCustomName(e.target.value)}
+                                  className="w-full px-3 py-2 rounded-lg bg-[#14161a] border border-white/5 text-xs text-slate-200 focus:outline-none focus:border-cyan-500/50"
+                                />
+                              </div>
+
+                              <div className="grid grid-cols-2 gap-2">
+                                <div className="space-y-1">
+                                  <label className="text-[8px] text-slate-500 font-bold uppercase tracking-wider">Type</label>
+                                  <select
+                                    value={customType}
+                                    onChange={(e) => setCustomType(e.target.value)}
+                                    className="w-full px-2 py-1.5 rounded-lg bg-[#14161a] border border-white/5 text-xs text-slate-300 focus:outline-none focus:border-cyan-500/50"
+                                  >
+                                    {["University", "Polytechnic", "College of Education", "Secondary School", "Primary School", "Other"].map(t => (
+                                      <option key={t} value={t} className="bg-slate-950">{t}</option>
+                                    ))}
+                                  </select>
+                                </div>
+
+                                <div className="space-y-1">
+                                  <label className="text-[8px] text-slate-500 font-bold uppercase tracking-wider">State</label>
+                                  <input
+                                    type="text"
+                                    placeholder="e.g. Lagos"
+                                    value={customState}
+                                    onChange={(e) => setCustomState(e.target.value)}
+                                    className="w-full px-3 py-1.5 rounded-lg bg-[#14161a] border border-white/5 text-xs text-slate-200 focus:outline-none focus:border-cyan-500/50"
+                                  />
+                                </div>
+                              </div>
+
+                              <div className="space-y-1">
+                                <label className="text-[8px] text-slate-500 font-bold uppercase tracking-wider">Country</label>
+                                <input
+                                  type="text"
+                                  required
+                                  placeholder="e.g. Nigeria"
+                                  value={customCountry}
+                                  onChange={(e) => setCustomCountry(e.target.value)}
+                                  className="w-full px-3 py-1.5 rounded-lg bg-[#14161a] border border-white/5 text-xs text-slate-200 focus:outline-none focus:border-cyan-500/50"
+                                />
+                              </div>
+
+                              <div className="flex gap-2 pt-1.5">
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  onClick={() => setShowCustomForm(false)}
+                                  className="flex-1 h-8 text-[10px] rounded-lg border border-white/5 text-slate-400 hover:text-white"
+                                >
+                                  Cancel
+                                </Button>
+                                <Button
+                                  type="button"
+                                  disabled={customSubmitting}
+                                  onClick={handleAddCustomInstitution}
+                                  className="flex-1 h-8 text-[10px] rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold"
+                                >
+                                  {customSubmitting ? "Saving..." : "Add & Select"}
+                                </Button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Department / Course</label>
+                          <Input 
+                            value={department} 
+                            onChange={e => setDepartment(e.target.value)} 
+                            className="bg-[#14161a] border-white/5 h-11"
+                          />
+                        </div>
                       </div>
                     </div>
                   )}

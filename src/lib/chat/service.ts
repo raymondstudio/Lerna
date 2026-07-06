@@ -103,7 +103,15 @@ export async function getAIResponse(
           institution, 
           department, 
           study_level, 
+          country,
           onboarding_completed,
+          institutions (
+            name,
+            short_name,
+            institution_type,
+            state,
+            country
+          ),
           user_preferences (
             learning_goals,
             teaching_style,
@@ -122,11 +130,20 @@ export async function getAIResponse(
         const tStyle = prefs?.teaching_style || "Intermediate";
         const qFormat = prefs?.preferred_quiz_format || "Mixed";
 
+        const instInfo = profile.institutions || {
+          name: profile.institution,
+          institution_type: "N/A",
+          state: "N/A",
+          country: profile.country
+        };
+
         profileContext = `\n\n=== STUDENT PROFILE (TAILOR EXPLANATIONS TO THESE DETAILS) ===
 - Role / Account Type: ${profile.account_type || "N/A"}
-- Institution: ${profile.institution || "N/A"}
-- Department / Major: ${profile.department || "N/A"}
-- Study Level: ${profile.study_level || "N/A"}
+- Current Institution: ${instInfo.name || "N/A"}
+- Institution Type: ${instInfo.institution_type || "N/A"}
+- Department: ${profile.department || "N/A"}
+- Current Level: ${profile.study_level || "N/A"}
+- Country: ${instInfo.country || profile.country || "N/A"}
 - Learning Goals: ${Array.isArray(goals) ? goals.join(", ") : "N/A"}
 - Preferred Difficulty/Style: ${tStyle}
 - Preferred Question Format: ${qFormat}`;

@@ -6,6 +6,7 @@ export async function selectUserProfile(userId: string) {
     .from("profiles")
     .select(`
       *,
+      institutions(*),
       user_preferences(*),
       notification_preferences(*),
       subscriptions(plan, status),

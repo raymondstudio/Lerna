@@ -68,17 +68,92 @@ export default function OnboardingPage() {
   const [accountType, setAccountType] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [institution, setInstitution] = useState<string>("");
-  const [customInstitution, setCustomInstitution] = useState<string>("");
+  const [institutionId, setInstitutionId] = useState<string>("");
   const [institutionType, setInstitutionType] = useState<string>("University");
   const [department, setDepartment] = useState<string>("");
   const [customDepartment, setCustomDepartment] = useState<string>("");
   const [studyLevel, setStudyLevel] = useState<string>("");
   const [studyGoals, setStudyGoals] = useState<string[]>([]);
 
-  // Search filter
-  const filteredInstitutions = INSTITUTIONS.filter(inst =>
-    inst.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Search and custom school integration states
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [isSearching, setIsSearching] = useState<boolean>(false);
+  const [showCustomForm, setShowCustomForm] = useState<boolean>(false);
+
+  // States for the custom institution creation form
+  const [customName, setCustomName] = useState<string>("");
+  const [customType, setCustomType] = useState<string>("University");
+  const [customState, setCustomState] = useState<string>("");
+  const [customCountry, setCustomCountry] = useState<string>("Nigeria");
+  const [customSubmitting, setCustomSubmitting] = useState<boolean>(false);
+
+  // Debounced search query
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      setSearchResults([]);
+      return;
+    }
+
+    const typeFilter = institutionType === "Organization" ? "Other" : institutionType;
+    const delayDebounceFn = setTimeout(async () => {
+      try {
+        setIsSearching(true);
+        const res = await fetch(`/api/institutions/search?query=${encodeURIComponent(searchQuery)}&type=${encodeURIComponent(typeFilter)}`);
+        const json = await res.json();
+        if (json.success && json.data) {
+          setSearchResults(json.data);
+        }
+      } catch (err) {
+        console.error("Failed to search institutions:", err);
+      } finally {
+        setIsSearching(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchQuery, institutionType]);
+
+  const handleSelectInstitution = (inst: any) => {
+    setInstitution(inst.name);
+    setInstitutionId(inst.id);
+    setInstitutionType(inst.institution_type);
+    setSearchQuery("");
+    setSearchResults([]);
+  };
+
+  const handleAddCustomInstitution = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!customName.trim()) return;
+    try {
+      setCustomSubmitting(true);
+      const res = await fetch("/api/institutions/custom", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: customName,
+          institution_type: customType,
+          state: customState,
+          country: customCountry
+        })
+      });
+      const json = await res.json();
+      if (json.success && json.data) {
+        setInstitution(json.data.name);
+        setInstitutionId(json.data.id);
+        setInstitutionType(json.data.institution_type);
+        setShowCustomForm(false);
+        setCustomName("");
+        setCustomState("");
+      } else {
+        alert(json.error || "Failed to create custom institution");
+      }
+    } catch (err) {
+      console.error("Error creating custom institution:", err);
+      alert("An error occurred. Please try again.");
+    } finally {
+      setCustomSubmitting(false);
+    }
+  };
 
   useEffect(() => {
     if (!loading && !user) {
@@ -111,14 +186,14 @@ export default function OnboardingPage() {
       const supabase = createSupabaseBrowserClient();
       if (!supabase) throw new Error("Supabase client is not available.");
 
-      const selectedInstitution = institution === "Other / Custom School" ? customInstitution : institution;
       const selectedDepartment = department === "Other" ? customDepartment : department;
 
       const updateProfile = supabase
         .from("profiles")
         .update({
           account_type: accountType,
-          institution: selectedInstitution,
+          institution: institution,
+          institution_id: institutionId || null,
           institution_type: institutionType,
           department: selectedDepartment,
           study_level: studyLevel,
@@ -277,92 +352,206 @@ export default function OnboardingPage() {
                 <p className="text-slate-400 text-xs">Search or type your current school, college, or workplace.</p>
               </div>
 
-              {/* Institution Type Segment */}
-              <div className="grid grid-cols-3 gap-2 p-1 bg-[#141414]/80 rounded-xl border border-white/5 text-[11px] font-semibold tracking-wider text-center text-slate-400">
-                {["University", "Secondary School", "Organization"].map((type) => (
-                  <button
-                    key={type}
-                    type="button"
-                    onClick={() => setInstitutionType(type)}
-                    className={`py-2 rounded-lg transition-colors ${
-                      institutionType === type 
-                        ? "bg-cyan-500/10 text-cyan-400 border border-cyan-500/10" 
-                        : "hover:text-white"
-                    }`}
-                  >
-                    {type}
-                  </button>
-                ))}
-              </div>
-
-              <div className="space-y-3">
-                <div className="relative">
-                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
-                  <input
-                    type="text"
-                    placeholder="Search standard list..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-10 pr-4 h-11 rounded-xl bg-[#1c1f26] border border-white/5 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/50"
-                  />
-                </div>
-
-                {searchQuery.trim() !== "" && (
-                  <div className="border border-white/5 bg-[#141414]/80 backdrop-blur-md rounded-xl max-h-[160px] overflow-y-auto divide-y divide-white/5 pr-1">
-                    {filteredInstitutions.map((inst) => (
+              {!showCustomForm ? (
+                <>
+                  {/* Institution Type Segment */}
+                  <div className="grid grid-cols-4 gap-1 p-1 bg-[#141414]/80 rounded-xl border border-white/5 text-[10px] font-semibold tracking-wider text-center text-slate-400">
+                    {["University", "Polytechnic", "College of Education", "Secondary School"].map((type) => (
                       <button
-                        key={inst}
+                        key={type}
                         type="button"
                         onClick={() => {
-                          setInstitution(inst);
+                          setInstitutionType(type);
                           setSearchQuery("");
+                          setSearchResults([]);
                         }}
-                        className="w-full text-left px-4 py-2.5 hover:bg-cyan-500/5 hover:text-white text-xs transition-colors flex items-center gap-2"
+                        className={`py-2 px-1 rounded-lg transition-colors truncate ${
+                          institutionType === type 
+                            ? "bg-cyan-500/10 text-cyan-400 border border-cyan-500/10" 
+                            : "hover:text-white"
+                        }`}
                       >
-                        {inst.includes("Secondary") ? <School className="h-3.5 w-3.5 text-cyan-400" /> : <GraduationCap className="h-3.5 w-3.5 text-cyan-400" />}
-                        <span>{inst}</span>
+                        {type === "College of Education" ? "COE" : type}
                       </button>
                     ))}
                   </div>
-                )}
 
-                {/* Selection status */}
-                {institution && (
-                  <div className="p-3.5 rounded-xl border border-cyan-500/20 bg-cyan-500/5 flex items-center justify-between text-xs">
-                    <div className="flex items-center gap-2">
-                      <GraduationCap className="h-4 w-4 text-cyan-400" />
-                      <div>
-                        <span className="text-slate-500 block font-semibold uppercase text-[9px] tracking-wider">Selected Institution</span>
-                        <span className="text-white font-bold">{institution}</span>
-                      </div>
+                  <div className="space-y-3">
+                    <div className="relative">
+                      <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+                      <input
+                        type="text"
+                        placeholder={`Search ${institutionType.toLowerCase()}s... (e.g. futa, lagos)`}
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-full pl-10 pr-4 h-11 rounded-xl bg-[#1c1f26] border border-white/5 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/50"
+                      />
                     </div>
-                    <Button 
-                      variant="ghost" 
-                      onClick={() => setInstitution("")}
-                      className="h-7 px-2.5 text-[10px] text-slate-400 hover:text-white border border-white/5 rounded-lg"
-                    >
-                      Clear
-                    </Button>
-                  </div>
-                )}
 
-                {institution === "Other / Custom School" && (
-                  <motion.div 
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="space-y-1.5"
-                  >
-                    <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Custom School Name</label>
+                    {isSearching && (
+                      <div className="flex items-center justify-center py-6">
+                        <div className="h-5 w-5 animate-spin rounded-full border-2 border-cyan-500 border-t-transparent"></div>
+                      </div>
+                    )}
+
+                    {!isSearching && searchQuery.trim() !== "" && (
+                      <div className="border border-white/5 bg-[#141414]/80 backdrop-blur-md rounded-xl max-h-[200px] overflow-y-auto divide-y divide-white/5 pr-1">
+                        {searchResults.length > 0 ? (
+                          searchResults.map((inst) => (
+                            <button
+                              key={inst.id}
+                              type="button"
+                              onClick={() => handleSelectInstitution(inst)}
+                              className="w-full text-left px-4 py-3 hover:bg-cyan-500/5 hover:text-white text-xs transition-colors flex items-center justify-between gap-2"
+                            >
+                              <div className="flex items-center gap-2.5 min-w-0">
+                                {inst.institution_type === "Secondary School" ? (
+                                  <School className="h-3.5 w-3.5 text-cyan-400 shrink-0" />
+                                ) : (
+                                  <GraduationCap className="h-3.5 w-3.5 text-cyan-400 shrink-0" />
+                                )}
+                                <div className="truncate">
+                                  <span className="font-semibold text-slate-200">
+                                    {inst.name}
+                                    {inst.short_name ? ` (${inst.short_name})` : ""}
+                                  </span>
+                                  <span className="text-[10px] text-slate-500 block">
+                                    {inst.city ? `${inst.city}, ` : ""}{inst.state ? `${inst.state}, ` : ""}{inst.country}
+                                  </span>
+                                </div>
+                              </div>
+                              {inst.is_verified && (
+                                <span className="text-[9px] bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 px-1.5 py-0.5 rounded font-bold uppercase shrink-0">Verified</span>
+                              )}
+                            </button>
+                          ))
+                        ) : (
+                          <div className="p-4 text-center space-y-3">
+                            <p className="text-xs text-slate-500">Can't find your school?</p>
+                            <Button
+                              type="button"
+                              onClick={() => {
+                                setCustomName(searchQuery);
+                                setCustomType(institutionType);
+                                setShowCustomForm(true);
+                              }}
+                              className="h-9 px-4 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 border border-cyan-500/20 text-xs font-semibold"
+                            >
+                              + Add my institution
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {searchQuery.trim() === "" && !institution && (
+                      <div className="p-4 text-center border border-dashed border-white/5 rounded-xl">
+                        <p className="text-[11px] text-slate-500">Type above to search our official database or add your own school manually.</p>
+                      </div>
+                    )}
+
+                    {/* Selection status */}
+                    {institution && (
+                      <div className="p-3.5 rounded-xl border border-cyan-500/20 bg-cyan-500/5 flex items-center justify-between text-xs">
+                        <div className="flex items-center gap-2">
+                          <GraduationCap className="h-4 w-4 text-cyan-400" />
+                          <div>
+                            <span className="text-slate-500 block font-semibold uppercase text-[9px] tracking-wider">Selected Institution</span>
+                            <span className="text-white font-bold">{institution}</span>
+                          </div>
+                        </div>
+                        <Button 
+                          variant="ghost" 
+                          onClick={() => {
+                            setInstitution("");
+                            setInstitutionId("");
+                          }}
+                          className="h-7 px-2.5 text-[10px] text-slate-400 hover:text-white border border-white/5 rounded-lg"
+                        >
+                          Clear
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <motion.form 
+                  onSubmit={handleAddCustomInstitution}
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="p-5 rounded-2xl border border-white/5 bg-[#14161a] space-y-4 text-left"
+                >
+                  <h3 className="text-sm font-semibold text-white">Add Custom Institution</h3>
+                  
+                  <div className="space-y-1.5">
+                    <label className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">Institution Name</label>
                     <input
                       type="text"
-                      placeholder="e.g. Stanford Medical College"
-                      value={customInstitution}
-                      onChange={(e) => setCustomInstitution(e.target.value)}
-                      className="w-full px-4 h-11 rounded-xl bg-[#1c1f26] border border-white/5 text-sm text-slate-200 focus:outline-none focus:border-cyan-500/50"
+                      required
+                      placeholder="e.g. Lagos City Academy"
+                      value={customName}
+                      onChange={(e) => setCustomName(e.target.value)}
+                      className="w-full px-4 h-10 rounded-xl bg-[#1c1f26] border border-white/5 text-xs text-slate-200 focus:outline-none focus:border-cyan-500/50"
                     />
-                  </motion.div>
-                )}
-              </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <label className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">Type</label>
+                      <select
+                        value={customType}
+                        onChange={(e) => setCustomType(e.target.value)}
+                        className="w-full px-3 h-10 rounded-xl bg-[#1c1f26] border border-white/5 text-xs text-slate-300 focus:outline-none focus:border-cyan-500/50"
+                      >
+                        {["University", "Polytechnic", "College of Education", "Secondary School", "Primary School", "Other"].map(t => (
+                          <option key={t} value={t} className="bg-slate-950">{t}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">State / Region</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Lagos"
+                        value={customState}
+                        onChange={(e) => setCustomState(e.target.value)}
+                        className="w-full px-4 h-10 rounded-xl bg-[#1c1f26] border border-white/5 text-xs text-slate-200 focus:outline-none focus:border-cyan-500/50"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">Country</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. Nigeria"
+                      value={customCountry}
+                      onChange={(e) => setCustomCountry(e.target.value)}
+                      className="w-full px-4 h-10 rounded-xl bg-[#1c1f26] border border-white/5 text-xs text-slate-200 focus:outline-none focus:border-cyan-500/50"
+                    />
+                  </div>
+
+                  <div className="flex gap-2.5 pt-2">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={() => setShowCustomForm(false)}
+                      className="flex-1 h-10 text-xs rounded-xl border border-white/5 text-slate-400 hover:text-white"
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      type="submit"
+                      disabled={customSubmitting}
+                      className="flex-1 h-10 text-xs rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold"
+                    >
+                      {customSubmitting ? "Saving..." : "Add & Select"}
+                    </Button>
+                  </div>
+                </motion.form>
+              )}
             </motion.div>
           )}
 
