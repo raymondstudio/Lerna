@@ -113,6 +113,41 @@ export function UsersTab() {
     void fetchUsers();
   }, [debouncedSearch, planFilter, statusFilter, debouncedInstitution, debouncedDepartment, page]);
 
+  useEffect(() => {
+    const { createSupabaseBrowserClient } = require("@/lib/supabase/client");
+    const supabase = createSupabaseBrowserClient();
+    if (!supabase) return;
+
+    const channel = supabase
+      .channel("users_realtime_sync")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "profiles" },
+        () => {
+          void fetchUsers();
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "subscriptions" },
+        () => {
+          void fetchUsers();
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "user_roles" },
+        () => {
+          void fetchUsers();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [debouncedSearch, planFilter, statusFilter, debouncedInstitution, debouncedDepartment, page]);
+
   const handleUserAction = async (userId: string, action: "suspend" | "restore" | "delete" | "change-role" | "restore-deleted", value?: string) => {
     if (action === "delete") {
       const confirmDelete = window.confirm("Are you sure you want to permanently delete this user? This action is irreversible.");

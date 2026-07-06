@@ -1,7 +1,7 @@
 import { logAnalyticsEvent, logAiRequest } from "./tracker";
 
 /**
- * Emits a system event. The events are saved to the `public.analytics_events` table,
+ * Emits a system event. The events are saved to the `public.events` table,
  * which streams in real-time to the admin dashboard activity feed and prepares
  * integrations for future AI business agents.
  */

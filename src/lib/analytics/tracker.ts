@@ -101,10 +101,10 @@ export async function logAnalyticsEvent(
 ) {
   try {
     const adminClient = await createSupabaseServerClient();
-    const { error } = await adminClient.from("analytics_events").insert({
+    const { error } = await adminClient.from("events").insert({
       user_id: userId || null,
-      event_name: eventName,
-      event_properties: eventProperties,
+      event_type: eventName,
+      properties: eventProperties,
     });
     if (error) console.error("[tracker] logAnalyticsEvent error:", error);
   } catch (err) {

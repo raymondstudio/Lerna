@@ -35,6 +35,25 @@ export function SupportTab() {
 
   useEffect(() => {
     void fetchTickets();
+
+    const { createSupabaseBrowserClient } = require("@/lib/supabase/client");
+    const supabase = createSupabaseBrowserClient();
+    if (!supabase) return;
+
+    const channel = supabase
+      .channel("support_tickets_realtime_sync")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "support_tickets" },
+        () => {
+          void fetchTickets();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
   }, []);
 
   const handleUpdateTicket = async (ticketId: string, fields: any) => {

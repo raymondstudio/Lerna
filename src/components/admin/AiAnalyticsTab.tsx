@@ -23,6 +23,7 @@ export function AiAnalyticsTab() {
   });
 
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     void (async () => {
@@ -31,12 +32,20 @@ export function AiAnalyticsTab() {
           fetch("/api/admin/stats"),
           fetch("/api/admin/analytics")
         ]);
+        
+        if (!statsRes.ok || !analyticsRes.ok) {
+          throw new Error("Failed to load statistics from admin services.");
+        }
+
         const statsJson = await statsRes.json();
         const analyticsJson = await analyticsRes.json();
 
+        if (!statsJson.success) throw new Error(statsJson.error || "Failed to load stats");
+        if (!analyticsJson.success) throw new Error(analyticsJson.error || "Failed to load analytics");
+
         let updatedStats = { ...stats };
 
-        if (statsJson.success && statsJson.data) {
+        if (statsJson.data) {
           const s = statsJson.data;
           updatedStats.totalRequests = s.ai_requests || 0;
           updatedStats.estimatedCost = s.ai_cost || 0;
@@ -44,7 +53,7 @@ export function AiAnalyticsTab() {
           updatedStats.successRate = Number(s.success_rate) || 100.0;
         }
 
-        if (analyticsJson.success && analyticsJson.data) {
+        if (analyticsJson.data) {
           const a = analyticsJson.data;
           if (a.modelCounts) {
             updatedStats.modelCounts = a.modelCounts;
@@ -55,8 +64,10 @@ export function AiAnalyticsTab() {
         }
 
         setStats(updatedStats);
-      } catch (err) {
+        setError(null);
+      } catch (err: any) {
         console.warn("[ai-analytics] failed to load live stats:", err);
+        setError(err.message || String(err));
       } finally {
         setLoading(false);
       }
@@ -65,6 +76,12 @@ export function AiAnalyticsTab() {
 
   return (
     <div className="space-y-6">
+      {error && (
+        <div className="p-4 rounded-2xl border border-red-500/20 bg-red-500/10 text-red-400 text-xs flex items-center gap-2.5">
+          <AlertTriangle className="h-5 w-5 shrink-0" />
+          <span><strong>API Query Failed:</strong> {error}</span>
+        </div>
+      )}
       <div>
         <h2 className="text-xl font-semibold text-white tracking-tight">AI Compute & Model Expenses</h2>
         <p className="text-slate-400 text-xs mt-1">

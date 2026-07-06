@@ -114,7 +114,7 @@ export default function OnboardingPage() {
       const selectedInstitution = institution === "Other / Custom School" ? customInstitution : institution;
       const selectedDepartment = department === "Other" ? customDepartment : department;
 
-      const { error } = await supabase
+      const updateProfile = supabase
         .from("profiles")
         .update({
           account_type: accountType,
@@ -122,13 +122,22 @@ export default function OnboardingPage() {
           institution_type: institutionType,
           department: selectedDepartment,
           study_level: studyLevel,
-          study_goals: studyGoals,
           onboarding_completed: true,
           updated_at: new Date().toISOString()
         })
         .eq("id", user.id);
 
-      if (error) throw error;
+      const updatePreferences = supabase
+        .from("user_preferences")
+        .upsert({
+          id: user.id,
+          learning_goals: studyGoals
+        });
+
+      const [profileRes, prefRes] = await Promise.all([updateProfile, updatePreferences]);
+
+      if (profileRes.error) throw profileRes.error;
+      if (prefRes.error) throw prefRes.error;
 
       router.push("/chat");
       router.refresh();

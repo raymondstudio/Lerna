@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Activity, Clock, Cpu, Server } from "lucide-react";
+import { Activity, Clock, Cpu, Server, AlertTriangle } from "lucide-react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
 export function AnalyticsTab() {
@@ -14,6 +14,7 @@ export function AnalyticsTab() {
 
   const [recentEvents, setRecentEvents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const supabase = createSupabaseBrowserClient();
@@ -21,37 +22,31 @@ export function AnalyticsTab() {
 
     const loadData = async () => {
       try {
-        const { data: events } = await supabase
-          .from("analytics_events")
-          .select("id, event_name, event_properties, created_at")
-          .order("created_at", { ascending: false })
-          .limit(20);
-        
-        if (events) {
-          setRecentEvents(events.map(e => ({
-            id: e.id,
-            event: e.event_name,
-            properties: e.event_properties,
-            timestamp: new Date(e.created_at).toLocaleTimeString()
-          })));
+        const res = await fetch("/api/admin/events?limit=20");
+        const json = await res.json();
+        if (json.success && json.data) {
+          const { events, avgLatency } = json.data;
+          if (events) {
+            setRecentEvents(events.map((e: any) => ({
+              id: e.id,
+              event: e.event_type,
+              properties: e.properties,
+              timestamp: new Date(e.created_at).toLocaleTimeString()
+            })));
+          }
+          if (avgLatency) {
+            setLatencyData(prev => ({
+              ...prev,
+              geminiResponse: avgLatency
+            }));
+          }
+          setError(null);
+        } else {
+          setError(json.error || "Failed to load system events");
         }
-
-        const { data: aiReqs } = await supabase
-          .from("ai_requests")
-          .select("latency_ms")
-          .not("latency_ms", "is", null)
-          .order("created_at", { ascending: false })
-          .limit(10);
-          
-        if (aiReqs && aiReqs.length > 0) {
-          const avgGemini = Math.round(aiReqs.reduce((acc, curr) => acc + (curr.latency_ms || 0), 0) / aiReqs.length);
-          setLatencyData(prev => ({
-            ...prev,
-            geminiResponse: avgGemini || prev.geminiResponse
-          }));
-        }
-      } catch (e) {
+      } catch (e: any) {
         console.warn("[analytics-tab] failed to fetch real data:", e);
+        setError(e.message || String(e));
       } finally {
         setLoading(false);
       }
@@ -63,12 +58,12 @@ export function AnalyticsTab() {
       .channel("live_analytics_tab")
       .on(
         "postgres_changes",
-        { event: "INSERT", schema: "public", table: "analytics_events" },
+        { event: "INSERT", schema: "public", table: "events" },
         (payload) => {
           const newEvent = {
             id: payload.new.id,
-            event: payload.new.event_name,
-            properties: payload.new.event_properties,
+            event: payload.new.event_type,
+            properties: payload.new.properties,
             timestamp: new Date(payload.new.created_at).toLocaleTimeString()
           };
           setRecentEvents(prev => [newEvent, ...prev.slice(0, 19)]);
@@ -83,6 +78,12 @@ export function AnalyticsTab() {
 
   return (
     <div className="space-y-6">
+      {error && (
+        <div className="p-4 rounded-2xl border border-red-500/20 bg-red-500/10 text-red-400 text-xs flex items-center gap-2.5">
+          <AlertTriangle className="h-5 w-5 shrink-0" />
+          <span><strong>API Query Failed:</strong> {error}</span>
+        </div>
+      )}
       <div>
         <h2 className="text-xl font-semibold text-white tracking-tight">Platform System Performance</h2>
         <p className="text-slate-400 text-xs mt-1">

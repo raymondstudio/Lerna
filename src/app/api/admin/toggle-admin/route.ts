@@ -36,8 +36,8 @@ export async function POST(req: Request) {
       if (rpcError) {
         console.warn("[api:admin:toggle] RPC add_admin failed, using direct query:", rpcError.message);
         const { error: queryError } = await supabase
-          .from("admin_users")
-          .insert({ user_id: targetUserId });
+          .from("user_roles")
+          .upsert({ user_id: targetUserId, role: "admin" }, { onConflict: "user_id" });
         if (queryError) throw queryError;
       }
 
@@ -47,9 +47,8 @@ export async function POST(req: Request) {
       if (rpcError) {
         console.warn("[api:admin:toggle] RPC remove_admin failed, using direct query:", rpcError.message);
         const { error: queryError } = await supabase
-          .from("admin_users")
-          .delete()
-          .eq("user_id", targetUserId);
+          .from("user_roles")
+          .upsert({ user_id: targetUserId, role: "user" }, { onConflict: "user_id" });
         if (queryError) throw queryError;
       }
     } else {

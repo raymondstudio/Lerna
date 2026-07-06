@@ -14,12 +14,14 @@ import {
   Sparkles,
   Activity,
   ArrowRight,
-  GraduationCap
+  GraduationCap,
+  AlertTriangle
 } from "lucide-react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
 type KpiStats = {
   totalUsers: number;
+  totalProfiles: number;
   newUsersToday: number;
   activeUsersToday: number;
   mau: number;
@@ -45,16 +47,17 @@ type LiveEvent = {
 
 export function OverviewTab() {
   const [stats, setStats] = useState<KpiStats>({
-    totalUsers: 24,
-    newUsersToday: 3,
-    activeUsersToday: 8,
-    mau: 14,
-    totalSessions: 45,
-    totalMessages: 284,
-    totalDocs: 18,
-    totalImages: 4,
-    aiRequests: 320,
-    aiCost: 0.045,
+    totalUsers: 0,
+    totalProfiles: 0,
+    newUsersToday: 0,
+    activeUsersToday: 0,
+    mau: 0,
+    totalSessions: 0,
+    totalMessages: 0,
+    totalDocs: 0,
+    totalImages: 0,
+    aiRequests: 0,
+    aiCost: 0,
     revenue: 0,
     premiumUsers: 0,
     countries: [],
@@ -64,6 +67,7 @@ export function OverviewTab() {
 
   const [events, setEvents] = useState<LiveEvent[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const fetchKPIStats = async () => {
     try {
@@ -73,6 +77,7 @@ export function OverviewTab() {
         const s = json.data;
         setStats({
           totalUsers: s.total_users || 0,
+          totalProfiles: s.total_profiles || 0,
           newUsersToday: s.new_users_today || 0,
           activeUsersToday: s.active_users_today || 0,
           mau: s.mau || 0,
@@ -88,9 +93,13 @@ export function OverviewTab() {
           universities: s.universities || [],
           departments: s.departments || []
         });
+        setError(null);
+      } else {
+        setError(json.error || "Failed to load admin stats");
       }
     } catch (err) {
       console.warn("[overview] Failed to fetch live KPI stats:", err);
+      setError("Failed to connect to stats API");
     } finally {
       setLoading(false);
     }
@@ -106,17 +115,13 @@ export function OverviewTab() {
 
     void (async () => {
       try {
-        const { data: recentEvents } = await supabase
-          .from("analytics_events")
-          .select("id, event_name, event_properties, created_at")
-          .order("created_at", { ascending: false })
-          .limit(10);
-        
-        if (recentEvents) {
-          setEvents(recentEvents.map(e => ({
+        const res = await fetch("/api/admin/events?limit=10");
+        const json = await res.json();
+        if (json.success && json.data?.events) {
+          setEvents(json.data.events.map((e: any) => ({
             id: e.id,
-            name: e.event_name,
-            props: e.event_properties,
+            name: e.event_type,
+            props: e.properties,
             time: new Date(e.created_at).toLocaleTimeString()
           })));
         }
@@ -129,12 +134,12 @@ export function OverviewTab() {
       .channel("live_analytics_feed")
       .on(
         "postgres_changes",
-        { event: "INSERT", schema: "public", table: "analytics_events" },
+        { event: "INSERT", schema: "public", table: "events" },
         (payload) => {
           const newEvent: LiveEvent = {
             id: payload.new.id,
-            name: payload.new.event_name,
-            props: payload.new.event_properties,
+            name: payload.new.event_type,
+            props: payload.new.properties,
             time: new Date(payload.new.created_at).toLocaleTimeString()
           };
           setEvents((prev) => [newEvent, ...prev.slice(0, 9)]);
@@ -239,6 +244,24 @@ export function OverviewTab() {
           <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" /> Live Streaming
         </div>
       </div>
+
+      {/* Error state alert */}
+      {error && (
+        <div className="p-4 rounded-2xl border border-red-500/20 bg-red-500/10 text-red-400 text-xs flex items-center gap-2.5">
+          <AlertTriangle className="h-5 w-5 shrink-0" />
+          <span><strong>API Query Failed:</strong> {error}</span>
+        </div>
+      )}
+
+      {/* Counts mismatch warning */}
+      {!loading && stats.totalUsers !== stats.totalProfiles && (
+        <div className="p-4 rounded-2xl border border-amber-500/20 bg-amber-500/10 text-amber-400 text-xs flex items-center gap-2.5">
+          <AlertTriangle className="h-5 w-5 shrink-0 text-amber-400 animate-pulse" />
+          <span>
+            <strong>Data Integrity Alert:</strong> There is a discrepancy between auth user registrations ({stats.totalUsers}) and profile records ({stats.totalProfiles}). This indicates a pending onboarding/backfill repair.
+          </span>
+        </div>
+      )}
 
       {/* AI Business Summary Panel */}
       <div className="p-6 rounded-2xl border border-cyan-500/20 bg-gradient-to-r from-cyan-950/20 to-slate-900/40 backdrop-blur-md space-y-4">

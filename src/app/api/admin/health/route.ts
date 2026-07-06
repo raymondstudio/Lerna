@@ -58,12 +58,21 @@ export async function GET() {
       .limit(20);
 
     // 3. Fetch general system errors and upload failures
-    const { data: failedEvents } = await supabase
-      .from("analytics_events")
-      .select("id, event_name, event_properties, created_at")
-      .ilike("event_name", "%failed%")
+    const { data: rawFailedEvents } = await supabase
+      .from("events")
+      .select("id, event_type, properties, created_at")
+      .ilike("event_type", "%failed%")
       .order("created_at", { ascending: false })
       .limit(20);
+
+    const failedEvents = rawFailedEvents?.map(e => ({
+      id: e.id,
+      event_name: e.event_type,
+      event_properties: e.properties,
+      created_at: e.created_at
+    })) || [];
+
+    const { data: dbHealth } = await supabase.rpc("check_system_health");
 
     return NextResponse.json({
       success: true,
@@ -75,11 +84,12 @@ export async function GET() {
           pdfProcessing: avgLatencies["pdf_parsing_latency"] || 1350,
         },
         failedAiRequests: failedAi || [],
-        failedEvents: failedEvents || [],
+        failedEvents: failedEvents,
         webhooks: [
           { service: "Stripe Capture", status: "Operational", lastEvent: "N/A" },
           { service: "Paystack Capture", status: "Operational", lastEvent: "N/A" },
         ],
+        dbHealth: dbHealth || {}
       },
     });
   } catch (err) {

@@ -32,6 +32,25 @@ export function AnnouncementsTab() {
 
   useEffect(() => {
     void fetchBroadcasts();
+
+    const { createSupabaseBrowserClient } = require("@/lib/supabase/client");
+    const supabase = createSupabaseBrowserClient();
+    if (!supabase) return;
+
+    const channel = supabase
+      .channel("broadcasts_realtime_sync")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "broadcasts" },
+        () => {
+          void fetchBroadcasts();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {

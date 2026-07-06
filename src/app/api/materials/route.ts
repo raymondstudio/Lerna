@@ -61,3 +61,62 @@ export async function GET(req: Request) {
     },
   });
 }
+
+export async function POST(req: Request) {
+  const requestId = crypto.randomUUID();
+  const supabase = await createSupabaseServerClient();
+  const { data: userData } = await supabase.auth.getUser();
+  const user = userData.user;
+
+  if (!user) {
+    return NextResponse.json(
+      {
+        success: false,
+        requestId,
+        error: {
+          code: "UNAUTHORIZED",
+          message: "You must be signed in to create materials.",
+        },
+      },
+      { status: 401 }
+    );
+  }
+
+  try {
+    const { sessionId, fileName, fileType, storagePath, fileSize } = await req.json();
+    if (!sessionId || !fileName || !fileType || !storagePath) {
+      return NextResponse.json(
+        {
+          success: false,
+          requestId,
+          error: {
+            code: "BAD_REQUEST",
+            message: "Missing required fields.",
+          },
+        },
+        { status: 400 }
+      );
+    }
+
+    const { insertMaterial } = await import("@/lib/repositories/materials");
+    const insertedRow = await insertMaterial(user.id, sessionId, fileName, fileType, storagePath, fileSize);
+
+    return NextResponse.json({
+      success: true,
+      requestId,
+      data: insertedRow
+    });
+  } catch (err: any) {
+    return NextResponse.json(
+      {
+        success: false,
+        requestId,
+        error: {
+          code: "INSERT_FAILED",
+          message: err.message || String(err),
+        },
+      },
+      { status: 500 }
+    );
+  }
+}

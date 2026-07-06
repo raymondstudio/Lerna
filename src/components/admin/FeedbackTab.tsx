@@ -32,6 +32,25 @@ export function FeedbackTab() {
 
   useEffect(() => {
     void fetchFeedback();
+
+    const { createSupabaseBrowserClient } = require("@/lib/supabase/client");
+    const supabase = createSupabaseBrowserClient();
+    if (!supabase) return;
+
+    const channel = supabase
+      .channel("feedback_realtime_sync")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "feedback" },
+        () => {
+          void fetchFeedback();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
   }, []);
 
   const handleUpdateFeedback = async (feedbackId: string, fields: any) => {

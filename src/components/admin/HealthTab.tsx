@@ -28,6 +28,18 @@ type HealthDiagnostics = {
     status: string;
     lastEvent: string;
   }>;
+  dbHealth: {
+    missingProfiles: number;
+    missingPreferences: number;
+    missingNotifications: number;
+    missingRoles: number;
+    missingSubscriptions: number;
+    duplicateProfiles: number;
+    duplicateRoles: number;
+    orphanSessions: number;
+    failedQueue: number;
+    databaseHealth: boolean;
+  };
 };
 
 export function HealthTab() {
@@ -115,6 +127,62 @@ export function HealthTab() {
             <div className="text-xl font-bold text-white">{data.latencies.pdfProcessing}ms</div>
           </div>
           <AlertCircle className="h-5 w-5 text-cyan-400" />
+        </div>
+      </div>
+
+      {/* Database & Diagnostics Health Panel */}
+      <div className="p-6 rounded-2xl border border-white/5 bg-[#141414]/50 backdrop-blur-md space-y-4">
+        <div className="flex justify-between items-center pb-3 border-b border-white/5">
+          <div className="flex items-center gap-2">
+            <Activity className="h-4.5 w-4.5 text-cyan-400" />
+            <h3 className="text-sm font-semibold text-white">Database Integrity & Core Schema Diagnostics</h3>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] text-slate-500 uppercase tracking-widest font-semibold">Status:</span>
+            {(!data.dbHealth || 
+              (data.dbHealth.missingProfiles === 0 &&
+               data.dbHealth.missingPreferences === 0 &&
+               data.dbHealth.missingNotifications === 0 &&
+               data.dbHealth.missingRoles === 0 &&
+               data.dbHealth.missingSubscriptions === 0 &&
+               data.dbHealth.duplicateProfiles === 0 &&
+               data.dbHealth.duplicateRoles === 0 &&
+               data.dbHealth.orphanSessions === 0 &&
+               data.dbHealth.failedQueue === 0)) ? (
+              <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-bold uppercase tracking-wider">
+                PASS
+              </span>
+            ) : (
+              <span className="px-2.5 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] font-bold uppercase tracking-wider">
+                WARN
+              </span>
+            )}
+          </div>
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 text-xs">
+          {[
+            { label: "Missing Profiles", value: data.dbHealth?.missingProfiles ?? 0 },
+            { label: "Missing Preferences", value: data.dbHealth?.missingPreferences ?? 0 },
+            { label: "Missing Notifications", value: data.dbHealth?.missingNotifications ?? 0 },
+            { label: "Missing Roles", value: data.dbHealth?.missingRoles ?? 0 },
+            { label: "Missing Subscriptions", value: data.dbHealth?.missingSubscriptions ?? 0 },
+            { label: "Duplicate Profiles", value: data.dbHealth?.duplicateProfiles ?? 0 },
+            { label: "Duplicate Roles", value: data.dbHealth?.duplicateRoles ?? 0 },
+            { label: "Orphan Sessions", value: data.dbHealth?.orphanSessions ?? 0 },
+            { label: "Failed Mail Queue", value: data.dbHealth?.failedQueue ?? 0 },
+            { label: "DB Connection", value: data.dbHealth?.databaseHealth ? "Connected" : "Disconnected", raw: true }
+          ].map((item, idx) => {
+            const isError = item.raw ? item.value === "Disconnected" : Number(item.value) > 0;
+            return (
+              <div key={idx} className="p-4 rounded-xl bg-[#0a0a0a]/30 border border-white/5 space-y-1">
+                <span className="text-[10px] text-slate-500 block font-semibold">{item.label}</span>
+                <div className={`text-base font-bold ${isError ? "text-red-400" : "text-white"}`}>
+                  {item.value}
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
 

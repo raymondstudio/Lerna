@@ -345,22 +345,27 @@ export function UploadWorkspace() {
           throw uploadError;
         }
 
-        const { data: insertedRow, error: insertError } = await supabase
-          .from("uploaded_materials")
-          .insert({
-            user_id: user.id,
-            session_id: session.id,
-            file_name: file.name,
-            file_type: file.type || "application/octet-stream",
-            storage_path: storagePath,
+        const insertRes = await fetch("/api/materials", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            sessionId: session.id,
+            fileName: file.name,
+            fileType: file.type || "application/octet-stream",
+            storagePath,
+            fileSize: file.size
           })
-          .select("id,user_id,session_id,file_name,file_type,storage_path,created_at,status,error_message,processed_at,chunk_count,summary,source_metadata,deleted_at")
-          .single();
+        });
 
-        if (insertError || !insertedRow) {
+        const insertPayload = await insertRes.json();
+        if (!insertPayload.success || !insertPayload.data) {
           await supabase.storage.from(UPLOADED_MATERIALS_BUCKET).remove([storagePath]);
-          throw insertError ?? new Error("Unable to save upload metadata.");
+          throw new Error(insertPayload.error?.message || "Unable to save upload metadata.");
         }
+
+        const insertedRow = insertPayload.data;
 
         setMaterials((current) => sortMaterials([mapMaterialRow(insertedRow as StorageRow), ...current.filter((item) => item.id !== insertedRow.id)]));
 
