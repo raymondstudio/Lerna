@@ -42,9 +42,22 @@ export async function GET(
       return NextResponse.json({ success: false, error: "User not found" }, { status: 404 });
     }
 
+    // Load additional billing info
+    const { getSubscriptionHistory, getBillingHistory, getInvoices } = await import("@/lib/repositories/billing");
+    const { data: subDetails } = await supabase.from("subscriptions").select("*").eq("user_id", userId).maybeSingle();
+    const subscriptionHistory = await getSubscriptionHistory(userId).catch(() => []);
+    const billingHistory = await getBillingHistory(userId).catch(() => []);
+    const invoices = await getInvoices(userId).catch(() => []);
+
     return NextResponse.json({
       success: true,
-      data,
+      data: {
+        ...data,
+        subscription: subDetails,
+        subscriptionHistory,
+        billingHistory,
+        invoices
+      },
     });
   } catch (err) {
     console.error("[api:admin:user-details] Exception:", err);

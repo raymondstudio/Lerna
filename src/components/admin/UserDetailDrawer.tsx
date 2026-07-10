@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Loader2, X, User, Calendar, Cpu, FolderOpen, Globe, Laptop, HelpCircle, GraduationCap, Coins, MessageSquare, ShieldAlert, Shield } from "lucide-react";
+import { Loader2, X, User, Calendar, Cpu, FolderOpen, Globe, Laptop, HelpCircle, GraduationCap, Coins, MessageSquare, ShieldAlert, Shield, History, Receipt } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 type UserDetails = {
@@ -150,6 +150,64 @@ export function UserDetailDrawer({ userId, onClose }: { userId: string; onClose:
     }
   };
 
+  const handleResetUsage = async () => {
+    const confirmReset = window.confirm("Are you sure you want to reset today's usage stats for this user?");
+    if (!confirmReset) return;
+
+    try {
+      setSavingPlan(true);
+      const res = await fetch(`/api/admin/users/${userId}/actions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "reset-usage" })
+      });
+      const json = await res.json();
+      if (json.success) {
+        alert("Usage limits reset successfully.");
+        onClose();
+      } else {
+        alert(json.error || "Failed to reset usage.");
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setSavingPlan(false);
+    }
+  };
+
+  const handleExtendSubscription = async () => {
+    const daysStr = window.prompt("Enter number of days to extend subscription by:", "30");
+    if (!daysStr) return;
+    const days = parseInt(daysStr, 10);
+    if (isNaN(days) || days <= 0) {
+      alert("Invalid number of days.");
+      return;
+    }
+
+    try {
+      setSavingPlan(true);
+      const res = await fetch(`/api/admin/users/${userId}/actions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "extend-subscription",
+          value: { days }
+        })
+      });
+      const json = await res.json();
+      if (json.success) {
+        alert(`Subscription extended by ${days} days.`);
+        onClose();
+      } else {
+        alert(json.error || "Failed to extend subscription.");
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setSavingPlan(false);
+    }
+  };
+
   useEffect(() => {
     void (async () => {
       try {
@@ -245,6 +303,8 @@ export function UserDetailDrawer({ userId, onClose }: { userId: string; onClose:
                   <div>Gender: <strong>{data.profile.gender || "N/A"}</strong></div>
                   <div>Student: <strong>{data.profile.isStudent ? "Yes" : "No"}</strong></div>
                   <div>Level: <strong>{data.profile.studyLevel || "N/A"}</strong></div>
+                  <div>Plan Expiration: <strong>{(data as any).subscription?.current_period_end ? new Date((data as any).subscription.current_period_end).toLocaleDateString() : "N/A"}</strong></div>
+                  <div>Renewal Type: <strong className="capitalize">{(data as any).subscription?.payment_provider || "manual"}</strong></div>
                   <div className="col-span-2 truncate">School: <strong>{data.profile.institution || "N/A"} ({data.profile.department || "N/A"})</strong></div>
                   <div className="col-span-2 truncate">Goals: <strong>{data.profile.studyGoals?.join(", ") || "N/A"}</strong></div>
                 </div>
@@ -321,6 +381,27 @@ export function UserDetailDrawer({ userId, onClose }: { userId: string; onClose:
                       className="flex-1 h-8 border border-red-500/20 bg-red-500/5 hover:bg-red-500/10 text-red-400 text-[10px] font-bold rounded-lg"
                     >
                       Revoke Access
+                    </Button>
+                  </div>
+
+                  <div className="flex gap-2 pt-1.5 border-t border-white/5">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={handleExtendSubscription}
+                      disabled={savingPlan}
+                      className="flex-1 h-8 border border-cyan-500/20 bg-cyan-500/5 hover:bg-cyan-500/10 text-cyan-400 text-[10px] font-bold rounded-lg"
+                    >
+                      Extend Term
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={handleResetUsage}
+                      disabled={savingPlan}
+                      className="flex-1 h-8 border border-yellow-500/20 bg-yellow-500/5 hover:bg-yellow-500/10 text-yellow-400 text-[10px] font-bold rounded-lg"
+                    >
+                      Reset Daily Usage
                     </Button>
                   </div>
                 </div>
@@ -503,6 +584,87 @@ export function UserDetailDrawer({ userId, onClose }: { userId: string; onClose:
                       <div key={u.id} className="p-2.5 rounded-lg bg-[#0a0a0a]/40 border border-white/5 flex items-center justify-between text-[11px]">
                         <span className="font-medium text-white truncate max-w-[300px]">{u.file_name}</span>
                         <span className="text-[9px] text-slate-500 font-bold uppercase">{u.file_type.split("/")[1] || "File"}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Feature Entitlements Checklist */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-1.5 text-slate-400 font-semibold border-b border-white/5 pb-1.5">
+                  <Shield className="h-4 w-4 text-cyan-400" /> Active Feature Entitlements
+                </div>
+                <div className="grid grid-cols-2 gap-2 p-3 bg-[#0a0a0a]/20 border border-white/5 rounded-xl text-[10px]">
+                  {[
+                    { key: "ai_chat", label: "AI Tutor Chat" },
+                    { key: "advanced_quizzes", label: "Advanced Quizzes" },
+                    { key: "puzzle_generation", label: "Puzzle Challenges" },
+                    { key: "flashcards", label: "Recall Flashcards" },
+                    { key: "ocr", label: "OCR Scan Scanning" },
+                    { key: "voice_tutor", label: "Voice Tutor Sessions" },
+                    { key: "unlimited_uploads", label: "Unlimited Uploads" },
+                    { key: "analytics", label: "Advanced Analytics" },
+                  ].map((feat) => {
+                    const planName = (data.profile.subscriptionStatus || "free").toLowerCase();
+                    const hasFeat = 
+                      (planName === "student" && ["ai_chat", "advanced_quizzes", "flashcards", "ocr", "voice_tutor"].includes(feat.key)) ||
+                      (["pro", "premium", "team", "enterprise"].includes(planName));
+                    return (
+                      <div key={feat.key} className="flex items-center gap-1.5">
+                        <span className={hasFeat ? "text-cyan-400 font-bold" : "text-slate-600"}>
+                          {hasFeat ? "✓" : "✕"}
+                        </span>
+                        <span className={hasFeat ? "text-slate-200" : "text-slate-500 line-through"}>
+                          {feat.label}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Subscription History Log */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-1.5 text-slate-400 font-semibold border-b border-white/5 pb-1.5">
+                  <History className="h-4 w-4 text-cyan-400" /> Subscription History Log
+                </div>
+                {!(data as any).subscriptionHistory || (data as any).subscriptionHistory.length === 0 ? (
+                  <p className="text-[10px] text-slate-500 italic">No plan changes logged.</p>
+                ) : (
+                  <div className="space-y-1.5 max-h-[120px] overflow-y-auto pr-1">
+                    {(data as any).subscriptionHistory.map((h: any) => (
+                      <div key={h.id} className="p-2 bg-[#0a0a0a]/30 border border-white/5 rounded text-[10px] space-y-0.5">
+                        <div className="flex justify-between text-slate-400">
+                          <span>Plan: <strong className="text-white capitalize">{h.old_plan || "none"} → {h.new_plan || "none"}</strong></span>
+                          <span>{new Date(h.created_at).toLocaleDateString()}</span>
+                        </div>
+                        {h.reason && <p className="text-slate-500 text-[9px] italic">Reason: {h.reason}</p>}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Transactions & Invoices */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-1.5 text-slate-400 font-semibold border-b border-white/5 pb-1.5">
+                  <Receipt className="h-4 w-4 text-cyan-400" /> Transactions & Invoices
+                </div>
+                {(!(data as any).invoices || (data as any).invoices.length === 0) && (!(data as any).billingHistory || (data as any).billingHistory.length === 0) ? (
+                  <p className="text-[10px] text-slate-500 italic">No invoices or payments registered.</p>
+                ) : (
+                  <div className="space-y-1.5 max-h-[150px] overflow-y-auto pr-1 text-[9px] font-mono">
+                    {(data as any).invoices?.map((inv: any) => (
+                      <div key={inv.id} className="flex justify-between p-1.5 border-b border-white/5 bg-white/[0.01]">
+                        <span className="text-slate-400">Invoice: {inv.invoice_number}</span>
+                        <span className="text-slate-200">{inv.amount} {inv.currency} ({inv.status})</span>
+                      </div>
+                    ))}
+                    {(data as any).billingHistory?.map((tx: any) => (
+                      <div key={tx.id} className="flex justify-between p-1.5 border-b border-white/5">
+                        <span className="text-slate-500">Ref: {tx.reference} ({tx.provider})</span>
+                        <span className="text-slate-300">{tx.amount} {tx.currency} ({tx.status})</span>
                       </div>
                     ))}
                   </div>

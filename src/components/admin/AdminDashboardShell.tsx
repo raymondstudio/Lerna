@@ -22,7 +22,8 @@ import {
   ArrowLeft,
   Activity,
   HelpCircle,
-  GraduationCap
+  GraduationCap,
+  CreditCard
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -41,6 +42,7 @@ import { FeedbackTab } from "./FeedbackTab";
 import { AnnouncementsTab } from "./AnnouncementsTab";
 import { SettingsTab } from "./SettingsTab";
 import { InstitutionsTab } from "./InstitutionsTab";
+import { BillingTab } from "./BillingTab";
 
 type NavItem = {
   name: string;
@@ -61,6 +63,7 @@ export function AdminDashboardShell() {
     { name: "Overview", tab: "overview", icon: LayoutDashboard },
     { name: "Users", tab: "users", icon: Users },
     { name: "Institutions", tab: "institutions", icon: GraduationCap },
+    { name: "Billing Center", tab: "billing", icon: CreditCard },
     { name: "Analytics", tab: "analytics", icon: BarChart2 },
     { name: "Learning Analytics", tab: "learning", icon: BookOpen },
     { name: "AI Analytics", tab: "ai", icon: Cpu },
@@ -89,6 +92,8 @@ export function AdminDashboardShell() {
         return <UsersTab />;
       case "institutions":
         return <InstitutionsTab />;
+      case "billing":
+        return <BillingTab />;
       case "analytics":
         return <AnalyticsTab />;
       case "learning":

@@ -193,6 +193,12 @@ export default function AccountPage() {
   const [profileError, setProfileError] = useState<string | null>(null);
   const [loadingData, setLoadingData] = useState(true);
   const [quotaUsage, setQuotaUsage] = useState<any>(null);
+  const [billingHistory, setBillingHistory] = useState<any[]>([]);
+  const [invoices, setInvoices] = useState<any[]>([]);
+  const [couponCode, setCouponCode] = useState("");
+  const [redeemingCoupon, setRedeemingCoupon] = useState(false);
+  const [couponMessage, setCouponMessage] = useState<string | null>(null);
+  const [couponError, setCouponError] = useState<string | null>(null);
 
   const formatBytes = (bytes: number) => {
     if (!bytes) return "0 Bytes";
@@ -272,10 +278,23 @@ export default function AccountPage() {
         if (ticketsRes.data) setTickets(ticketsRes.data);
         if (feedbackRes.data) setFeedbacks(feedbackRes.data);
 
-        // Fetch dynamic quota usage
-        const usageRes = await fetch("/api/account/usage").then(res => res.json()).catch(() => null);
-        if (usageRes) {
-          setQuotaUsage(usageRes);
+        // Fetch dynamic quota usage and history
+        const billingRes = await fetch("/api/account/billing").then(res => res.json()).catch(() => null);
+        if (billingRes && billingRes.success) {
+          setQuotaUsage(billingRes.quota);
+          setBillingHistory(billingRes.history || []);
+        } else {
+          // fallback to usage endpoint
+          const usageRes = await fetch("/api/account/usage").then(res => res.json()).catch(() => null);
+          if (usageRes) {
+            setQuotaUsage(usageRes);
+          }
+        }
+
+        // Fetch invoices
+        const invoicesRes = await fetch("/api/account/invoices").then(res => res.json()).catch(() => null);
+        if (invoicesRes && invoicesRes.success) {
+          setInvoices(invoicesRes.invoices || []);
         }
       } catch (err) {
         console.error("[account] Error loading details:", err);
@@ -286,6 +305,40 @@ export default function AccountPage() {
 
     void loadData();
   }, [user, supabase, profile]);
+
+  const handleRedeemCoupon = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!couponCode.trim()) return;
+
+    try {
+      setRedeemingCoupon(true);
+      setCouponMessage(null);
+      setCouponError(null);
+
+      const res = await fetch("/api/account/billing", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: couponCode }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setCouponMessage(data.message || "Coupon successfully applied!");
+        setCouponCode("");
+        // Reload details
+        const usageRes = await fetch("/api/account/usage").then(r => r.json()).catch(() => null);
+        if (usageRes) {
+          setQuotaUsage(usageRes);
+        }
+        window.location.reload();
+      } else {
+        setCouponError(data.error || "Failed to apply coupon.");
+      }
+    } catch (err) {
+      setCouponError("Network error applying coupon.");
+    } finally {
+      setRedeemingCoupon(false);
+    }
+  };
 
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1020,86 +1073,263 @@ export default function AccountPage() {
                     <p className="text-xs text-slate-500 mt-1">Monitor plan quotas, monthly API limits, and storage usage.</p>
                   </div>
 
+                  {/* Coupon Alerts */}
+                  {couponMessage && (
+                    <div className="flex items-center gap-2 p-3.5 rounded-xl border border-emerald-500/20 bg-emerald-500/5 text-xs text-emerald-300">
+                      <Check className="h-4 w-4 shrink-0" /> {couponMessage}
+                    </div>
+                  )}
+                  {couponError && (
+                    <div className="flex items-center gap-2 p-3.5 rounded-xl border border-red-500/20 bg-red-500/5 text-xs text-red-300">
+                      <AlertCircle className="h-4 w-4 shrink-0" /> {couponError}
+                    </div>
+                  )}
+
+                  {/* Plan Card */}
                   <div className="p-5 rounded-2xl border border-cyan-500/20 bg-gradient-to-br from-cyan-500/5 to-transparent space-y-4">
                     <div className="flex justify-between items-start">
                       <div className="space-y-1">
                         <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">Plan level</span>
                         <h3 className="text-2xl font-bold text-white capitalize flex items-center gap-2">
-                          EduAgent {profile?.plan || "Free"} <span className="text-xs px-2.5 py-0.5 bg-cyan-500/10 text-cyan-400 rounded-full font-semibold border border-cyan-500/10">Active</span>
+                          EduAgent {profile?.plan || quotaUsage?.plan || "Free"} <span className="text-xs px-2.5 py-0.5 bg-cyan-500/10 text-cyan-400 rounded-full font-semibold border border-cyan-500/10">Active</span>
                         </h3>
                       </div>
                       <span className="text-3xl font-bold text-white">
-                        {profile?.plan === "premium" || profile?.plan === "pro" ? "$12" : "$0"} <span className="text-xs text-slate-500 font-normal">/mo</span>
+                        {quotaUsage?.plan === "premium" || quotaUsage?.plan === "pro" ? "$12" :
+                         quotaUsage?.plan === "team" ? "$50" :
+                         quotaUsage?.plan === "enterprise" ? "$200" : "$0"} <span className="text-xs text-slate-500 font-normal">/mo</span>
                       </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4 text-[10px] text-slate-400 pt-2 border-t border-white/5">
+                      <div>Status: <strong className="text-white capitalize">{quotaUsage?.subscription?.subscriptionStatus || "Active"}</strong></div>
+                      <div>Cycle: <strong className="text-white capitalize">{quotaUsage?.subscription?.billingCycle || "Monthly"}</strong></div>
+                      <div>Period Start: <strong className="text-white">{quotaUsage?.subscription?.currentPeriodStart ? new Date(quotaUsage.subscription.currentPeriodStart).toLocaleDateString() : new Date().toLocaleDateString()}</strong></div>
+                      <div>Renewal Date: <strong className="text-white">{quotaUsage?.subscription?.renewalDate ? new Date(quotaUsage.subscription.renewalDate).toLocaleDateString() : quotaUsage?.subscription?.currentPeriodEnd ? new Date(quotaUsage.subscription.currentPeriodEnd).toLocaleDateString() : "N/A"}</strong></div>
                     </div>
 
                     <div className="h-[1px] bg-white/5 w-full" />
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
-                      {[
-                        { 
-                          label: "Monthly AI Requests", 
-                          used: quotaUsage?.usage?.aiRequests || 0, 
-                          limit: quotaUsage?.limits?.aiRequests || 100 
-                        },
-                        { 
-                          label: "Daily AI Limit", 
-                          used: quotaUsage?.usage?.dailyAiRequests || 0, 
-                          limit: quotaUsage?.limits?.dailyRequests || 20 
-                        },
-                        { 
-                          label: "Quiz Generations", 
-                          used: quotaUsage?.usage?.quizzes || 0, 
-                          limit: quotaUsage?.limits?.quizzes || 20 
-                        },
-                        { 
-                          label: "Flashcard Generations", 
-                          used: quotaUsage?.usage?.flashcards || 0, 
-                          limit: quotaUsage?.limits?.flashcards || 50 
-                        },
-                        { 
-                          label: "Material Uploads", 
-                          used: quotaUsage?.usage?.uploadsCount || 0, 
-                          limit: quotaUsage?.limits?.uploads || 10 
-                        },
-                        { 
-                          label: "Storage Usage", 
-                          used: formatBytes(quotaUsage?.usage?.storageBytes || 0), 
-                          limit: formatBytes(quotaUsage?.limits?.storage || 52428800), 
-                          percentage: Math.min(((quotaUsage?.usage?.storageBytes || 0) / (quotaUsage?.limits?.storage || 52428800)) * 100, 100) 
-                        }
-                      ].map((item, idx) => {
-                        const isStorage = item.label === "Storage Usage";
-                        const pct = isStorage 
-                          ? item.percentage 
-                          : Math.min(((item.used as number) / (item.limit as number)) * 100, 100);
+                    {/* Features checklist */}
+                    <div className="space-y-2">
+                      <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">Included Features</span>
+                      <div className="grid grid-cols-2 gap-2 text-[10px] text-slate-300">
+                        {[
+                          { key: "ai_chat", label: "AI Tutor Chat" },
+                          { key: "advanced_quizzes", label: "Advanced Quizzes" },
+                          { key: "puzzle_generation", label: "Puzzle Challenges" },
+                          { key: "flashcards", label: "Recall Flashcards" },
+                          { key: "ocr", label: "OCR Scan Scanning" },
+                          { key: "voice_tutor", label: "Voice Tutor Sessions" },
+                          { key: "unlimited_uploads", label: "Unlimited Uploads" },
+                          { key: "analytics", label: "Advanced Analytics" },
+                        ].map((feat) => {
+                          const hasFeat = quotaUsage?.plan ? 
+                            (quotaUsage.plan.toLowerCase() === "student" && ["ai_chat", "advanced_quizzes", "flashcards", "ocr", "voice_tutor"].includes(feat.key)) ||
+                            (["pro", "premium", "team", "enterprise"].includes(quotaUsage.plan.toLowerCase()))
+                            : ["ai_chat", "flashcards"].includes(feat.key);
 
-                        return (
-                          <div key={idx} className="p-4 rounded-xl border border-white/5 bg-[#14161a] space-y-2">
-                            <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">{item.label}</span>
-                            <div className="flex justify-between items-baseline">
-                              <span className="text-lg font-bold text-white">{item.used}</span>
-                              <span className="text-[10px] text-slate-500">limit: {item.limit}</span>
+                          return (
+                            <div key={feat.key} className="flex items-center gap-1.5">
+                              <span className={hasFeat ? "text-cyan-400 font-bold" : "text-slate-600"}>
+                                {hasFeat ? "✓" : "✕"}
+                              </span>
+                              <span className={hasFeat ? "text-slate-200" : "text-slate-500 line-through"}>
+                                {feat.label}
+                              </span>
                             </div>
-                            <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
-                              <div className="h-full bg-cyan-500 transition-all duration-300" style={{ width: `${pct}%` }} />
-                            </div>
-                          </div>
-                        );
-                      })}
+                          );
+                        })}
+                      </div>
                     </div>
 
-                    {(profile?.plan !== "premium" && profile?.plan !== "pro") && (
+                    <div className="h-[1px] bg-white/5 w-full" />
+
+                    {/* Quota totals */}
+                    <div className="space-y-1">
+                      <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">Remaining Limits</span>
+                      <div className="grid grid-cols-3 gap-2 text-center text-[10px]">
+                        <div className="p-2 rounded bg-white/5">
+                          <span className="text-slate-500 block">AI Requests</span>
+                          <strong className="text-white">{quotaUsage?.remaining?.aiRequests ?? 0} left</strong>
+                        </div>
+                        <div className="p-2 rounded bg-white/5">
+                          <span className="text-slate-500 block">OCR Pages</span>
+                          <strong className="text-white">{quotaUsage?.remaining?.ocrPages ?? 0} left</strong>
+                        </div>
+                        <div className="p-2 rounded bg-white/5">
+                          <span className="text-slate-500 block">Quizzes</span>
+                          <strong className="text-white">{quotaUsage?.remaining?.quizzes ?? 0} left</strong>
+                        </div>
+                      </div>
+                    </div>
+
+                    {(profile?.plan !== "premium" && profile?.plan !== "pro" && profile?.plan !== "team" && profile?.plan !== "enterprise") && (
                       <Button className="w-full h-11 bg-cyan-500 text-slate-950 hover:bg-cyan-400 font-bold rounded-lg flex items-center justify-center gap-2">
                         <Sparkles className="h-4 w-4" /> Upgrade to Premium Tier ($12/mo)
                       </Button>
                     )}
                   </div>
 
-                  <div className="space-y-3">
-                    <h3 className="text-sm font-bold text-white">Invoices & Logs</h3>
-                    <div className="p-6 rounded-xl border border-white/5 bg-[#14161a] text-center text-xs text-slate-500">
-                      No invoices found. Standard accounts are created with free test plans.
+                  {/* Progress bars */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {[
+                      { 
+                        label: "Monthly AI Requests", 
+                        used: quotaUsage?.usage?.aiRequests || 0, 
+                        limit: quotaUsage?.limits?.aiRequests || 100 
+                      },
+                      { 
+                        label: "Daily AI Limit", 
+                        used: quotaUsage?.usage?.dailyAiRequests || 0, 
+                        limit: quotaUsage?.limits?.dailyRequests || 20 
+                      },
+                      { 
+                        label: "Quiz Generations", 
+                        used: quotaUsage?.usage?.quizzes || 0, 
+                        limit: quotaUsage?.limits?.quizzes || 20 
+                      },
+                      { 
+                        label: "Flashcard Generations", 
+                        used: quotaUsage?.usage?.flashcards || 0, 
+                        limit: quotaUsage?.limits?.flashcards || 50 
+                      },
+                      { 
+                        label: "OCR Pages Limit", 
+                        used: quotaUsage?.usage?.ocrPages || 0, 
+                        limit: quotaUsage?.limits?.ocrPages || 5 
+                      },
+                      { 
+                        label: "Voice Usage Minutes", 
+                        used: Math.ceil((quotaUsage?.usage?.voiceSeconds || 0) / 60), 
+                        limit: Math.ceil((quotaUsage?.limits?.voiceSeconds || 120) / 60),
+                        percentage: Math.min(((quotaUsage?.usage?.voiceSeconds || 0) / (quotaUsage?.limits?.voiceSeconds || 120)) * 100, 100)
+                      },
+                      { 
+                        label: "Storage Usage", 
+                        used: formatBytes(quotaUsage?.usage?.storageBytes || 0), 
+                        limit: formatBytes(quotaUsage?.limits?.storage || 52428800), 
+                        percentage: Math.min(((quotaUsage?.usage?.storageBytes || 0) / (quotaUsage?.limits?.storage || 52428800)) * 100, 100) 
+                      }
+                    ].map((item, idx) => {
+                      const isStorage = item.label === "Storage Usage";
+                      const isVoice = item.label === "Voice Usage Minutes";
+                      const pct = isStorage || isVoice 
+                        ? (item as any).percentage 
+                        : Math.min(((item.used as number) / (item.limit as number)) * 100, 100);
+
+                      return (
+                        <div key={idx} className="p-4 rounded-xl border border-white/5 bg-[#14161a] space-y-2">
+                          <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">{item.label}</span>
+                          <div className="flex justify-between items-baseline">
+                            <span className="text-lg font-bold text-white">{item.used}</span>
+                            <span className="text-[10px] text-slate-500">limit: {item.limit}</span>
+                          </div>
+                          <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
+                            <div className="h-full bg-cyan-500 transition-all duration-300" style={{ width: `${pct}%` }} />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Redeem Coupon */}
+                  <div className="p-5 rounded-xl border border-white/5 bg-[#14161a] space-y-3">
+                    <h3 className="text-sm font-bold text-white flex items-center gap-1.5">
+                      🎟 Redeem Promo Coupon
+                    </h3>
+                    <p className="text-[10px] text-slate-500">Enter a gift coupon code or promotional voucher to activate premium features.</p>
+                    
+                    <form onSubmit={handleRedeemCoupon} className="flex gap-2">
+                      <Input
+                        placeholder="ENTER COUPON CODE"
+                        value={couponCode}
+                        onChange={(e) => setCouponCode(e.target.value)}
+                        className="bg-[#0d0f12] border-white/5 uppercase font-semibold text-xs tracking-wider"
+                        disabled={redeemingCoupon}
+                      />
+                      <Button
+                        type="submit"
+                        disabled={redeemingCoupon}
+                        className="bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs h-10 px-5"
+                      >
+                        {redeemingCoupon ? "Applying..." : "Redeem"}
+                      </Button>
+                    </form>
+                  </div>
+
+                  {/* Empty States for Billing History & Invoices */}
+                  <div className="space-y-4">
+                    <div className="space-y-2.5">
+                      <h3 className="text-sm font-bold text-white">Billing History & Transactions</h3>
+                      {billingHistory.length === 0 ? (
+                        <div className="p-5 rounded-xl border border-white/5 bg-[#14161a] text-center text-xs text-slate-500 italic">
+                          No transactions found. Standard accounts are created with free test plans.
+                        </div>
+                      ) : (
+                        <div className="border border-white/5 bg-[#14161a] rounded-xl overflow-hidden text-[11px]">
+                          <table className="w-full text-left border-collapse">
+                            <thead>
+                              <tr className="border-b border-white/5 text-slate-400 bg-white/[0.02]">
+                                <th className="p-3 font-semibold">Date</th>
+                                <th className="p-3 font-semibold">Reference</th>
+                                <th className="p-3 font-semibold">Amount</th>
+                                <th className="p-3 font-semibold">Status</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {billingHistory.map((t) => (
+                                <tr key={t.id} className="border-b border-white/5 hover:bg-white/[0.01]">
+                                  <td className="p-3">{new Date(t.created_at).toLocaleDateString()}</td>
+                                  <td className="p-3 font-mono">{t.reference}</td>
+                                  <td className="p-3">{t.amount} {t.currency}</td>
+                                  <td className="p-3 capitalize text-cyan-400 font-semibold">{t.status}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="space-y-2.5">
+                      <h3 className="text-sm font-bold text-white">Invoices</h3>
+                      {invoices.length === 0 ? (
+                        <div className="p-5 rounded-xl border border-white/5 bg-[#14161a] text-center text-xs text-slate-500 italic">
+                          No invoices generated yet.
+                        </div>
+                      ) : (
+                        <div className="border border-white/5 bg-[#14161a] rounded-xl overflow-hidden text-[11px]">
+                          <table className="w-full text-left border-collapse">
+                            <thead>
+                              <tr className="border-b border-white/5 text-slate-400 bg-white/[0.02]">
+                                <th className="p-3 font-semibold">Invoice #</th>
+                                <th className="p-3 font-semibold">Issued Date</th>
+                                <th className="p-3 font-semibold">Amount</th>
+                                <th className="p-3 font-semibold">Status</th>
+                                <th className="p-3 font-semibold">Receipt</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {invoices.map((inv) => (
+                                <tr key={inv.id} className="border-b border-white/5 hover:bg-white/[0.01]">
+                                  <td className="p-3 font-mono">{inv.invoice_number}</td>
+                                  <td className="p-3">{new Date(inv.issued_at).toLocaleDateString()}</td>
+                                  <td className="p-3">{inv.amount} {inv.currency}</td>
+                                  <td className="p-3 capitalize">{inv.status}</td>
+                                  <td className="p-3">
+                                    {inv.pdf_url ? (
+                                      <a href={inv.pdf_url} target="_blank" rel="noreferrer" className="text-cyan-400 underline">Download</a>
+                                    ) : (
+                                      <span className="text-slate-500">Not Available</span>
+                                    )}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>

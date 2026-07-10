@@ -93,6 +93,54 @@ export async function POST(
       return NextResponse.json({ success: true, data });
     }
 
+    if (action === "reset-usage") {
+      const today = new Date().toISOString().slice(0, 10);
+      const { error } = await supabase
+        .from("subscription_usage")
+        .upsert({
+          user_id: userId,
+          usage_date: today,
+          ai_requests: 0,
+          uploads: 0,
+          quizzes: 0,
+          flashcards: 0,
+          ocr_pages: 0,
+          voice_usage_seconds: 0
+        }, { onConflict: "user_id,usage_date" });
+      if (error) throw error;
+
+      await supabase.from("audit_logs").insert({
+        user_id: userData.user.id,
+        action: "usage_reset",
+        details: { target_user_id: userId }
+      });
+      return NextResponse.json({ success: true });
+    }
+
+    if (action === "extend-subscription") {
+      const { days = 30 } = value || {};
+      const { data: sub } = await supabase.from("subscriptions").select("current_period_end").eq("user_id", userId).maybeSingle();
+      let currentEnd = sub?.current_period_end ? new Date(sub.current_period_end) : new Date();
+      if (currentEnd < new Date()) currentEnd = new Date();
+      currentEnd.setDate(currentEnd.getDate() + Number(days));
+
+      const { error } = await supabase
+        .from("subscriptions")
+        .update({
+          current_period_end: currentEnd.toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .eq("user_id", userId);
+      if (error) throw error;
+
+      await supabase.from("audit_logs").insert({
+        user_id: userData.user.id,
+        action: "subscription_extended",
+        details: { target_user_id: userId, days }
+      });
+      return NextResponse.json({ success: true, currentPeriodEnd: currentEnd });
+    }
+
     return NextResponse.json({ success: false, error: "Invalid action." }, { status: 400 });
   } catch (err) {
     console.error("[api:admin:user-action] Exception:", err);
