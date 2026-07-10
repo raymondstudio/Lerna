@@ -25,7 +25,7 @@ import { useDashboard } from "@/context/dashboard-context";
 export function DashboardShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { signOut } = useAuth();
+  const { signOut, profile } = useAuth();
   
   const {
     sessions,
@@ -241,6 +241,20 @@ export function DashboardShell({ children }: { children: ReactNode }) {
 
       {/* Main Page Area */}
       <div className="flex-1 flex flex-col relative min-w-0 h-full overflow-hidden bg-[#0a0a0a]">
+        {profile && !profile.onboarding_completed && (
+          <div className="bg-gradient-to-r from-amber-500/10 to-orange-500/10 border-b border-amber-500/20 px-4 py-2 text-xs flex justify-between items-center text-amber-200/90 shrink-0 select-none animate-in slide-in-from-top duration-300 gap-4">
+            <span className="flex items-center gap-2">
+              <span className="h-2 w-2 rounded-full bg-amber-500 animate-pulse shrink-0" />
+              You are browsing in preview mode. Set up your personalized learning companion to unlock tailored quizzes, terminologies, and study recommendations.
+            </span>
+            <Button
+              onClick={() => router.push("/onboarding")}
+              className="bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold px-3.5 h-7 text-[10px] rounded-lg shrink-0 border-none"
+            >
+              Set Up Now
+            </Button>
+          </div>
+        )}
         {/* Mobile Header */}
         <div className="flex items-center justify-between p-3 md:hidden border-b border-white/5 bg-[#141414] shrink-0 z-10">
           <Button

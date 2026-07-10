@@ -83,25 +83,55 @@ export async function getUserQuotaUsage(userId: string) {
     .eq("user_id", userId)
     .gte("created_at", startOfToday.toISOString());
 
-  // Configure limits
-  const isPremium = plan === "premium" || plan === "pro" || plan === "enterprise";
-  const limits = isPremium 
-    ? {
-        aiRequests: 1000,
-        quizzes: 200,
-        uploads: 100,
-        storage: 1024 * 1024 * 1024, // 1GB
-        flashcards: 500,
-        dailyRequests: 200,
-      }
-    : {
-        aiRequests: 100,
-        quizzes: 20,
-        uploads: 10,
-        storage: 50 * 1024 * 1024, // 50MB
-        flashcards: 50,
-        dailyRequests: 20,
-      };
+  // Configure plan limits dynamically
+  let limits = {
+    aiRequests: 100,
+    quizzes: 20,
+    uploads: 10,
+    storage: 50 * 1024 * 1024, // 50MB
+    flashcards: 50,
+    dailyRequests: 20,
+  };
+
+  const normPlan = plan.toLowerCase().trim();
+  if (normPlan === "student") {
+    limits = {
+      aiRequests: 500,
+      quizzes: 50,
+      uploads: 50,
+      storage: 500 * 1024 * 1024, // 500MB
+      flashcards: 150,
+      dailyRequests: 50,
+    };
+  } else if (normPlan === "pro" || normPlan === "premium") {
+    limits = {
+      aiRequests: 2000,
+      quizzes: 200,
+      uploads: 200,
+      storage: 2 * 1024 * 1024 * 1024, // 2GB
+      flashcards: 500,
+      dailyRequests: 200,
+    };
+  } else if (normPlan === "team" || normPlan === "enterprise") {
+    limits = {
+      aiRequests: 10000,
+      quizzes: 1000,
+      uploads: 1000,
+      storage: 10 * 1024 * 1024 * 1024, // 10GB
+      flashcards: 5000,
+      dailyRequests: 1000,
+    };
+  } else {
+    // Free plan limits
+    limits = {
+      aiRequests: 100,
+      quizzes: 20,
+      uploads: 10,
+      storage: 50 * 1024 * 1024, // 50MB
+      flashcards: 50,
+      dailyRequests: 20,
+    };
+  }
 
   return {
     plan,

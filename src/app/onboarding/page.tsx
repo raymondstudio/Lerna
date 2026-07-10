@@ -86,6 +86,7 @@ export default function OnboardingPage() {
   const [customState, setCustomState] = useState<string>("");
   const [customCountry, setCustomCountry] = useState<string>("Nigeria");
   const [customSubmitting, setCustomSubmitting] = useState<boolean>(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   // Debounced search query
   useEffect(() => {
@@ -183,42 +184,34 @@ export default function OnboardingPage() {
     if (!user) return;
     try {
       setSaving(true);
-      const supabase = createSupabaseBrowserClient();
-      if (!supabase) throw new Error("Supabase client is not available.");
+      setErrorMsg(null);
 
-      const selectedDepartment = department === "Other" ? customDepartment : department;
-
-      const updateProfile = supabase
-        .from("profiles")
-        .update({
-          account_type: accountType,
-          institution: institution,
-          institution_id: institutionId || null,
-          institution_type: institutionType,
-          department: selectedDepartment,
-          study_level: studyLevel,
-          onboarding_completed: true,
-          updated_at: new Date().toISOString()
+      const res = await fetch("/api/account/onboarding", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          accountType,
+          institution,
+          institutionId,
+          institutionType,
+          department,
+          customDepartment,
+          studyLevel,
+          studyGoals
         })
-        .eq("id", user.id);
+      });
 
-      const updatePreferences = supabase
-        .from("user_preferences")
-        .upsert({
-          id: user.id,
-          learning_goals: studyGoals
-        });
-
-      const [profileRes, prefRes] = await Promise.all([updateProfile, updatePreferences]);
-
-      if (profileRes.error) throw profileRes.error;
-      if (prefRes.error) throw prefRes.error;
-
-      router.push("/chat");
-      router.refresh();
+      const json = await res.json();
+      if (json.success) {
+        sessionStorage.removeItem("onboarding_skipped");
+        router.push("/chat");
+        router.refresh();
+      } else {
+        setErrorMsg(json.error || "Failed to finalize onboarding parameters.");
+      }
     } catch (err) {
       console.error("[onboarding] Failed to save profile:", err);
-      alert("An error occurred while saving your profile. Please try again.");
+      setErrorMsg("Connection error: Unable to save your profile parameters. Please verify your connection and try again.");
     } finally {
       setSaving(false);
     }
@@ -242,6 +235,20 @@ export default function OnboardingPage() {
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-slate-200 flex flex-col justify-between py-12 px-4 md:px-6 relative overflow-hidden font-body selection:bg-cyan-500/30">
       
+      {/* Complete later action */}
+      <div className="absolute top-4 right-4 z-20">
+        <Button
+          variant="ghost"
+          onClick={() => {
+            sessionStorage.setItem("onboarding_skipped", "true");
+            router.push("/chat");
+          }}
+          className="text-xs text-slate-400 hover:text-white border border-white/5 bg-[#141414]/50 rounded-full h-8"
+        >
+          Complete later
+        </Button>
+      </div>
+
       {/* Background gradients */}
       <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-cyan-500/5 blur-[120px] rounded-full pointer-events-none" />
       <div className="absolute bottom-0 right-1/4 w-[500px] h-[500px] bg-violet-500/5 blur-[120px] rounded-full pointer-events-none" />
@@ -260,6 +267,12 @@ export default function OnboardingPage() {
             transition={{ duration: 0.3 }}
           />
         </div>
+        {errorMsg && (
+          <div className="p-3.5 rounded-xl bg-red-950/40 border border-red-500/25 text-red-300 text-xs text-center flex items-center justify-between gap-3 animate-in fade-in duration-200 mt-2">
+            <span className="font-semibold">{errorMsg}</span>
+            <button type="button" onClick={() => setErrorMsg(null)} className="hover:text-white font-bold text-sm select-none p-1">×</button>
+          </div>
+        )}
       </div>
 
       {/* Main Form container */}

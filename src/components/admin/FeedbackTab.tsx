@@ -1,14 +1,20 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { MessageSquare, Loader2, RefreshCw, Star, Info } from "lucide-react";
+import { MessageSquare, Loader2, RefreshCw, Star, Info, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 export function FeedbackTab() {
   const [feedbacks, setFeedbacks] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [notesInput, setNotesInput] = useState<{ [key: string]: string }>({});
+
+  // Filtering States
+  const [searchQuery, setSearchQuery] = useState("");
+  const [typeFilter, setTypeFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
 
   const fetchFeedback = async () => {
     try {
@@ -74,6 +80,21 @@ export function FeedbackTab() {
     }
   };
 
+  // Client-side filtering logic
+  const filteredFeedbacks = feedbacks.filter(f => {
+    const term = searchQuery.trim().toLowerCase();
+    const matchesSearch = 
+      !term ||
+      f.message?.toLowerCase().includes(term) ||
+      f.user_name?.toLowerCase().includes(term) ||
+      f.user_email?.toLowerCase().includes(term);
+
+    const matchesType = typeFilter === "all" || f.type === typeFilter;
+    const matchesStatus = statusFilter === "all" || f.status === statusFilter;
+
+    return matchesSearch && matchesType && matchesStatus;
+  });
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center gap-4">
@@ -81,11 +102,49 @@ export function FeedbackTab() {
           <h2 className="text-xl font-semibold text-white tracking-tight flex items-center gap-2">
             <MessageSquare className="h-5 w-5 text-cyan-400" /> User Feedback & Roadmap
           </h2>
-          <p className="text-slate-400 text-xs mt-1">Review student ratings, update roadmap development statuses, and log notes.</p>
+          <p className="text-slate-400 text-xs mt-1">Review student ratings, update roadmap development statuses, and log internal notes.</p>
         </div>
         <Button onClick={fetchFeedback} variant="outline" className="h-8 border-white/5 bg-[#141414] hover:bg-[#202020] text-xs flex items-center gap-1.5">
           <RefreshCw className="h-3.5 w-3.5" /> Refresh
         </Button>
+      </div>
+
+      {/* Filters & Search Control Panel */}
+      <div className="grid gap-3 md:grid-cols-3">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-500" />
+          <Input
+            placeholder="Search feedback content..."
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            className="pl-9 h-10 bg-[#141414] border-white/5 text-xs text-white rounded-xl placeholder-slate-500 focus-visible:ring-cyan-500/20"
+          />
+        </div>
+
+        <select
+          value={typeFilter}
+          onChange={e => setTypeFilter(e.target.value)}
+          className="h-10 px-3 rounded-xl border border-white/5 bg-[#141414] text-xs font-semibold text-slate-300 focus:outline-none focus:border-cyan-500/20 cursor-pointer"
+        >
+          <option value="all">All Feedback Types</option>
+          <option value="general">General suggestions</option>
+          <option value="bug">Bug Reports</option>
+          <option value="feature">Feature Requests</option>
+        </select>
+
+        <select
+          value={statusFilter}
+          onChange={e => setStatusFilter(e.target.value)}
+          className="h-10 px-3 rounded-xl border border-white/5 bg-[#141414] text-xs font-semibold text-slate-300 focus:outline-none focus:border-cyan-500/20 cursor-pointer"
+        >
+          <option value="all">All Roadmap Statuses</option>
+          <option value="new">New</option>
+          <option value="under_review">Under Review</option>
+          <option value="planned">Planned</option>
+          <option value="in_progress">In Progress</option>
+          <option value="completed">Completed</option>
+          <option value="rejected">Rejected</option>
+        </select>
       </div>
 
       <div className="rounded-2xl border border-white/5 bg-[#141414]/40 backdrop-blur-md overflow-x-auto shadow-xl">
@@ -94,9 +153,9 @@ export function FeedbackTab() {
             <Loader2 className="h-8 w-8 text-cyan-500 animate-spin" />
             <span className="text-xs text-slate-500">Loading student feedback...</span>
           </div>
-        ) : feedbacks.length === 0 ? (
+        ) : filteredFeedbacks.length === 0 ? (
           <div className="text-center py-20 text-slate-500 text-xs italic">
-            No feedback entries have been submitted yet.
+            No feedback entries match your query or filters.
           </div>
         ) : (
           <table className="w-full text-left text-xs border-collapse min-w-[900px]">
@@ -111,7 +170,7 @@ export function FeedbackTab() {
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5 text-slate-300">
-              {feedbacks.map((f) => (
+              {filteredFeedbacks.map((f) => (
                 <tr key={f.id} className="hover:bg-white/[0.01] transition-colors align-top">
                   <td className="p-4 whitespace-nowrap">
                     <div className="space-y-0.5">
@@ -145,15 +204,16 @@ export function FeedbackTab() {
                       <Loader2 className="h-4 w-4 animate-spin text-cyan-400" />
                     ) : (
                       <select
-                        value={f.status}
+                        value={f.status || "new"}
                         onChange={(e) => handleUpdateFeedback(f.id, { status: e.target.value })}
-                        className="h-8 rounded-lg border border-white/10 bg-[#1a1a1c] text-xs px-2 text-slate-300 cursor-pointer focus:outline-none"
+                        className="h-8 rounded-lg border border-white/10 bg-[#1a1a1c] text-xs px-2 text-slate-300 cursor-pointer focus:outline-none font-medium"
                       >
-                        <option value="under-review">Under Review</option>
+                        <option value="new">New</option>
+                        <option value="under_review">Under Review</option>
                         <option value="planned">Planned</option>
-                        <option value="in-progress">In Progress</option>
+                        <option value="in_progress">In Progress</option>
                         <option value="completed">Completed</option>
-                        <option value="declined">Declined</option>
+                        <option value="rejected">Rejected</option>
                       </select>
                     )}
                   </td>

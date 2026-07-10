@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Loader2, X, User, Calendar, Cpu, FolderOpen, Globe, Laptop, HelpCircle, GraduationCap, Coins, MessageSquare, ShieldAlert } from "lucide-react";
+import { Loader2, X, User, Calendar, Cpu, FolderOpen, Globe, Laptop, HelpCircle, GraduationCap, Coins, MessageSquare, ShieldAlert, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 type UserDetails = {
@@ -83,6 +83,73 @@ export function UserDetailDrawer({ userId, onClose }: { userId: string; onClose:
   const [error, setError] = useState<string | null>(null);
   const [timeline, setTimeline] = useState<any[]>([]);
 
+  // Subscription plan management states
+  const [selectedPlan, setSelectedPlan] = useState("free");
+  const [selectedPlanStatus, setSelectedPlanStatus] = useState("active");
+  const [isPromo, setIsPromo] = useState(false);
+  const [savingPlan, setSavingPlan] = useState(false);
+
+  const handleSavePlan = async () => {
+    try {
+      setSavingPlan(true);
+      const res = await fetch(`/api/admin/users/${userId}/actions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "assign-plan",
+          value: {
+            plan: selectedPlan,
+            status: selectedPlanStatus,
+            isPromo
+          }
+        })
+      });
+      const json = await res.json();
+      if (json.success) {
+        alert("Subscription plan updated successfully.");
+        onClose(); // Close drawer to trigger refresh
+      } else {
+        alert(json.error || "Failed to update plan.");
+      }
+    } catch (err) {
+      console.error("[user-drawer] Failed to save plan:", err);
+    } finally {
+      setSavingPlan(false);
+    }
+  };
+
+  const handleRevokePlan = async () => {
+    const confirmRevoke = window.confirm("Are you sure you want to revoke this user's subscription and reset them to the Free Plan?");
+    if (!confirmRevoke) return;
+
+    try {
+      setSavingPlan(true);
+      const res = await fetch(`/api/admin/users/${userId}/actions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "assign-plan",
+          value: {
+            plan: "free",
+            status: "inactive",
+            isPromo: false
+          }
+        })
+      });
+      const json = await res.json();
+      if (json.success) {
+        alert("Subscription revoked.");
+        onClose();
+      } else {
+        alert(json.error || "Failed to revoke subscription.");
+      }
+    } catch (err) {
+      console.error("[user-drawer] Failed to revoke plan:", err);
+    } finally {
+      setSavingPlan(false);
+    }
+  };
+
   useEffect(() => {
     void (async () => {
       try {
@@ -92,6 +159,7 @@ export function UserDetailDrawer({ userId, onClose }: { userId: string; onClose:
         const json = await res.json();
         if (json.success && json.data) {
           setData(json.data);
+          setSelectedPlan(json.data.profile.subscriptionStatus || "free");
         } else {
           setError(json.error || "Failed to load user metadata.");
         }
@@ -179,6 +247,82 @@ export function UserDetailDrawer({ userId, onClose }: { userId: string; onClose:
                   <div>Level: <strong>{data.profile.studyLevel || "N/A"}</strong></div>
                   <div className="col-span-2 truncate">School: <strong>{data.profile.institution || "N/A"} ({data.profile.department || "N/A"})</strong></div>
                   <div className="col-span-2 truncate">Goals: <strong>{data.profile.studyGoals?.join(", ") || "N/A"}</strong></div>
+                </div>
+              </div>
+
+              {/* Administrative Plan Controls */}
+              <div className="p-4 rounded-xl border border-white/5 bg-[#141416]/60 space-y-3">
+                <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5 pb-1.5 border-b border-white/5">
+                  <Shield className="h-4 w-4 text-cyan-400" /> Administrative Plan Controls
+                </div>
+
+                <div className="space-y-3">
+                  <div className="flex gap-2 items-center">
+                    <div className="flex-1 space-y-1">
+                      <label className="text-[9px] text-slate-500 font-bold uppercase block">Manual Plan Tier</label>
+                      <select
+                        value={selectedPlan}
+                        onChange={e => setSelectedPlan(e.target.value)}
+                        className="w-full h-8 px-2.5 rounded-lg border border-white/10 bg-[#0d0f12] text-xs text-slate-300 focus:outline-none focus:border-cyan-500/30"
+                      >
+                        <option value="free">Free Plan</option>
+                        <option value="student">Student Plan</option>
+                        <option value="pro">Pro Plan</option>
+                        <option value="team">Team Plan</option>
+                        <option value="premium">Premium Legacy</option>
+                        <option value="enterprise">Enterprise</option>
+                      </select>
+                    </div>
+
+                    <div className="flex-1 space-y-1">
+                      <label className="text-[9px] text-slate-500 font-bold uppercase block">Status</label>
+                      <select
+                        value={selectedPlanStatus}
+                        onChange={e => setSelectedPlanStatus(e.target.value)}
+                        className="w-full h-8 px-2.5 rounded-lg border border-white/10 bg-[#0d0f12] text-xs text-slate-300 focus:outline-none focus:border-cyan-500/30"
+                      >
+                        <option value="active">Active</option>
+                        <option value="inactive">Inactive</option>
+                        <option value="canceled">Canceled</option>
+                        <option value="past_due">Past Due</option>
+                        <option value="paused">Paused</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="isPromo"
+                      checked={isPromo}
+                      onChange={e => setIsPromo(e.target.checked)}
+                      className="rounded border-white/10 bg-[#0d0f12] text-cyan-500 focus:ring-0 focus:ring-offset-0 h-3.5 w-3.5 cursor-pointer"
+                    />
+                    <label htmlFor="isPromo" className="text-[10px] text-slate-400 font-medium cursor-pointer select-none">
+                      Grant Promotional Access (30 Days)
+                    </label>
+                  </div>
+
+                  <div className="flex gap-2 pt-1.5">
+                    <Button
+                      size="sm"
+                      onClick={handleSavePlan}
+                      disabled={savingPlan}
+                      className="flex-1 h-8 bg-cyan-500 hover:bg-cyan-600 text-black text-[10px] font-bold rounded-lg border-none"
+                    >
+                      {savingPlan ? "Saving..." : "Apply Plan Change"}
+                    </Button>
+                    
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={handleRevokePlan}
+                      disabled={savingPlan}
+                      className="flex-1 h-8 border border-red-500/20 bg-red-500/5 hover:bg-red-500/10 text-red-400 text-[10px] font-bold rounded-lg"
+                    >
+                      Revoke Access
+                    </Button>
+                  </div>
                 </div>
               </div>
 

@@ -78,6 +78,21 @@ export async function POST(
       return NextResponse.json({ success: true, data });
     }
 
+    if (action === "assign-plan") {
+      const { plan, status, isPromo } = value || {};
+      if (!plan) {
+        return NextResponse.json({ success: false, error: "Plan name parameter is required." }, { status: 400 });
+      }
+      const { data, error } = await supabase.rpc("admin_assign_plan", {
+        target_user_id: userId,
+        new_plan: plan,
+        plan_status: status || "active",
+        is_promo: isPromo || false
+      });
+      if (error) throw error;
+      return NextResponse.json({ success: true, data });
+    }
+
     return NextResponse.json({ success: false, error: "Invalid action." }, { status: 400 });
   } catch (err) {
     console.error("[api:admin:user-action] Exception:", err);

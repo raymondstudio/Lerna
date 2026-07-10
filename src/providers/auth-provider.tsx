@@ -180,8 +180,11 @@ export function AuthProvider({ children, initialSession }: { children: ReactNode
             pathname.startsWith("/auth/");
 
           if (!isIgnoredRoute && !prof.onboarding_completed) {
-            console.info("[auth:provider] onboarding incomplete, redirecting to wizard");
-            router.push("/onboarding");
+            const skipped = typeof window !== "undefined" && window.sessionStorage?.getItem("onboarding_skipped") === "true";
+            if (!skipped) {
+              console.info("[auth:provider] onboarding incomplete, redirecting to wizard");
+              router.push("/onboarding");
+            }
           }
         }
       } catch (err) {

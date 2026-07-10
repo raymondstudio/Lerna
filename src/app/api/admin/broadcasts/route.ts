@@ -14,7 +14,19 @@ export async function GET(req: Request) {
   try {
     const { data: broadcasts, error } = await supabase
       .from("broadcasts")
-      .select("id, title, content, sent_at, created_at")
+      .select(`
+        id, 
+        title, 
+        content, 
+        sent_at, 
+        created_at,
+        status,
+        target_audience,
+        target_institution,
+        target_department,
+        scheduled_for,
+        expires_at
+      `)
       .order("created_at", { ascending: false });
 
     if (error) throw error;
@@ -47,19 +59,41 @@ export async function POST(req: Request) {
   }
 
   try {
-    const { title, content } = await req.json();
+    const { 
+      title, 
+      content, 
+      status, 
+      targetAudience, 
+      targetInstitution, 
+      targetDepartment, 
+      scheduledFor, 
+      expiresAt 
+    } = await req.json();
 
     if (!title?.trim() || !content?.trim()) {
       return NextResponse.json({ success: false, error: "Title and content are required parameters." }, { status: 400 });
     }
 
+    const payload: any = {
+      title: title.trim(),
+      content: content.trim(),
+      created_by: userData.user.id,
+      status: status || "published",
+      target_audience: targetAudience || "all",
+      target_institution: targetInstitution?.trim() || null,
+      target_department: targetDepartment?.trim() || null,
+      scheduled_for: scheduledFor || null,
+      expires_at: expiresAt || null
+    };
+
+    // If publishing now, set sent_at to current time
+    if (payload.status === "published") {
+      payload.sent_at = new Date().toISOString();
+    }
+
     const { data, error } = await supabase
       .from("broadcasts")
-      .insert({
-        title: title.trim(),
-        content: content.trim(),
-        created_by: userData.user.id,
-      })
+      .insert(payload)
       .select()
       .single();
 
@@ -69,7 +103,7 @@ export async function POST(req: Request) {
     await supabase.from("audit_logs").insert({
       user_id: userData.user.id,
       action: "broadcast_created",
-      details: { broadcast_id: data.id, title: data.title }
+      details: { broadcast_id: data.id, title: data.title, status: data.status }
     });
 
     return NextResponse.json({ success: true, data });
