@@ -20,7 +20,7 @@ let aiClient: GoogleGenAI | null = null;
 let mockModeNotified = false;
 
 function getApiKey(): string {
-  return env.GEMINI_API_KEY || env.NEXT_PUBLIC_GEMINI_API_KEY || "";
+  return env.GEMINI_API_KEY || env.GEMINI_API_KEY || "";
 }
 
 function isKeyValid(): boolean {
