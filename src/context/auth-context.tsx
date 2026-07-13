@@ -10,6 +10,12 @@ export type AuthCredentials = {
 
 export type SignUpCredentials = AuthCredentials & {
   fullName?: string;
+  firstName?: string;
+  lastName?: string;
+  referralCode?: string;
+  institutionInviteCode?: string;
+  acceptedTos?: boolean;
+  acceptedPrivacy?: boolean;
 };
 
 export type AuthContextValue = {

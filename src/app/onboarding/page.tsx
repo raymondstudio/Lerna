@@ -22,6 +22,12 @@ import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 
 const INSTITUTIONS = [
+  "Federal University of Technology Minna (FUTMinna)",
+  "Federal University of Technology Akure (FUTA)",
+  "University of Lagos (UNILAG)",
+  "University of Ibadan (UI)",
+  "University of Benin (UNIBEN)",
+  "University of Nigeria, Nsukka (UNN)",
   "Harvard University",
   "Stanford University",
   "Massachusetts Institute of Technology (MIT)",
@@ -291,7 +297,7 @@ export default function OnboardingPage() {
                 <Compass className="h-8 w-8" />
               </div>
               <div className="space-y-2">
-                <h1 className="text-3xl font-bold tracking-tight text-white">Welcome to EduAgent AI 👋</h1>
+                <h1 className="text-3xl font-bold tracking-tight text-white">Welcome to EduAgent AI</h1>
                 <p className="text-slate-400 text-sm leading-relaxed max-w-sm mx-auto">
                   We'll customize your smart AI tutoring dashboard and space in less than 30 seconds.
                 </p>
@@ -720,7 +726,7 @@ export default function OnboardingPage() {
                 <CheckCircle2 className="h-8 w-8 animate-pulse" />
               </div>
               <div className="space-y-2">
-                <h2 className="text-3xl font-bold tracking-tight text-white font-heading">You're all set! 🚀</h2>
+                <h2 className="text-3xl font-bold tracking-tight text-white font-heading">You're all set!</h2>
                 <p className="text-slate-400 text-sm leading-relaxed max-w-xs mx-auto">
                   Your AI tutor is now personalized and structured around your goals. Let's begin studying!
                 </p>

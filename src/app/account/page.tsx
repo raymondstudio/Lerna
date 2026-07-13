@@ -614,7 +614,7 @@ export default function AccountPage() {
               })}
             </div>
             <div className="hidden lg:block text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-              SaaS Account Center
+              Account Center
             </div>
           </div>
         </div>
@@ -1637,7 +1637,7 @@ export default function AccountPage() {
                       <span className="text-white font-bold">v1.2.0-stable</span>
                     </div>
                     <div className="py-2.5 flex justify-between">
-                      <span className="text-slate-500">SaaS Framework Core</span>
+                      <span className="text-slate-500"> Framework Core</span>
                       <span className="text-white font-semibold">Next.js 16 (Turbopack)</span>
                     </div>
                     <div className="py-2.5 flex justify-between">

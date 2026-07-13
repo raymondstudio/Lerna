@@ -177,13 +177,14 @@ export function AuthProvider({ children, initialSession }: { children: ReactNode
           const isIgnoredRoute = 
             pathname === "/onboarding" || 
             pathname === "/" || 
-            pathname.startsWith("/auth/");
+            pathname.startsWith("/auth/") ||
+            pathname === "/welcome";
 
           if (!isIgnoredRoute && !prof.onboarding_completed) {
             const skipped = typeof window !== "undefined" && window.sessionStorage?.getItem("onboarding_skipped") === "true";
             if (!skipped) {
-              console.info("[auth:provider] onboarding incomplete, redirecting to wizard");
-              router.push("/onboarding");
+              console.info("[auth:provider] onboarding incomplete, redirecting to welcome screen");
+              router.push("/welcome");
             }
           }
         }
@@ -221,7 +222,17 @@ export function AuthProvider({ children, initialSession }: { children: ReactNode
         throw signInError;
       }
     },
-    signUp: async ({ email, password, fullName }: SignUpCredentials) => {
+    signUp: async ({ 
+      email, 
+      password, 
+      fullName, 
+      firstName, 
+      lastName, 
+      referralCode, 
+      institutionInviteCode, 
+      acceptedTos, 
+      acceptedPrivacy 
+    }: SignUpCredentials) => {
       if (!supabase) {
         throw new Error("Supabase is not configured.");
       }
@@ -232,7 +243,15 @@ export function AuthProvider({ children, initialSession }: { children: ReactNode
         email,
         password,
         options: {
-          data: fullName ? { full_name: fullName } : undefined,
+          data: {
+            first_name: firstName || undefined,
+            last_name: lastName || undefined,
+            full_name: fullName || `${firstName || ""} ${lastName || ""}`.trim() || undefined,
+            referral_code_used: referralCode || undefined,
+            institution_invite_code_used: institutionInviteCode || undefined,
+            tos_accepted_at: acceptedTos ? new Date().toISOString() : undefined,
+            privacy_accepted_at: acceptedPrivacy ? new Date().toISOString() : undefined,
+          },
         },
       });
 

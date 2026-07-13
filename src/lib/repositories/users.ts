@@ -1,4 +1,5 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 export async function selectUserProfile(userId: string) {
   const supabase = await createSupabaseServerClient();
@@ -47,3 +48,19 @@ export async function updateProfileNotifications(userId: string, notifData: any)
   if (error) throw error;
   return true;
 }
+
+export async function checkEmailExists(email: string): Promise<boolean> {
+  const adminClient = createSupabaseAdminClient();
+  const { data, error } = await adminClient
+    .from("profiles")
+    .select("id")
+    .eq("email", email.trim().toLowerCase())
+    .limit(1);
+
+  if (error) {
+    console.error("[repo:users] checkEmailExists error:", error.message);
+    throw error;
+  }
+  return data && data.length > 0 ? true : false;
+}
+
