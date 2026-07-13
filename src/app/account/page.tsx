@@ -30,6 +30,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { DashboardShell } from "@/components/layout/DashboardShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { buildProfileUpdatePayload, stripUndefined } from "@/lib/profile";
 
 type TabId = "profile" | "preferences" | "subscription" | "security" | "stats" | "support" | "about";
 
@@ -349,59 +350,53 @@ export default function AccountPage() {
       setProfileMessage(null);
       setProfileError(null);
 
-      // 1. Update profiles table (identity only)
+      const profilePayload = stripUndefined(buildProfileUpdatePayload({
+        firstName,
+        lastName,
+        avatarUrl: profile?.avatarUrl,
+        institution,
+        institutionId,
+        institutionType,
+        department,
+        studyLevel,
+        studyGoals,
+        isStudent,
+        gender,
+        age,
+        teachingStyle,
+        difficulty,
+        preferredQuizFormat,
+        preferredLanguage,
+        flashcardPreference,
+        responseLength,
+        voicePreference,
+        studyReminderEnabled,
+        marketingUpdatesEnabled,
+        securityAlertsEnabled,
+        dailyGoalMinutes,
+        preferredTheme,
+        accountType: isStudent ? "Student" : profile?.accountType || "Professional",
+        country: profile?.country,
+        timezone: profile?.timezone,
+        faculty: profile?.faculty,
+        occupation: profile?.occupation,
+        industry: profile?.industry,
+        field: profile?.field,
+        bio: profile?.bio,
+        favoriteSubjects: profile?.favoriteSubjects,
+        interests: profile?.interests,
+        accessibilityPreferences: profile?.accessibilityPreferences,
+        learningPreferences: profile?.learningPreferences,
+      }));
+
       const { error: profileErr } = await supabase
         .from("profiles")
-        .update({
-          first_name: firstName.trim(),
-          last_name: lastName.trim(),
-          institution: institution.trim(),
-          institution_id: institutionId || null,
-          institution_type: institutionType,
-          department: department.trim(),
-          study_level: studyLevel,
-          is_student: isStudent,
-          gender,
-          age: age === "" ? null : Number(age),
-          updated_at: new Date().toISOString()
-        })
+        .update(profilePayload)
         .eq("id", user.id);
 
       if (profileErr) throw profileErr;
 
-      // 2. Update user_preferences table
-      const { error: prefErr } = await supabase
-        .from("user_preferences")
-        .update({
-          teaching_style: teachingStyle,
-          difficulty,
-          preferred_quiz_format: preferredQuizFormat,
-          preferred_language: preferredLanguage,
-          flashcard_preference: flashcardPreference,
-          response_length: responseLength,
-          voice_preference: voicePreference,
-          learning_goals: studyGoals,
-          updated_at: new Date().toISOString()
-        })
-        .eq("id", user.id);
-
-      if (prefErr) throw prefErr;
-
-      // 3. Update notification_preferences table
-      const { error: notifErr } = await supabase
-        .from("notification_preferences")
-        .update({
-          marketing: marketingUpdatesEnabled,
-          product_updates: marketingUpdatesEnabled, // keep synced
-          security_alerts: securityAlertsEnabled,
-          study_reminders: studyReminderEnabled,
-          updated_at: new Date().toISOString()
-        })
-        .eq("id", user.id);
-
-      if (notifErr) throw notifErr;
-
-      // 4. Log event
+      // Log event
       await supabase.from("events").insert({
         user_id: user.id,
         event_type: "profile_updated",
@@ -1095,9 +1090,10 @@ export default function AccountPage() {
                         </h3>
                       </div>
                       <span className="text-3xl font-bold text-white">
-                        {quotaUsage?.plan === "premium" || quotaUsage?.plan === "pro" ? "$12" :
-                         quotaUsage?.plan === "team" ? "$50" :
-                         quotaUsage?.plan === "enterprise" ? "$200" : "$0"} <span className="text-xs text-slate-500 font-normal">/mo</span>
+                        {quotaUsage?.plan === "premium" ? "₦9,900" :
+                         quotaUsage?.plan === "pro" ? "₦5,200" :
+                         quotaUsage?.plan === "team" ? "₦9,900" :
+                         quotaUsage?.plan === "enterprise" ? "₦9,900" : "₦0"} <span className="text-xs text-slate-500 font-normal">/month</span>
                       </span>
                     </div>
 
@@ -1166,7 +1162,7 @@ export default function AccountPage() {
 
                     {(profile?.plan !== "premium" && profile?.plan !== "pro" && profile?.plan !== "team" && profile?.plan !== "enterprise") && (
                       <Button className="w-full h-11 bg-cyan-500 text-slate-950 hover:bg-cyan-400 font-bold rounded-lg flex items-center justify-center gap-2">
-                        <Sparkles className="h-4 w-4" /> Upgrade to Premium Tier ($12/mo)
+                        <Sparkles className="h-4 w-4" /> Upgrade to Premium Tier (₦9,900/month)
                       </Button>
                     )}
                   </div>

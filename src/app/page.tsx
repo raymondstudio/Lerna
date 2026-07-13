@@ -105,7 +105,7 @@ const steps = [
 const pricingPlans = [
   {
     name: "Free",
-    price: "$0",
+    price: "₦0",
     description: "Perfect for trying out EduAgent AI.",
     features: [
       "Unlimited sign up",
@@ -118,8 +118,8 @@ const pricingPlans = [
   },
   {
     name: "Pro",
-    price: "$12",
-    period: "/mo",
+    price: "₦5,200",
+    period: "/month",
     description: "The ultimate learning accelerator.",
     features: [
       "Faster AI response times",
@@ -127,6 +127,20 @@ const pricingPlans = [
       "Voice tutoring",
       "Priority processing",
       "Larger AI quota"
+    ],
+    buttonText: "Coming Soon",
+    isComingSoon: true
+  },
+  {
+    name: "Premium",
+    price: "₦9,900",
+    period: "/month",
+    description: "Best for power users, teams, and heavy study workloads.",
+    features: [
+      "Highest AI quota",
+      "Priority realtime sync",
+      "Advanced analytics",
+      "Premium support"
     ],
     buttonText: "Coming Soon",
     isComingSoon: true

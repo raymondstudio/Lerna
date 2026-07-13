@@ -1,6 +1,7 @@
 import { generateText } from "@/lib/gemini/client";
 import type { ChatMessage, ChatSource } from "./types";
 import { formatRagContext, retrieveMaterialContext } from "@/lib/materials/retrieval";
+import { normalizeProfile } from "@/lib/profile";
 
 const SYSTEM_PROMPT = `You are EduAgent AI, an elite personal learning companion and academic tutor. 
 
@@ -92,63 +93,41 @@ export async function getAIResponse(
       }
     }
   }
-
   let profileContext = "";
   if (userId) {
     try {
       const { createSupabaseServerClient } = await import("@/lib/supabase/server");
       const supabase = await createSupabaseServerClient();
-      const { data: profile } = (await supabase
+      const [profileResult, subscriptionResult, roleResult] = await Promise.all([
+        supabase
         .from("profiles")
-        .select(`
-          account_type, 
-          institution, 
-          department, 
-          study_level, 
-          country,
-          onboarding_completed,
-          institutions (
-            name,
-            short_name,
-            institution_type,
-            state,
-            country
-          ),
-          user_preferences (
-            learning_goals,
-            teaching_style,
-            preferred_quiz_format
-          )
-        `)
+        .select("*")
         .eq("id", userId)
-        .single()) as any;
+        .single(),
+        supabase.from("subscriptions").select("plan, status, billing_cycle, subscription_status").eq("user_id", userId).single(),
+        supabase.from("user_roles").select("role").eq("user_id", userId).maybeSingle(),
+      ]);
 
-      if (profile && profile.onboarding_completed) {
-        const prefs = Array.isArray(profile.user_preferences)
-          ? profile.user_preferences[0]
-          : profile.user_preferences;
+      const profile = normalizeProfile(profileResult.data, subscriptionResult.data, roleResult.data);
 
-        const goals = prefs?.learning_goals || [];
-        const tStyle = prefs?.teaching_style || "Intermediate";
-        const qFormat = prefs?.preferred_quiz_format || "Mixed";
+      if (profile?.onboardingCompleted) {
+        const goals = profile.studyGoals || [];
+        const preferenceSummary = [
+          profile.teachingStyle,
+          profile.preferredQuizFormat,
+          profile.preferredLanguage,
+          profile.preferredQuestionType,
+        ].filter(Boolean).join(", ");
 
-        const instInfo = profile.institutions || {
-          name: profile.institution,
-          institution_type: "N/A",
-          state: "N/A",
-          country: profile.country
-        };
-
-        profileContext = `\n\n=== STUDENT PROFILE (TAILOR EXPLANATIONS TO THESE DETAILS) ===
-- Role / Account Type: ${profile.account_type || "N/A"}
-- Current Institution: ${instInfo.name || "N/A"}
-- Institution Type: ${instInfo.institution_type || "N/A"}
-- Department: ${profile.department || "N/A"}
-- Current Level: ${profile.study_level || "N/A"}
-- Country: ${instInfo.country || profile.country || "N/A"}
-- Learning Goals: ${Array.isArray(goals) ? goals.join(", ") : "N/A"}
-- Preferred Difficulty/Style: ${tStyle}
-- Preferred Question Format: ${qFormat}`;
+        profileContext = `\n\n=== USER MEMORY ===
+- Name: ${profile.displayName || `${profile.firstName} ${profile.lastName}`.trim() || "N/A"}
+- Role / Account Type: ${profile.accountType || "N/A"}
+- Institution: ${profile.institution || "N/A"}
+- Department: ${profile.department || profile.field || "N/A"}
+- Level: ${profile.studyLevel || "N/A"}
+- Country: ${profile.country || "N/A"}
+- Goals: ${Array.isArray(goals) ? goals.join(", ") : "N/A"}
+- Preferences: ${preferenceSummary || "N/A"}`;
       }
     } catch (err) {
       console.error("[chat] Failed to fetch profile context for prompt personalization:", err);

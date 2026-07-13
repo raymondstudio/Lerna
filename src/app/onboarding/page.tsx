@@ -72,6 +72,7 @@ export default function OnboardingPage() {
 
   // Form states
   const [accountType, setAccountType] = useState<string>("");
+  const [faculty, setFaculty] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [institution, setInstitution] = useState<string>("");
   const [institutionId, setInstitutionId] = useState<string>("");
@@ -80,6 +81,12 @@ export default function OnboardingPage() {
   const [customDepartment, setCustomDepartment] = useState<string>("");
   const [studyLevel, setStudyLevel] = useState<string>("");
   const [studyGoals, setStudyGoals] = useState<string[]>([]);
+  const [company, setCompany] = useState<string>("");
+  const [industry, setIndustry] = useState<string>("");
+  const [jobTitle, setJobTitle] = useState<string>("");
+  const [occupation, setOccupation] = useState<string>("");
+  const [areaOfInterest, setAreaOfInterest] = useState<string>("");
+  const [professionalGoals, setProfessionalGoals] = useState<string[]>([]);
 
   // Search and custom school integration states
   const [searchResults, setSearchResults] = useState<any[]>([]);
@@ -174,6 +181,20 @@ export default function OnboardingPage() {
     );
   };
 
+  const accountPath = (() => {
+    const normalized = accountType.toLowerCase();
+    if (normalized.includes("teacher")) return "teacher";
+    if (normalized.includes("professional")) return "professional";
+    if (normalized.includes("learner") || normalized.includes("other")) return "other";
+    return "student";
+  })();
+
+  const activeGoals = accountPath === "professional" ? professionalGoals : studyGoals;
+  const isStudentPath = accountPath === "student";
+  const isTeacherPath = accountPath === "teacher";
+  const isProfessionalPath = accountPath === "professional";
+  const isOtherPath = accountPath === "other";
+
   const handleNext = () => {
     if (step < 7) {
       setStep(step + 1);
@@ -197,13 +218,22 @@ export default function OnboardingPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           accountType,
+          faculty,
           institution,
           institutionId,
           institutionType,
           department,
           customDepartment,
           studyLevel,
-          studyGoals
+          company,
+          industry,
+          jobTitle,
+          occupation,
+          areaOfInterest,
+          studyGoals: isProfessionalPath ? professionalGoals : studyGoals,
+          learningGoals: isProfessionalPath ? professionalGoals : studyGoals,
+          field: isOtherPath ? areaOfInterest : undefined,
+          goals: isOtherPath ? professionalGoals : undefined,
         })
       });
 
@@ -327,11 +357,10 @@ export default function OnboardingPage() {
 
               <div className="grid gap-3">
                 {[
-                  { value: "University Student", desc: "Attending college, university, or post-grad studies" },
-                  { value: "Secondary School Student", desc: "Attending high school, college prep, or equivalents" },
+                  { value: "Student", desc: "Attending school, college, university, or post-grad studies" },
                   { value: "Teacher", desc: "Educator, lecturer, or course facilitator" },
                   { value: "Professional", desc: "Studying for industry certificates or self-improvement" },
-                  { value: "Lifelong Learner", desc: "Just checking things out and researching topics" }
+                  { value: "Other", desc: "Learning independently or exploring a new field" }
                 ].map((role) => (
                   <button
                     key={role.value}
@@ -367,11 +396,62 @@ export default function OnboardingPage() {
               className="w-full space-y-6"
             >
               <div className="text-center space-y-2">
-                <h2 className="text-2xl font-bold text-white">Your Institution</h2>
-                <p className="text-slate-400 text-xs">Search or type your current school, college, or workplace.</p>
+                <h2 className="text-2xl font-bold text-white">
+                  {isProfessionalPath ? "Your Company" : isTeacherPath ? "Your Institution" : isOtherPath ? "Your Learning Context" : "Your Institution"}
+                </h2>
+                <p className="text-slate-400 text-xs">
+                  {isProfessionalPath
+                    ? "Tell us where you work so we can tailor examples to your context."
+                    : isTeacherPath
+                      ? "Search or type the institution where you teach."
+                      : isOtherPath
+                        ? "Tell us a little about what you do and what you want to learn."
+                        : "Search or type your current school, college, or workplace."}
+                </p>
               </div>
 
-              {!showCustomForm ? (
+              {isProfessionalPath ? (
+                <div className="space-y-4">
+                  <input
+                    type="text"
+                    placeholder="Company or organization"
+                    value={company}
+                    onChange={(e) => setCompany(e.target.value)}
+                    className="w-full px-4 h-11 rounded-xl bg-[#1c1f26] border border-white/5 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-500/50"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Industry"
+                    value={industry}
+                    onChange={(e) => setIndustry(e.target.value)}
+                    className="w-full px-4 h-11 rounded-xl bg-[#1c1f26] border border-white/5 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-500/50"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Job title"
+                    value={jobTitle}
+                    onChange={(e) => setJobTitle(e.target.value)}
+                    className="w-full px-4 h-11 rounded-xl bg-[#1c1f26] border border-white/5 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-500/50"
+                  />
+                </div>
+              ) : isOtherPath ? (
+                <div className="space-y-4">
+                  <input
+                    type="text"
+                    placeholder="Occupation"
+                    value={occupation}
+                    onChange={(e) => setOccupation(e.target.value)}
+                    className="w-full px-4 h-11 rounded-xl bg-[#1c1f26] border border-white/5 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-500/50"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Area of interest"
+                    value={areaOfInterest}
+                    onChange={(e) => setAreaOfInterest(e.target.value)}
+                    className="w-full px-4 h-11 rounded-xl bg-[#1c1f26] border border-white/5 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-500/50"
+                  />
+                </div>
+              ) : !showCustomForm ? (
                 <>
                   {/* Institution Type Segment */}
                   <div className="grid grid-cols-4 gap-1 p-1 bg-[#141414]/80 rounded-xl border border-white/5 text-[10px] font-semibold tracking-wider text-center text-slate-400">
@@ -574,7 +654,7 @@ export default function OnboardingPage() {
             </motion.div>
           )}
 
-          {step === 4 && (
+          {step === 4 && isStudentPath && (
             <motion.div 
               key="step-4" 
               variants={slideVariants} 
@@ -584,8 +664,58 @@ export default function OnboardingPage() {
               className="w-full space-y-6"
             >
               <div className="text-center space-y-2">
+                <h2 className="text-2xl font-bold text-white">Faculty</h2>
+                <p className="text-slate-400 text-xs">Which faculty or school best maps your studies?</p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 max-h-[260px] overflow-y-auto pr-1">
+                {["Science", "Engineering", "Arts", "Business", "Law", "Medicine", "Education", "Social Sciences", "Other"].map((dept) => (
+                  <button
+                    key={dept}
+                    type="button"
+                    onClick={() => setFaculty(dept)}
+                    className={`p-3.5 rounded-xl border text-left text-xs font-semibold transition-all ${
+                      faculty === dept 
+                        ? "border-cyan-500 bg-cyan-500/5 text-white" 
+                        : "border-white/5 bg-[#141414]/50 hover:bg-[#1a1a1a]/60 text-slate-400 hover:text-slate-200"
+                    }`}
+                  >
+                    {dept}
+                  </button>
+                ))}
+              </div>
+
+              {faculty === "Other" && (
+                <motion.div 
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="space-y-1.5"
+                >
+                  <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Enter faculty / school</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Faculty of Computing"
+                    value={customDepartment}
+                    onChange={(e) => setCustomDepartment(e.target.value)}
+                    className="w-full px-4 h-11 rounded-xl bg-[#1c1f26] border border-white/5 text-sm text-slate-200 focus:outline-none focus:border-cyan-500/50"
+                  />
+                </motion.div>
+              )}
+            </motion.div>
+          )}
+
+          {step === 5 && isStudentPath && (
+            <motion.div 
+              key="step-5" 
+              variants={slideVariants} 
+              initial="hidden" 
+              animate="visible" 
+              exit="exit"
+              className="w-full space-y-6"
+            >
+              <div className="text-center space-y-2">
                 <h2 className="text-2xl font-bold text-white">Department / Course</h2>
-                <p className="text-slate-400 text-xs">Which field or department best maps your studies?</p>
+                <p className="text-slate-400 text-xs">Which department best reflects your studies?</p>
               </div>
 
               <div className="grid grid-cols-2 gap-2 max-h-[260px] overflow-y-auto pr-1">
@@ -594,7 +724,7 @@ export default function OnboardingPage() {
                     key={dept}
                     type="button"
                     onClick={() => setDepartment(dept)}
-                    className={`p-3.5 rounded-xl border text-left text-xs font-semibold transition-all ${
+                    className={`p-3.5 rounded-xl border text-center text-xs font-semibold transition-all ${
                       department === dept 
                         ? "border-cyan-500 bg-cyan-500/5 text-white" 
                         : "border-white/5 bg-[#141414]/50 hover:bg-[#1a1a1a]/60 text-slate-400 hover:text-slate-200"
@@ -611,7 +741,7 @@ export default function OnboardingPage() {
                   animate={{ opacity: 1, y: 0 }}
                   className="space-y-1.5"
                 >
-                  <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Enter field/department</label>
+                  <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Enter field / department</label>
                   <input
                     type="text"
                     placeholder="e.g. Political Science"
@@ -624,9 +754,9 @@ export default function OnboardingPage() {
             </motion.div>
           )}
 
-          {step === 5 && (
+          {step === 6 && isStudentPath && (
             <motion.div 
-              key="step-5" 
+              key="step-6" 
               variants={slideVariants} 
               initial="hidden" 
               animate="visible" 
@@ -638,42 +768,110 @@ export default function OnboardingPage() {
                 <p className="text-slate-400 text-xs">Choose the level that best reflects your profile.</p>
               </div>
 
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid gap-2">
                 {[
-                  "100 Level", "200 Level", 
-                  "300 Level", "400 Level", 
-                  "500 Level", "Masters", 
-                  "PhD", "Graduate", 
+                  "100 Level", "200 Level",
+                  "300 Level", "400 Level",
+                  "500 Level", "Masters",
+                  "PhD", "Graduate",
                   "Other"
-                ].map((level) => (
-                  <button
-                    key={level}
-                    type="button"
-                    onClick={() => setStudyLevel(level)}
-                    className={`p-3.5 rounded-xl border text-center text-xs font-semibold transition-all ${
-                      studyLevel === level 
-                        ? "border-cyan-500 bg-cyan-500/5 text-white" 
-                        : "border-white/5 bg-[#141414]/50 hover:bg-[#1a1a1a]/60 text-slate-400 hover:text-slate-200"
-                    }`}
-                  >
-                    {level}
-                  </button>
-                ))}
+                ].map((level) => {
+                  const active = studyLevel === level;
+                  return (
+                    <button
+                      key={level}
+                      type="button"
+                      onClick={() => setStudyLevel(level)}
+                      className={`p-4 rounded-xl border text-left flex justify-between items-center transition-all ${
+                        active 
+                          ? "border-cyan-500 bg-cyan-500/5 text-white" 
+                          : "border-white/5 bg-[#141414]/50 hover:bg-[#1a1a1a]/60 text-slate-400"
+                      }`}
+                    >
+                      <span className="text-xs font-semibold">{level}</span>
+                      {active ? (
+                        <div className="h-5 w-5 rounded-full bg-cyan-500 flex items-center justify-center text-slate-950">
+                          <Check className="h-3 w-3 stroke-[3]" />
+                        </div>
+                      ) : (
+                        <div className="h-5 w-5 rounded-full border border-white/10" />
+                      )}
+                    </button>
+                  );
+                })}
               </div>
             </motion.div>
           )}
 
-          {step === 6 && (
-            <motion.div 
-              key="step-6" 
-              variants={slideVariants} 
-              initial="hidden" 
-              animate="visible" 
+          {step === 4 && isTeacherPath && (
+            <motion.div
+              key="step-4-teacher"
+              variants={slideVariants}
+              initial="hidden"
+              animate="visible"
               exit="exit"
               className="w-full space-y-6"
             >
               <div className="text-center space-y-2">
-                <h2 className="text-2xl font-bold text-white">What are your learning goals?</h2>
+                <h2 className="text-2xl font-bold text-white">Institution and role</h2>
+                <p className="text-slate-400 text-xs">Tell us where you teach and what your role is.</p>
+              </div>
+
+              <input type="text" placeholder="Institution" value={institution} onChange={(e) => setInstitution(e.target.value)} className="w-full px-4 h-11 rounded-xl bg-[#1c1f26] border border-white/5 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-500/50" />
+              <input type="text" placeholder="Department" value={department} onChange={(e) => setDepartment(e.target.value)} className="w-full px-4 h-11 rounded-xl bg-[#1c1f26] border border-white/5 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-500/50" />
+              <input type="text" placeholder="Role" value={occupation} onChange={(e) => setOccupation(e.target.value)} className="w-full px-4 h-11 rounded-xl bg-[#1c1f26] border border-white/5 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-500/50" />
+            </motion.div>
+          )}
+
+          {step === 4 && isProfessionalPath && (
+            <motion.div
+              key="step-4-professional"
+              variants={slideVariants}
+              initial="hidden"
+              animate="visible"
+              exit="exit"
+              className="w-full space-y-6"
+            >
+              <div className="text-center space-y-2">
+                <h2 className="text-2xl font-bold text-white">Your goals</h2>
+                <p className="text-slate-400 text-xs">Add the professional goals you want the AI to focus on.</p>
+              </div>
+
+              <textarea value={areaOfInterest} onChange={(e) => setAreaOfInterest(e.target.value)} placeholder="Area of interest" className="w-full min-h-[110px] px-4 py-3 rounded-xl bg-[#1c1f26] border border-white/5 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-500/50" />
+              <textarea value={jobTitle} onChange={(e) => setJobTitle(e.target.value)} placeholder="Job title or role" className="w-full min-h-[110px] px-4 py-3 rounded-xl bg-[#1c1f26] border border-white/5 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-500/50" />
+            </motion.div>
+          )}
+
+          {step === 4 && isOtherPath && (
+            <motion.div
+              key="step-4-other"
+              variants={slideVariants}
+              initial="hidden"
+              animate="visible"
+              exit="exit"
+              className="w-full space-y-6"
+            >
+              <div className="text-center space-y-2">
+                <h2 className="text-2xl font-bold text-white">Your goals</h2>
+                <p className="text-slate-400 text-xs">Tell us what you want to learn and why.</p>
+              </div>
+
+              <textarea value={areaOfInterest} onChange={(e) => setAreaOfInterest(e.target.value)} placeholder="Area of interest" className="w-full min-h-[110px] px-4 py-3 rounded-xl bg-[#1c1f26] border border-white/5 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-500/50" />
+              <textarea value={occupation} onChange={(e) => setOccupation(e.target.value)} placeholder="Occupation" className="w-full min-h-[110px] px-4 py-3 rounded-xl bg-[#1c1f26] border border-white/5 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-500/50" />
+            </motion.div>
+          )}
+
+          {step === 5 && (isTeacherPath || isProfessionalPath || isOtherPath) && (
+            <motion.div
+              key="step-5-role-goals"
+              variants={slideVariants}
+              initial="hidden"
+              animate="visible"
+              exit="exit"
+              className="w-full space-y-6"
+            >
+              <div className="text-center space-y-2">
+                <h2 className="text-2xl font-bold text-white">Learning goals</h2>
                 <p className="text-slate-400 text-xs">Select one or more targets (you can edit later).</p>
               </div>
 
@@ -686,15 +884,15 @@ export default function OnboardingPage() {
                   "Daily Learning",
                   "Professional Skills"
                 ].map((goal) => {
-                  const active = studyGoals.includes(goal);
+                  const active = activeGoals.includes(goal);
                   return (
                     <button
                       key={goal}
                       type="button"
-                      onClick={() => toggleGoal(goal)}
+                      onClick={() => accountPath === "professional" ? setProfessionalGoals(prev => prev.includes(goal) ? prev.filter(g => g !== goal) : [...prev, goal]) : toggleGoal(goal)}
                       className={`p-4 rounded-xl border text-left flex justify-between items-center transition-all ${
-                        active 
-                          ? "border-cyan-500 bg-cyan-500/5 text-white" 
+                        active
+                          ? "border-cyan-500 bg-cyan-500/5 text-white"
                           : "border-white/5 bg-[#141414]/50 hover:bg-[#1a1a1a]/60 text-slate-400"
                       }`}
                     >
@@ -713,6 +911,24 @@ export default function OnboardingPage() {
             </motion.div>
           )}
 
+          {step === 6 && (isTeacherPath || isProfessionalPath || isOtherPath) && (
+            <motion.div
+              key="step-6-role-summary"
+              variants={slideVariants}
+              initial="hidden"
+              animate="visible"
+              exit="exit"
+              className="w-full space-y-6"
+            >
+              <div className="text-center space-y-2">
+                <h2 className="text-2xl font-bold text-white">Current focus</h2>
+                <p className="text-slate-400 text-xs">Tell us the level or focus you want the tutor to assume.</p>
+              </div>
+
+              <textarea value={studyLevel} onChange={(e) => setStudyLevel(e.target.value)} placeholder={isTeacherPath ? "Teaching level or class" : isProfessionalPath ? "Current skill level" : "Current learning stage"} className="w-full min-h-[120px] px-4 py-3 rounded-xl bg-[#1c1f26] border border-white/5 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-500/50" />
+            </motion.div>
+          )}
+
           {step === 7 && (
             <motion.div 
               key="step-7" 
@@ -728,7 +944,7 @@ export default function OnboardingPage() {
               <div className="space-y-2">
                 <h2 className="text-3xl font-bold tracking-tight text-white font-heading">You're all set!</h2>
                 <p className="text-slate-400 text-sm leading-relaxed max-w-xs mx-auto">
-                  Your AI tutor is now personalized and structured around your goals. Let's begin studying!
+                  Your AI tutor is now personalized and structured around your profile. Let's begin studying!
                 </p>
               </div>
               <Button 
@@ -758,10 +974,18 @@ export default function OnboardingPage() {
             onClick={handleNext}
             disabled={
               (step === 2 && !accountType) ||
-              (step === 3 && !institution) ||
-              (step === 4 && !department) ||
-              (step === 5 && !studyLevel) ||
-              (step === 6 && studyGoals.length === 0)
+              (step === 3 && isStudentPath && !institution) ||
+              (step === 3 && isTeacherPath && !company && !institution) ||
+              (step === 3 && isProfessionalPath && !company) ||
+              (step === 3 && isOtherPath && !occupation) ||
+              (step === 4 && isStudentPath && !faculty) ||
+              (step === 4 && isTeacherPath && !occupation) ||
+              (step === 4 && (isProfessionalPath || isOtherPath) && !areaOfInterest) ||
+              (step === 5 && (isTeacherPath || isProfessionalPath || isOtherPath) && activeGoals.length === 0) ||
+              (step === 6 && (isTeacherPath || isProfessionalPath || isOtherPath) && !studyLevel) ||
+              (step === 4 && isStudentPath && !department) ||
+              (step === 5 && isStudentPath && !studyLevel) ||
+              (step === 6 && isStudentPath && !studyLevel)
             }
             className="flex items-center gap-1.5 text-xs text-slate-950 font-bold bg-cyan-500 hover:bg-cyan-400 px-6 h-10 rounded-full disabled:opacity-30"
           >

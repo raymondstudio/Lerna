@@ -24,7 +24,16 @@ export async function GET() {
   }
 
   try {
-    const { data, error } = await supabase.rpc("get_historical_analytics");
+    const url = new URL(req.url);
+    const range = url.searchParams.get("range") || "30d";
+    const start = url.searchParams.get("start");
+    const end = url.searchParams.get("end");
+
+    const { data, error } = await supabase.rpc("get_historical_analytics", {
+      range_key: range,
+      start_date: start,
+      end_date: end,
+    });
     
     if (error) {
       console.error("[api:admin:analytics] RPC failed:", error.message);
