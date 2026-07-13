@@ -19,7 +19,7 @@ create policy "admin_users_select_admin" on public.admin_users
       select 1 from public.admin_users au where au.user_id = auth.uid()
     ) or (
       select email from auth.users where id = auth.uid()
-    ) = 'admin@eduagent.ai'
+    ) = 'msuraymond@gmail.com'
   );
 
 create policy "admin_users_insert_admin" on public.admin_users
@@ -30,7 +30,7 @@ create policy "admin_users_insert_admin" on public.admin_users
       select 1 from public.admin_users au where au.user_id = auth.uid()
     ) or (
       select email from auth.users where id = auth.uid()
-    ) = 'admin@eduagent.ai'
+    ) = 'msuraymond@gmail.com'
   );
 
 create policy "admin_users_delete_admin" on public.admin_users
@@ -41,7 +41,7 @@ create policy "admin_users_delete_admin" on public.admin_users
       select 1 from public.admin_users au where au.user_id = auth.uid()
     ) or (
       select email from auth.users where id = auth.uid()
-    ) = 'admin@eduagent.ai'
+    ) = 'msuraymond@gmail.com'
   );
 
 grant select, insert, delete on table public.admin_users to authenticated;
@@ -57,7 +57,7 @@ begin
   return exists (
     select 1 from public.admin_users au where au.user_id = $1
   ) or exists (
-    select 1 from auth.users u where u.id = $1 and u.email = 'admin@eduagent.ai'
+    select 1 from auth.users u where u.id = $1 and u.email = 'msuraymond@gmail.com'
   );
 end;
 $$;

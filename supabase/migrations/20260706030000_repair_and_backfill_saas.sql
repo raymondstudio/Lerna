@@ -36,7 +36,7 @@ on conflict (user_id) do nothing;
 -- Upgrade known admin accounts to 'admin' role
 insert into public.user_roles (user_id, role)
 select id, 'admin' from public.profiles
-where email in ('admin@eduagent.ai', 'msuraymond@gmail.com')
+where email in ('msuraymond@gmail.com')
 on conflict (user_id) do update set role = 'admin';
 
 -- Redefine public.is_admin helper to support role hierarchy and fallback emails
@@ -45,7 +45,7 @@ returns boolean as $$
 begin
   return public.has_role_hierarchy($1, 'admin') or exists (
     select 1 from auth.users u where u.id = $1 and (
-      u.email = 'admin@eduagent.ai' or 
+      u.email = 'msuraymond@gmail.com' or 
       u.email = 'msuraymond@gmail.com'
     )
   );

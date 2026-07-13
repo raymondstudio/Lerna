@@ -28,7 +28,7 @@ export async function requireAdmin() {
   // Fallback checks for bootstrapping or offline/local testing
   const adminEmails = process.env.ADMIN_EMAILS
     ? process.env.ADMIN_EMAILS.split(",").map((e) => e.trim())
-    : ["admin@eduagent.ai"];
+    : ["msuraymond@gmail.com"];
 
   if (data.user.email && adminEmails.includes(data.user.email)) {
     return data.user;

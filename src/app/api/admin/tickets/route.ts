@@ -15,7 +15,7 @@ export async function GET(req: Request) {
   
   const adminEmails = process.env.ADMIN_EMAILS
     ? process.env.ADMIN_EMAILS.split(",").map((e) => e.trim())
-    : ["admin@eduagent.ai"];
+    : ["msuraymond@gmail.com"];
   const isFallbackAdmin = userData.user.email && adminEmails.includes(userData.user.email);
   const isRoleAdmin = userData.user.app_metadata?.role === "admin";
 
@@ -87,7 +87,7 @@ export async function PUT(req: Request) {
   
   const adminEmails = process.env.ADMIN_EMAILS
     ? process.env.ADMIN_EMAILS.split(",").map((e) => e.trim())
-    : ["admin@eduagent.ai"];
+    : ["msuraymond@gmail.com"];
   const isFallbackAdmin = userData.user.email && adminEmails.includes(userData.user.email);
   const isRoleAdmin = userData.user.app_metadata?.role === "admin";
 

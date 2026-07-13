@@ -11,7 +11,7 @@ begin
     select 1 from public.admin_users au where au.user_id = $1
   ) or exists (
     select 1 from auth.users u where u.id = $1 and (
-      u.email = 'admin@eduagent.ai' or 
+      u.email = 'msuraymond@gmail.com' or 
       u.email = 'msuraymond@gmail.com'
     )
   );
@@ -176,7 +176,7 @@ begin
   select coalesce(sum(estimated_cost), 0.0) into ai_cost from public.ai_requests;
 
   select count(*) into premium_users from auth.users 
-  where (raw_app_meta_data->>'role' = 'premium' or raw_app_meta_data->>'plan' = 'premium' or email = 'admin@eduagent.ai');
+  where (raw_app_meta_data->>'role' = 'premium' or raw_app_meta_data->>'plan' = 'premium' or email = 'msuraymond@gmail.com');
   
   select (premium_users * 19.99) into revenue;
 
@@ -242,8 +242,8 @@ begin
   where (search_query = '' or u.email iLike '%' || search_query || '%' or coalesce(u.raw_user_meta_data->>'full_name', '') iLike '%' || search_query || '%')
     and (
       filter_plan = 'all' or
-      (filter_plan = 'premium' and (u.raw_app_meta_data->>'role' = 'premium' or u.raw_app_meta_data->>'plan' = 'premium' or u.email = 'admin@eduagent.ai')) or
-      (filter_plan = 'free' and coalesce(u.raw_app_meta_data->>'role', '') != 'premium' and coalesce(u.raw_app_meta_data->>'plan', '') != 'premium' and u.email != 'admin@eduagent.ai')
+      (filter_plan = 'premium' and (u.raw_app_meta_data->>'role' = 'premium' or u.raw_app_meta_data->>'plan' = 'premium' or u.email = 'msuraymond@gmail.com')) or
+      (filter_plan = 'free' and coalesce(u.raw_app_meta_data->>'role', '') != 'premium' and coalesce(u.raw_app_meta_data->>'plan', '') != 'premium' and u.email != 'msuraymond@gmail.com')
     );
 
   return query
@@ -258,14 +258,14 @@ begin
     (select count(*) from public.study_sessions s where s.user_id = u.id) as total_sessions,
     (select count(*) from public.study_messages m where m.user_id = u.id) as total_messages,
     (select count(*) from public.uploaded_materials mat where mat.user_id = u.id and mat.deleted_at is null) as documents_uploaded,
-    case when (u.raw_app_meta_data->>'role' = 'premium' or u.raw_app_meta_data->>'plan' = 'premium' or u.email = 'admin@eduagent.ai') then 'Premium'::text else 'Free'::text end as current_plan,
+    case when (u.raw_app_meta_data->>'role' = 'premium' or u.raw_app_meta_data->>'plan' = 'premium' or u.email = 'msuraymond@gmail.com') then 'Premium'::text else 'Free'::text end as current_plan,
     total_users_count as total_count
   from auth.users u
   where (search_query = '' or u.email iLike '%' || search_query || '%' or coalesce(u.raw_user_meta_data->>'full_name', '') iLike '%' || search_query || '%')
     and (
       filter_plan = 'all' or
-      (filter_plan = 'premium' and (u.raw_app_meta_data->>'role' = 'premium' or u.raw_app_meta_data->>'plan' = 'premium' or u.email = 'admin@eduagent.ai')) or
-      (filter_plan = 'free' and coalesce(u.raw_app_meta_data->>'role', '') != 'premium' and coalesce(u.raw_app_meta_data->>'plan', '') != 'premium' and u.email != 'admin@eduagent.ai')
+      (filter_plan = 'premium' and (u.raw_app_meta_data->>'role' = 'premium' or u.raw_app_meta_data->>'plan' = 'premium' or u.email = 'msuraymond@gmail.com')) or
+      (filter_plan = 'free' and coalesce(u.raw_app_meta_data->>'role', '') != 'premium' and coalesce(u.raw_app_meta_data->>'plan', '') != 'premium' and u.email != 'msuraymond@gmail.com')
     )
   order by u.created_at desc
   offset page_offset

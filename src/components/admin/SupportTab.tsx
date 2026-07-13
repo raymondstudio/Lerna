@@ -134,7 +134,7 @@ export function SupportTab() {
           message: json.data.message || replyText.trim(),
           created_at: json.data.created_at || new Date().toISOString(),
           sender_name: user?.email ? "Admin Staff" : "Tutor Support",
-          sender_email: user?.email || "support@eduagent.ai"
+          sender_email: user?.email || "support.eduagent@gmail.com"
         };
         setReplies(prev => [...prev, newReply]);
       } else {

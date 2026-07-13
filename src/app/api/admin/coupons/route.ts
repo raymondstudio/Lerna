@@ -11,7 +11,7 @@ async function checkAdminAuth(supabase: any) {
   const { data: isAdmin } = await supabase.rpc("is_admin", { user_id: userData.user.id });
   const adminEmails = process.env.ADMIN_EMAILS
     ? process.env.ADMIN_EMAILS.split(",").map((e: string) => e.trim())
-    : ["admin@eduagent.ai"];
+    : ["msuraymond@gmail.com"];
   const isFallbackAdmin = userData.user.email && adminEmails.includes(userData.user.email);
   const isRoleAdmin = userData.user.app_metadata?.role === "admin";
 
