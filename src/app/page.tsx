@@ -545,16 +545,6 @@ function HomePageContent() {
           transition={{ duration: 0.8, ease: "easeOut" }}
           className="relative z-10"
         >
-          {/* Announcement Badge */}
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.1 }}
-            className="inline-flex items-center gap-2 rounded-full border border-cyan-500/20 bg-cyan-500/5 px-4 py-1.5 text-xs sm:text-sm font-medium text-cyan-300 mb-8 hover:bg-cyan-500/10 transition-colors"
-          >
-            <Sparkles className="h-3.5 w-3.5 text-cyan-400" />
-            <span>Introducing EduAgent AI: Learn smarter, not harder</span>
-          </motion.div>
 
           <h1 className="font-heading text-4xl sm:text-6xl lg:text-7xl font-bold tracking-tight text-white mb-6 text-balance max-w-5xl mx-auto leading-[1.1]">
             Learn <span className="bg-gradient-to-r from-cyan-400 to-teal-400 bg-clip-text text-transparent">smarter</span>, not harder.
