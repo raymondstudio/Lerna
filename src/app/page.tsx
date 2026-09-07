@@ -493,13 +493,13 @@ function HomePageContent() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.2, ease: "easeOut" }}
-          className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-20 relative z-10 max-w-md mx-auto sm:max-w-none"
+          className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-20 relative z-10 max-w-xs mx-auto sm:max-w-none"
         >
-          <Button onClick={() => setActiveModal("signup")} className="bg-white text-black hover:bg-slate-200 rounded-full px-10 h-14 text-lg font-medium w-full sm:w-auto shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all">
+          <Button onClick={() => setActiveModal("signup")} className="bg-white text-black hover:bg-slate-200 rounded-full px-6 sm:px-10 h-12 sm:h-14 text-base sm:text-lg font-medium w-full sm:w-auto shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all">
             Start studying <ArrowRight className="ml-2 h-5 w-5" />
           </Button>
           <Link href="#features" className="w-full sm:w-auto">
-            <Button variant="outline" className="border-white/10 bg-[#141414]/60 hover:bg-[#1f1f1f]/80 text-white rounded-full px-10 h-14 text-lg font-medium w-full transition-all">
+            <Button variant="outline" className="border-white/10 bg-[#141414]/60 hover:bg-[#1f1f1f]/80 text-white rounded-full px-6 sm:px-10 h-12 sm:h-14 text-base sm:text-lg font-medium w-full transition-all">
               Explore features
             </Button>
           </Link>
