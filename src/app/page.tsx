@@ -1,8 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, Suspense, type ReactNode } from "react";
 import { useSearchParams } from "next/navigation";
 import { 
   ArrowRight, 
@@ -25,14 +24,56 @@ import {
   ChevronDown,
   Users
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
-
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
 import { LoginForm } from "@/components/auth/login-form";
 import { SignupForm } from "@/components/auth/signup-form";
 import { ForgotPasswordModal } from "@/components/auth/forgot-password-modal";
 import { ResetPasswordModal } from "@/components/auth/reset-password-modal";
+
+type StaticMotionProps = React.HTMLAttributes<HTMLDivElement> & {
+  initial?: unknown;
+  animate?: unknown;
+  exit?: unknown;
+  transition?: unknown;
+  whileInView?: unknown;
+  viewport?: unknown;
+  whileHover?: unknown;
+};
+
+function StaticMotionDiv({
+  children,
+  initial,
+  animate,
+  exit,
+  transition,
+  whileInView,
+  viewport,
+  whileHover,
+  ...props
+}: StaticMotionProps) {
+  return <div {...props}>{children}</div>;
+}
+
+function StaticMotionNav({
+  children,
+  initial,
+  animate,
+  exit,
+  transition,
+  whileInView,
+  viewport,
+  whileHover,
+  ...props
+}: StaticMotionProps) {
+  return <nav {...props}>{children}</nav>;
+}
+
+const motion = { div: StaticMotionDiv, nav: StaticMotionNav };
+
+function AnimatePresence({ children }: { children: ReactNode; initial?: boolean }) {
+  return <>{children}</>;
+}
 
 // 9 benefits-focused features
 const features = [
@@ -195,7 +236,7 @@ function FAQItem({ question, answer }: { question: string; answer: string }) {
   const [isOpen, setIsOpen] = useState(false);
 
   return (
-    <div className="border-b border-white/5 py-4 sm:py-6">
+    <div className="border-b border-white/5 last:border-b-0 first:py-0 last:py-0 py-4 sm:py-6">
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="flex w-full items-center justify-between text-left focus:outline-none group py-2"
@@ -230,54 +271,12 @@ function FAQItem({ question, answer }: { question: string; answer: string }) {
   );
 }
 
-function DemoChat({ onTriggerSignup }: { onTriggerSignup: () => void }) {
-  const [messages, setMessages] = useState<Array<{ role: "user" | "assistant"; content: string }>>([]);
-  const [input, setInput] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [showCTA, setShowCTA] = useState(false);
-
+function DemoChat() {
   const starters = [
     "Explain quantum computing in simple terms",
     "What is the difference between active and passive transport?",
     "Give me a quick analogy for recursive programming",
   ];
-
-  async function handleSend(text: string) {
-    const trimmed = text.trim();
-    if (!trimmed || loading) return;
-
-    setError(null);
-    setLoading(true);
-    setInput("");
-    
-    // Add user message
-    setMessages((prev) => [...prev, { role: "user", content: trimmed }]);
-
-    try {
-      const res = await fetch("/api/demo-chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: trimmed }),
-      });
-
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || "Failed to generate answer.");
-      }
-
-      setMessages((prev) => [...prev, { role: "assistant", content: data.reply }]);
-      setShowCTA(true);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong.");
-      setMessages((prev) => [
-        ...prev,
-        { role: "assistant", content: "I apologize, but I'm having trouble connecting to the tutoring engine right now. Please try again or sign up for full access!" },
-      ]);
-    } finally {
-      setLoading(false);
-    }
-  }
 
   return (
     <div className="w-full max-w-3xl mx-auto rounded-3xl border border-white/10 bg-[#141414]/40 backdrop-blur-md p-6 sm:p-8 text-left shadow-[0_0_50px_rgba(6,182,212,0.05)] mb-24">
@@ -293,98 +292,41 @@ function DemoChat({ onTriggerSignup }: { onTriggerSignup: () => void }) {
 
       {/* Messages area */}
       <div className="space-y-4 mb-6 max-h-[300px] overflow-y-auto pr-1">
-        {messages.length === 0 && (
-          <p className="text-sm text-slate-400 leading-relaxed italic">
-            Ask any study question below, or select a starter topic to preview tutoring capabilities instantly.
-          </p>
-        )}
-        {messages.map((msg, index) => (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            key={index}
-            className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
-          >
-            <div
-              className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
-                msg.role === "user"
-                  ? "bg-cyan-500/15 border border-cyan-500/20 text-white rounded-br-none"
-                  : "bg-white/[0.04] border border-white/5 text-slate-300 rounded-bl-none"
-              }`}
-            >
-              {msg.content}
-            </div>
-          </motion.div>
-        ))}
-
-        {loading && (
-          <div className="flex justify-start">
-            <div className="flex items-center gap-2 rounded-2xl bg-white/[0.04] border border-white/5 px-4 py-2.5">
-              <span className="h-1.5 w-1.5 bg-cyan-400 rounded-full animate-bounce [animation-delay:-0.3s]"></span>
-              <span className="h-1.5 w-1.5 bg-cyan-400 rounded-full animate-bounce [animation-delay:-0.15s]"></span>
-              <span className="h-1.5 w-1.5 bg-cyan-400 rounded-full animate-bounce"></span>
-            </div>
-          </div>
-        )}
+        <p className="text-sm text-slate-400 leading-relaxed italic">
+          Ask any study question below, or select a starter topic to preview tutoring capabilities instantly.
+        </p>
       </div>
 
       {/* Starters */}
-      {messages.length === 0 && (
-        <div className="flex flex-wrap gap-2 mb-6">
-          {starters.map((starter) => (
-            <button
-              key={starter}
-              onClick={() => handleSend(starter)}
-              disabled={loading}
-              className="text-xs text-slate-400 border border-white/10 bg-white/[0.02] rounded-full px-3.5 py-1.5 hover:border-cyan-500/30 hover:bg-cyan-500/5 hover:text-white transition-colors"
-            >
-              {starter}
-            </button>
-          ))}
-        </div>
-      )}
+      <div className="flex flex-wrap gap-2 mb-6">
+        {starters.map((starter) => (
+          <button
+            key={starter}
+            type="button"
+            disabled
+            className="text-xs text-slate-400 border border-white/10 bg-white/[0.02] rounded-full px-3.5 py-1.5 opacity-70 cursor-not-allowed"
+          >
+            {starter}
+          </button>
+        ))}
+      </div>
 
       {/* Input row */}
       <div className="flex gap-2">
         <input
           type="text"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && handleSend(input)}
           placeholder="Ask a study question... (e.g. How does DNA replicate?)"
-          disabled={loading}
+          disabled
           className="flex-1 bg-black/40 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-cyan-500/50 transition-colors"
         />
         <button
-          onClick={() => handleSend(input)}
-          disabled={loading || !input.trim()}
-          className="h-11 px-5 rounded-2xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-semibold text-sm transition-colors disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
+          type="button"
+          disabled
+          className="h-11 px-5 rounded-2xl bg-cyan-500 text-slate-950 font-semibold text-sm opacity-30 cursor-not-allowed flex items-center justify-center gap-1.5"
         >
           Ask
         </button>
       </div>
-
-      {/* CTA Conversion Box */}
-      {showCTA && (
-        <motion.div 
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="mt-8 border border-cyan-500/25 bg-cyan-500/10 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-center justify-between gap-4"
-        >
-          <div className="text-left">
-            <p className="text-sm font-semibold text-white">Unlock full tutoring powers!</p>
-            <p className="text-xs text-cyan-200 mt-1">
-              Create persistent study sessions, upload your lecture materials, and generate custom practice quizzes.
-            </p>
-          </div>
-          <button
-            onClick={onTriggerSignup}
-            className="whitespace-nowrap rounded-xl bg-white hover:bg-slate-200 text-slate-950 px-5 py-2.5 text-xs font-semibold shadow-md transition-all flex items-center gap-1 shrink-0"
-          >
-            Create free account <ArrowRight className="h-3.5 w-3.5" />
-          </button>
-        </motion.div>
-      )}
     </div>
   );
 }
@@ -402,7 +344,7 @@ function HomePageContent() {
   }, [searchParams]);
 
   return (
-    <main className="min-h-screen bg-[#0a0a0a] text-slate-200 selection:bg-cyan-500/30 font-body overflow-x-hidden">
+    <main className="min-h-screen bg-[#0a0a0a] text-slate-200 selection:bg-cyan-500/30 font-body overflow-x-hidden [&_*]:[animation:none!important] [&_*]:[transition:none!important]">
       {/* Structured Data JSON-LD */}
       <script
         type="application/ld+json"
@@ -424,11 +366,8 @@ function HomePageContent() {
       />
       
       {/* Floating Navigation */}
-      <motion.nav 
-        initial={{ y: -100, x: "-50%" }}
-        animate={{ y: 0, x: "-50%" }}
-        transition={{ duration: 0.6, ease: "easeOut" }}
-        className="fixed top-6 left-1/2 w-[calc(100%-2rem)] max-w-7xl z-50 rounded-2xl border border-white/10 bg-[#0a0a0a]/50 backdrop-blur-xl mix-blend-plus-lighter shadow-2xl"
+      <nav
+        className="absolute md:fixed top-6 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-7xl z-50 rounded-2xl border border-white/10 bg-[#0a0a0a]/50 backdrop-blur-xl mix-blend-plus-lighter shadow-2xl"
       >
         <div className="flex items-center justify-between px-4 sm:px-6 py-4">
           <div className="flex items-center gap-3">
@@ -472,12 +411,8 @@ function HomePageContent() {
         {/* Mobile Dropdown Panel */}
         <AnimatePresence>
           {isMobileMenuOpen && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: "auto" }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.25, ease: "easeInOut" }}
-              className="md:hidden absolute top-[calc(100%+0.5rem)] left-0 right-0 rounded-2xl border border-white/10 bg-[#0a0a0a]/95 backdrop-blur-2xl p-6 shadow-2xl flex flex-col gap-6 z-40 overflow-hidden"
+            <div
+              className="md:hidden absolute top-[calc(100%+0.5rem)] left-0 right-0 rounded-2xl border border-white/10 bg-[#0a0a0a] backdrop-blur-2xl p-6 shadow-2xl flex flex-col gap-6 z-40 overflow-hidden"
             >
               <div className="flex flex-col gap-4">
                 <Link 
@@ -529,10 +464,10 @@ function HomePageContent() {
                   Get started <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </div>
-            </motion.div>
+            </div>
           )}
         </AnimatePresence>
-      </motion.nav>
+      </nav>
 
       {/* Hero Section */}
       <section className="relative mx-auto max-w-7xl px-6 pt-36 sm:pt-48 pb-20 text-center">
@@ -549,7 +484,7 @@ function HomePageContent() {
           <h1 className="font-heading text-4xl sm:text-6xl lg:text-7xl font-bold tracking-tight text-white mb-6 text-balance max-w-5xl mx-auto leading-[1.1]">
             Learn <span className="bg-gradient-to-r from-cyan-400 to-teal-400 bg-clip-text text-transparent">smarter</span>, not harder.
           </h1>
-          <p className="mx-auto max-w-3xl text-lg sm:text-xl text-slate-400 mb-10 text-balance leading-relaxed">
+          <p className="mx-auto max-w-3xl text-sm sm:text-xl text-slate-400 mb-10 text-balance leading-relaxed">
             Ask questions, upload study material, build smart revision plans, and keep every learning session organized in one workspace. No fluff, just results.
           </p>
         </motion.div>
@@ -576,26 +511,9 @@ function HomePageContent() {
           transition={{ duration: 0.8, delay: 0.4, ease: "easeOut" }}
           className="relative z-10"
         >
-          <DemoChat onTriggerSignup={() => setActiveModal("signup")} />
+          <DemoChat />
         </motion.div>
         
-        {/* Dashboard Image Mockup */}
-        <motion.div 
-          initial={{ opacity: 0, y: 40 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 1, delay: 0.5, ease: "easeOut" }}
-          className="relative mx-auto max-w-5xl rounded-[2rem] overflow-hidden border border-white/10 shadow-[0_0_80px_rgba(6,182,212,0.08)] bg-[#0e1115]/50 p-2 z-10"
-        >
-          <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a] via-transparent to-transparent z-20 pointer-events-none" />
-           <Image
-             src="/dashboard-mockup.png"
-             alt="Lerna AI Tutoring Dashboard Mockup"
-             width={2048}
-             height={1366}
-             className="w-full h-auto object-cover rounded-[1.7rem]"
-             priority
-           />
-        </motion.div>
       </section>
 
       {/* How It Works Section */}
@@ -1057,7 +975,7 @@ export default function HomePage() {
   return (
     <Suspense fallback={
       <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-cyan-500 border-t-transparent"></div>
+        <div className="h-8 w-8 rounded-full border-4 border-cyan-500 border-t-transparent"></div>
       </div>
     }>
       <HomePageContent />
