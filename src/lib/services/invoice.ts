@@ -53,7 +53,7 @@ export function preparePdfMetadata(invoice: any, userProfile: any): InvoiceMetad
     paidAt: invoice.paid_at || invoice.paidAt || undefined,
     userName: userProfile
       ? `${userProfile.first_name || ""} ${userProfile.last_name || ""}`.trim() || userProfile.name || "User"
-      : "EduAgent User",
+      : "Lerna User",
     userEmail: userProfile?.email || "",
     planName: userProfile?.plan || "Free",
   };

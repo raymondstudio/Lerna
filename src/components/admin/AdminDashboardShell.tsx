@@ -128,7 +128,7 @@ export function AdminDashboardShell() {
             <Brain className="h-5 w-5" />
           </div>
           <div className="flex flex-col">
-            <span className="font-heading font-semibold text-white tracking-tight text-sm leading-tight">EduAgent AI</span>
+            <span className="font-heading font-semibold text-white tracking-tight text-sm leading-tight">Lerna AI</span>
             <span className="text-[9px] text-cyan-400 font-bold uppercase tracking-wider">Admin Center</span>
           </div>
         </Link>
@@ -267,7 +267,7 @@ export function AdminDashboardShell() {
             <h1 className="text-sm font-semibold text-white capitalize hidden md:block">
               Admin / <span className="text-cyan-400 font-bold">{activeTab}</span>
             </h1>
-            <span className="font-heading font-semibold text-white text-base md:hidden">EduAgent Admin</span>
+            <span className="font-heading font-semibold text-white text-base md:hidden">Lerna Admin</span>
           </div>
 
           <div className="flex items-center gap-2">

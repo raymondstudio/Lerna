@@ -292,7 +292,7 @@ export default function OnboardingPage() {
       {/* Header Progress bar */}
       <div className="max-w-xl w-full mx-auto space-y-4 relative z-10">
         <div className="flex justify-between items-center text-xs text-slate-500 font-semibold tracking-wider uppercase">
-          <span>EduAgent AI personalization</span>
+          <span>Lerna AI personalization</span>
           <span>Step {step} of 7</span>
         </div>
         <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
@@ -327,7 +327,7 @@ export default function OnboardingPage() {
                 <Compass className="h-8 w-8" />
               </div>
               <div className="space-y-2">
-                <h1 className="text-3xl font-bold tracking-tight text-white">Welcome to EduAgent AI</h1>
+                <h1 className="text-3xl font-bold tracking-tight text-white">Welcome to Lerna AI</h1>
                 <p className="text-slate-400 text-sm leading-relaxed max-w-sm mx-auto">
                   We'll customize your smart AI tutoring dashboard and space in less than 30 seconds.
                 </p>

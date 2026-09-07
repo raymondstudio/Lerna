@@ -1,8 +1,8 @@
 import type { ReactNode } from "react";
 
 export const metadata = {
-  title: "Admin Dashboard | EduAgent AI",
-  description: "Internal control panel and analytics layer for EduAgent AI.",
+  title: "Admin Dashboard | Lerna AI",
+  description: "Internal control panel and analytics layer for Lerna AI.",
 };
 
 export default function AdminLayout({ children }: { children: ReactNode }) {

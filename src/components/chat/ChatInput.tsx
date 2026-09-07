@@ -289,7 +289,7 @@ export function ChatInput({
           ref={textareaRef}
           value={text}
           onChange={handleTextChange}
-          placeholder="Message EduAgent… (type @ to scope a course)"
+          placeholder="Message Lerna… (type @ to scope a course)"
           onKeyDown={handleKeyDown}
           disabled={disabled}
           rows={1}

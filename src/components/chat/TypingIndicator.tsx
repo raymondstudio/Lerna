@@ -20,7 +20,7 @@ export function TypingIndicator() {
       
       <div className="flex-1 min-w-0 pt-1">
         <div className="font-semibold text-slate-400 text-sm mb-1">
-          EduAgent
+          Lerna
         </div>
         <div className="rounded-2xl border border-white/5 bg-white/[0.04] px-4 py-3 flex items-center gap-1.5 w-fit">
           <span className="h-1.5 w-1.5 bg-cyan-400 rounded-full animate-bounce [animation-delay:-0.3s]"></span>

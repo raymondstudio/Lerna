@@ -496,7 +496,7 @@ export function StudyWorkspace() {
               materials={activeSessionMaterials}
               onDeleteMaterial={handleDeleteMaterial}
             />
-            <p className="text-center text-[11px] text-slate-500 mt-2">EduAgent can make mistakes. Consider verifying important information.</p>
+            <p className="text-center text-[11px] text-slate-500 mt-2">Lerna can make mistakes. Consider verifying important information.</p>
           </div>
         </div>
       )}

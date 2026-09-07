@@ -160,7 +160,7 @@ export function ChatMessage({ message }: { message?: MsgType | null }) {
       
       <div className="flex-1 min-w-0 pt-1">
         <div className="font-semibold text-slate-100 mb-1">
-          {isUser ? "You" : "EduAgent"}
+          {isUser ? "You" : "Lerna"}
         </div>
         <div className="text-slate-200">
           {renderedContent}

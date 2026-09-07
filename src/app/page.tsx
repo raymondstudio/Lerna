@@ -106,7 +106,7 @@ const pricingPlans = [
   {
     name: "Free",
     price: "₦0",
-    description: "Perfect for trying out EduAgent AI.",
+    description: "Perfect for trying out Lerna AI.",
     features: [
       "Unlimited sign up",
       "Limited AI usage",
@@ -149,7 +149,7 @@ const pricingPlans = [
 
 const testimonials = [
   {
-    quote: "EduAgent completely changed how I study for midterms. I uploaded 50 pages of biology slides and it explained the Krebs cycle better than my textbook.",
+    quote: "Lerna completely changed how I study for midterms. I uploaded 50 pages of biology slides and it explained the Krebs cycle better than my textbook.",
     name: "Sarah L.",
     role: "Pre-Med Student",
     rating: 5
@@ -171,7 +171,7 @@ const testimonials = [
 const faqs = [
   {
     question: "Is it free?",
-    answer: "Yes! EduAgent AI offers a robust Free plan that lets you sign up, upload study materials, chat with your AI tutor, and access persistent session history."
+    answer: "Yes! Lerna AI offers a robust Free plan that lets you sign up, upload study materials, chat with your AI tutor, and access persistent session history."
   },
   {
     question: "What file types are supported?",
@@ -287,7 +287,7 @@ function DemoChat({ onTriggerSignup }: { onTriggerSignup: () => void }) {
         </div>
         <div>
           <h3 className="text-base font-semibold text-white">Interactive AI Tutor Demo</h3>
-          <p className="text-xs text-slate-500 mt-0.5">Test EduAgent's capabilities immediately below.</p>
+          <p className="text-xs text-slate-500 mt-0.5">Test Lerna's capabilities immediately below.</p>
         </div>
       </div>
 
@@ -410,7 +410,7 @@ function HomePageContent() {
           __html: JSON.stringify({
             "@context": "https://schema.org",
             "@type": "SoftwareApplication",
-            "name": "EduAgent AI",
+            "name": "Lerna AI",
             "applicationCategory": "EducationalApplication",
             "operatingSystem": "Web",
             "offers": {
@@ -435,7 +435,7 @@ function HomePageContent() {
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-500 text-black">
               <Brain className="h-6 w-6" />
             </div>
-            <span className="font-heading font-semibold text-white tracking-tight text-xl">EduAgent</span>
+            <span className="font-heading font-semibold text-white tracking-tight text-xl">Lerna</span>
           </div>
           
           {/* Desktop Navigation Links */}
@@ -589,7 +589,7 @@ function HomePageContent() {
           <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a] via-transparent to-transparent z-20 pointer-events-none" />
            <Image
              src="/dashboard-mockup.png"
-             alt="EduAgent AI Tutoring Dashboard Mockup"
+             alt="Lerna AI Tutoring Dashboard Mockup"
              width={2048}
              height={1366}
              className="w-full h-auto object-cover rounded-[1.7rem]"
@@ -756,7 +756,7 @@ function HomePageContent() {
             Loved by students everywhere
           </h2>
           <p className="text-lg sm:text-xl text-slate-400">
-            See how EduAgent AI is helping college and university students study smarter.
+            See how Lerna AI is helping college and university students study smarter.
           </p>
         </div>
 
@@ -800,13 +800,13 @@ function HomePageContent() {
             className="inline-flex items-center gap-2 rounded-full border border-cyan-500/20 bg-cyan-500/5 px-4 py-1.5 text-xs sm:text-sm font-medium text-cyan-300 mb-6 hover:bg-cyan-500/10 transition-colors"
           >
             <Users className="h-3.5 w-3.5 text-cyan-400" />
-            <span>EduAgent Community</span>
+            <span>Lerna Community</span>
           </motion.div>
           <h2 className="font-heading text-4xl sm:text-5xl font-semibold tracking-tight text-white mb-6">
             Join the Community of Students worldwide
           </h2>
           <p className="text-lg text-slate-400">
-            Connect, collaborate, and share knowledge with thousands of students using EduAgent AI globally.
+            Connect, collaborate, and share knowledge with thousands of students using Lerna AI globally.
           </p>
         </div>
 
@@ -881,7 +881,7 @@ function HomePageContent() {
               Frequently asked questions
             </h2>
             <p className="text-lg sm:text-xl text-slate-400">
-              Have questions? Find quick answers about EduAgent AI's features, pricing, and security.
+              Have questions? Find quick answers about Lerna AI's features, pricing, and security.
             </p>
           </div>
 
@@ -915,7 +915,7 @@ function HomePageContent() {
             <div className="max-w-md">
               <h3 className="text-xl sm:text-2xl font-semibold text-white">Prefer WhatsApp?</h3>
               <p className="text-sm text-slate-400 mt-2 leading-relaxed">
-                Chat with EduAgent AI directly on WhatsApp. Continue your learning sessions on the go.
+                Chat with Lerna AI directly on WhatsApp. Continue your learning sessions on the go.
               </p>
             </div>
 
@@ -970,7 +970,7 @@ function HomePageContent() {
               <div className="flex flex-col space-y-4 col-span-2">
                 <div className="flex items-center gap-3">
                   <Brain className="h-9 w-9 text-cyan-500" />
-                  <h3 className="text-3xl font-heading font-semibold tracking-tight text-white leading-none">EduAgent</h3>
+                  <h3 className="text-3xl font-heading font-semibold tracking-tight text-white leading-none">Lerna</h3>
                 </div>
                 <p className="text-slate-400 text-sm max-w-xs leading-relaxed">
                   Experience the most intuitive AI tutoring platform built for actual studying. Ask questions, upload PDFs, and master courses.
@@ -1000,7 +1000,7 @@ function HomePageContent() {
               <div className="flex flex-col space-y-4">
                 <h4 className="text-white text-sm font-semibold uppercase tracking-wider">Connect</h4>
                 <ul className="flex flex-col space-y-3 text-sm">
-                  <li><Link href="mailto:support@eduagentai.com" className="text-slate-400 hover:text-white transition-colors">Contact Support</Link></li>
+                  <li><Link href="mailto:support@learn.app" className="text-slate-400 hover:text-white transition-colors">Contact Support</Link></li>
                   <li><Link href="https://github.com" target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-white transition-colors">GitHub</Link></li>
                 </ul>
               </div>
@@ -1009,7 +1009,7 @@ function HomePageContent() {
             <div className="h-[1px] w-full bg-white/10 mt-12 mb-8"></div>
             
             <div className="flex flex-col md:flex-row justify-between items-center text-sm gap-4 text-slate-500 font-medium pb-4">
-              <p className="text-center md:text-left">Copyright &copy; {new Date().getFullYear()} EduAgent AI. All rights reserved.</p>
+              <p className="text-center md:text-left">Copyright &copy; {new Date().getFullYear()} Lerna AI. All rights reserved.</p>
               <div className="flex items-center gap-6">
                 <span className="text-slate-600">Built for student excellence</span>
               </div>

@@ -22,7 +22,7 @@ const INITIAL_WELCOME: ChatMessage = {
   id: "welcome-msg",
   role: "assistant",
   content:
-    "Hi, I'm EduAgent, your AI tutor. Ask me anything you'd like to learn, and I'll explain it step-by-step with clear examples.",
+    "Hi, I'm Lerna, your AI tutor. Ask me anything you'd like to learn, and I'll explain it step-by-step with clear examples.",
   timestamp: 0,
 };
 

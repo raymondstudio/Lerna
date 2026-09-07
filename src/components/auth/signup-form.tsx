@@ -234,7 +234,7 @@ export function SignupForm({
         <div className="space-y-2">
           <h2 className="text-2xl font-bold text-white tracking-tight">Account Created!</h2>
           <p className="text-slate-400 text-sm max-w-xs mx-auto leading-relaxed">
-            Welcome to EduAgent AI. Redirecting you to your personalization companion...
+            Welcome to Lerna AI. Redirecting you to your personalization companion...
           </p>
         </div>
       </div>

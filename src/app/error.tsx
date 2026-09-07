@@ -13,7 +13,7 @@ export default function GlobalError({ error, reset }: { error: Error & { digest?
       <body className="min-h-screen bg-slate-950 text-white">
         <div className="flex min-h-screen items-center justify-center px-6 py-16">
           <div className="max-w-lg rounded-[2rem] border border-white/10 bg-white/[0.04] p-8 text-center shadow-2xl shadow-slate-950/40">
-            <p className="text-xs uppercase tracking-[0.3em] text-cyan-200">EduAgent AI</p>
+            <p className="text-xs uppercase tracking-[0.3em] text-cyan-200">Lerna AI</p>
             <h1 className="mt-4 text-3xl font-semibold">Something went wrong.</h1>
             <p className="mt-3 text-sm leading-7 text-slate-300">
               The app hit an unexpected runtime error. Your data is safe, and you can retry immediately.

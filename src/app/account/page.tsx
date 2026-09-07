@@ -1086,7 +1086,7 @@ export default function AccountPage() {
                       <div className="space-y-1">
                         <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">Plan level</span>
                         <h3 className="text-2xl font-bold text-white capitalize flex items-center gap-2">
-                          EduAgent {profile?.plan || quotaUsage?.plan || "Free"} <span className="text-xs px-2.5 py-0.5 bg-cyan-500/10 text-cyan-400 rounded-full font-semibold border border-cyan-500/10">Active</span>
+                          Lerna {profile?.plan || quotaUsage?.plan || "Free"} <span className="text-xs px-2.5 py-0.5 bg-cyan-500/10 text-cyan-400 rounded-full font-semibold border border-cyan-500/10">Active</span>
                         </h3>
                       </div>
                       <span className="text-3xl font-bold text-white">
@@ -1580,7 +1580,7 @@ export default function AccountPage() {
                       <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Your Comments</label>
                       <textarea
                         rows={3}
-                        placeholder="Help us improve EduAgent..."
+                        placeholder="Help us improve Lerna..."
                         value={feedbackMsg}
                         onChange={e => setFeedbackMsg(e.target.value)}
                         className="w-full p-3 rounded-lg border border-white/5 bg-[#0d0f12] text-xs focus:outline-none focus:border-cyan-500/50"
@@ -1629,7 +1629,7 @@ export default function AccountPage() {
 
                   <div className="p-5 rounded-xl border border-white/5 bg-[#14161a] divide-y divide-white/5 text-xs">
                     <div className="py-2.5 flex justify-between">
-                      <span className="text-slate-500">EduAgent Client Version</span>
+                      <span className="text-slate-500">Lerna Client Version</span>
                       <span className="text-white font-bold">v1.2.0-stable</span>
                     </div>
                     <div className="py-2.5 flex justify-between">

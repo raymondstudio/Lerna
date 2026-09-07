@@ -48,7 +48,7 @@ export function LoginForm({
   return (
     <div className="space-y-6">
       <div className="text-center">
-        <h2 className="text-2xl font-semibold text-white">Sign in to EduAgent.</h2>
+        <h2 className="text-2xl font-semibold text-white">Sign in to Lerna.</h2>
       </div>
 
       <div className="space-y-3">

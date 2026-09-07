@@ -80,7 +80,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-cyan-500 text-black">
             <Brain className="h-5 w-5" />
           </div>
-          <span className="font-heading font-semibold text-white tracking-tight text-lg">EduAgent</span>
+          <span className="font-heading font-semibold text-white tracking-tight text-lg">Lerna</span>
         </Link>
         <Button
           onClick={() => setSidebarOpen(false)}
@@ -265,7 +265,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
           >
             <Menu className="h-5 w-5" />
           </Button>
-          <span className="font-heading font-semibold text-white tracking-tight text-base">EduAgent</span>
+          <span className="font-heading font-semibold text-white tracking-tight text-base">Lerna</span>
           <div className="w-9" /> {/* Spacer */}
         </div>
 

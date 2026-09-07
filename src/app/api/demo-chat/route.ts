@@ -73,7 +73,7 @@ export async function POST(req: Request) {
     }
 
     // Call Gemini directly with a lightweight scoping prompt to guide the response
-    const demoScopingPrompt = `You are EduAgent AI, an expert tutor. Provide a brief, engaging, and structured explanation of the student's question.
+    const demoScopingPrompt = `You are Lerna AI, an expert tutor. Provide a brief, engaging, and structured explanation of the student's question.
 Keep the explanation under 3 sentences if possible, clear and structured. Use one analogy or example if helpful.
 
 Student Question: "${message}"`;

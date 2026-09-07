@@ -483,9 +483,9 @@ export function UploadWorkspace() {
         <div className="flex shrink-0 flex-col gap-4 border-b border-white/10 pb-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="text-xs uppercase tracking-[0.3em] text-slate-400">My materials</p>
-            <h1 className="mt-2 text-2xl font-semibold text-white sm:text-3xl">Teach EduAgent from your study files</h1>
+            <h1 className="mt-2 text-2xl font-semibold text-white sm:text-3xl">Teach Lerna from your study files</h1>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">
-              Upload notes, slides, PDFs, documents, and images. EduAgent extracts, chunks, embeds, and links them to your tutoring sessions.
+              Upload notes, slides, PDFs, documents, and images. Lerna extracts, chunks, embeds, and links them to your tutoring sessions.
             </p>
           </div>
           <div className="flex items-center gap-2 text-sm text-slate-400">
@@ -526,7 +526,7 @@ export function UploadWorkspace() {
               <div className="max-w-xl space-y-2">
                 <p className="text-base font-medium text-white">{activeSession ? activeSession.title : "Create or pick a session first"}</p>
                 <p className="text-sm leading-6 text-slate-400">
-                  Drag files in, or choose them manually. EduAgent will process them into searchable learning chunks after upload.
+                  Drag files in, or choose them manually. Lerna will process them into searchable learning chunks after upload.
                 </p>
               </div>
               <div className="flex flex-wrap items-center justify-center gap-3">

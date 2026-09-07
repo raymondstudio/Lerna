@@ -1,12 +1,12 @@
-EduAgent AI
+Lerna AI
 
 > Your Personal AI Tutor That Actually Teaches.
 
 
 
-EduAgent AI is a next-generation AI tutoring platform built to help students learn smarter through interactive conversations, intelligent study sessions, document understanding, memory persistence, and personalized AI-powered learning experiences.
+Lerna AI is a next-generation AI tutoring platform built to help students learn smarter through interactive conversations, intelligent study sessions, document understanding, memory persistence, and personalized AI-powered learning experiences.
 
-Unlike traditional chatbots, EduAgent AI is designed as an intelligent learning workspace that remembers conversations, understands uploaded study materials, and helps students continue learning across devices and sessions.
+Unlike traditional chatbots, Lerna AI is designed as an intelligent learning workspace that remembers conversations, understands uploaded study materials, and helps students continue learning across devices and sessions.
 
 
 ---
@@ -63,7 +63,7 @@ Answer questions from uploaded content
 
 AI Vision Support
 
-EduAgent AI can understand:
+Lerna AI can understand:
 
 Screenshots
 
@@ -152,7 +152,7 @@ Vercel
 
 Architecture Overview
 
-EduAgent AI uses a hybrid AI architecture combining:
+Lerna AI uses a hybrid AI architecture combining:
 
 Gemini for reasoning and tutoring
 
@@ -190,7 +190,7 @@ Educational AI workflows
 
 🎯 Project Vision
 
-EduAgent AI aims to become an autonomous AI learning companion capable of:
+Lerna AI aims to become an autonomous AI learning companion capable of:
 
 Teaching from custom materials
 
@@ -251,7 +251,7 @@ SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
 🌐 Deployment
 
 The project is optimized for deployment. 
-Vercel (eduagentai.vercel.app)
+Vercel (learn.app)
 
 
 
@@ -319,7 +319,7 @@ This project is licensed under the MIT License.
 
 Final Note
 
-EduAgent AI is not just another chatbot.
+Lerna AI is not just another chatbot.
 
 It is designed to become an intelligent educational companion that:
 

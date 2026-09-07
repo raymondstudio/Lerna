@@ -64,7 +64,7 @@ export default function WelcomePage() {
         {/* Text Details */}
         <div className="space-y-3">
           <h1 className="text-3xl font-extrabold text-white tracking-tight font-heading leading-tight bg-clip-text text-transparent bg-gradient-to-r from-white via-white to-slate-400">
-            Welcome to EduAgent AI
+            Welcome to Lerna AI
           </h1>
           <p className="text-slate-400 text-sm leading-relaxed">
             We'll personalize your AI tutor in less than one minute.
