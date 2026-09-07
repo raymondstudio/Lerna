@@ -4,6 +4,8 @@ import Link from "next/link";
 import Image from "next/image";
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
+import dynamic from "next/dynamic";
+const RobotCanvas = dynamic(() => import("@/components/3d/RobotCanvas").then(mod => mod.RobotCanvas), { ssr: false });
 import { 
   ArrowRight, 
   BookOpen, 
@@ -402,7 +404,7 @@ function HomePageContent() {
   }, [searchParams]);
 
   return (
-    <main className="min-h-screen bg-[#0a0a0a] text-slate-200 selection:bg-cyan-500/30 font-body overflow-x-hidden">
+    <main className="min-h-screen bg-[#030b17] text-slate-200 selection:bg-cyan-500/30 font-body overflow-x-hidden">
       {/* Structured Data JSON-LD */}
       <script
         type="application/ld+json"
@@ -423,43 +425,35 @@ function HomePageContent() {
         }}
       />
       
-      {/* Floating Navigation */}
+      {/* Transparent Navigation */}
       <motion.nav 
-        initial={{ y: -100, x: "-50%" }}
-        animate={{ y: 0, x: "-50%" }}
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, ease: "easeOut" }}
-        className="fixed top-6 left-1/2 w-[calc(100%-2rem)] max-w-7xl z-50 rounded-2xl border border-white/10 bg-[#0a0a0a]/50 backdrop-blur-xl mix-blend-plus-lighter shadow-2xl"
+        className="absolute top-0 left-0 right-0 w-full z-50 pt-6 sm:pt-10"
       >
-        <div className="flex items-center justify-between px-4 sm:px-6 py-4">
+        <div className="max-w-7xl mx-auto px-6 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-500 text-black">
-              <Brain className="h-6 w-6" />
-            </div>
-            <span className="font-heading font-semibold text-white tracking-tight text-xl">Lerna</span>
+            <img src="/assets/lerna-logo.svg" alt="Lerna Logo" className="h-8 w-auto" />
           </div>
           
-          {/* Desktop Navigation Links */}
-          <div className="hidden md:flex items-center gap-5 lg:gap-6">
-            <Link href="#how-it-works" className="text-slate-300 hover:text-white font-medium transition-colors text-base">How it works</Link>
-            <Link href="#features" className="text-slate-300 hover:text-white font-medium transition-colors text-base">Features</Link>
-            <Link href="#pricing" className="text-slate-300 hover:text-white font-medium transition-colors text-base">Pricing</Link>
-            <Link href="#faq" className="text-slate-300 hover:text-white font-medium transition-colors text-base">FAQ</Link>
+          <div className="hidden md:flex items-center gap-8">
+            <Link href="#how-it-works" className="text-slate-300 hover:text-white text-sm font-medium transition-colors">How it works</Link>
+            <Link href="#features" className="text-slate-300 hover:text-white text-sm font-medium transition-colors">Features</Link>
+            <Link href="#pricing" className="text-slate-300 hover:text-white text-sm font-medium transition-colors">Pricing</Link>
+            <Link href="#faq" className="text-slate-300 hover:text-white text-sm font-medium transition-colors">FAQ</Link>
           </div>
           
-          {/* Desktop Auth Actions */}
           <div className="hidden md:flex items-center gap-4">
-            <button onClick={() => setActiveModal("login")} className="text-slate-300 hover:text-white font-medium transition-colors text-base">Sign in</button>
-            <Button onClick={() => setActiveModal("signup")} className="bg-white text-black hover:bg-slate-200 rounded-full px-5 lg:px-6 h-11 text-base font-medium transition-all">
-              Get started <ArrowRight className="ml-2 h-4 w-4" />
+            <Button onClick={() => setActiveModal("signup")} className="bg-white text-black hover:bg-slate-200 rounded-full px-6 h-10 text-sm font-semibold transition-all">
+              Get started
             </Button>
           </div>
-
+          
           {/* Mobile Hamburger menu toggle */}
           <button 
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
             className="flex md:hidden items-center justify-center p-2 text-slate-400 hover:text-white transition-colors"
-            aria-label="Toggle navigation menu"
-            aria-expanded={isMobileMenuOpen}
           >
             {isMobileMenuOpen ? (
               <X className="h-6 w-6" />
@@ -468,7 +462,7 @@ function HomePageContent() {
             )}
           </button>
         </div>
-
+        
         {/* Mobile Dropdown Panel */}
         <AnimatePresence>
           {isMobileMenuOpen && (
@@ -477,129 +471,61 @@ function HomePageContent() {
               animate={{ opacity: 1, height: "auto" }}
               exit={{ opacity: 0, height: 0 }}
               transition={{ duration: 0.25, ease: "easeInOut" }}
-              className="md:hidden absolute top-[calc(100%+0.5rem)] left-0 right-0 rounded-2xl border border-white/10 bg-[#0a0a0a]/95 backdrop-blur-2xl p-6 shadow-2xl flex flex-col gap-6 z-40 overflow-hidden"
+              className="md:hidden absolute top-[calc(100%+0.5rem)] left-0 right-0 rounded-2xl border border-white/10 bg-[#030b17]/95 backdrop-blur-2xl p-6 shadow-2xl flex flex-col gap-6 z-40 overflow-hidden"
             >
               <div className="flex flex-col gap-4">
-                <Link 
-                  href="#how-it-works" 
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className="text-slate-300 hover:text-white font-medium transition-colors text-base py-2 border-b border-white/5"
-                >
-                  How it works
-                </Link>
-                <Link 
-                  href="#features" 
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className="text-slate-300 hover:text-white font-medium transition-colors text-base py-2 border-b border-white/5"
-                >
-                  Features
-                </Link>
-                <Link 
-                  href="#pricing" 
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className="text-slate-300 hover:text-white font-medium transition-colors text-base py-2 border-b border-white/5"
-                >
-                  Pricing
-                </Link>
-                <Link 
-                  href="#faq" 
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className="text-slate-300 hover:text-white font-medium transition-colors text-base py-2 border-b border-white/5"
-                >
-                  FAQ
-                </Link>
+                <Link href="#how-it-works" onClick={() => setIsMobileMenuOpen(false)} className="text-slate-300 hover:text-white font-medium transition-colors text-base py-2 border-b border-white/5">How it works</Link>
+                <Link href="#features" onClick={() => setIsMobileMenuOpen(false)} className="text-slate-300 hover:text-white font-medium transition-colors text-base py-2 border-b border-white/5">Features</Link>
+                <Link href="#pricing" onClick={() => setIsMobileMenuOpen(false)} className="text-slate-300 hover:text-white font-medium transition-colors text-base py-2 border-b border-white/5">Pricing</Link>
+                <Link href="#faq" onClick={() => setIsMobileMenuOpen(false)} className="text-slate-300 hover:text-white font-medium transition-colors text-base py-2 border-b border-white/5">FAQ</Link>
               </div>
               <div className="flex flex-col gap-3">
-                <button 
-                  onClick={() => {
-                    setIsMobileMenuOpen(false);
-                    setActiveModal("login");
-                  }}
-                  className="w-full text-center text-slate-300 hover:text-white font-semibold py-3 border border-white/10 rounded-full hover:bg-white/5 transition-all text-base"
-                >
-                  Sign in
-                </button>
-                <Button 
-                  onClick={() => {
-                    setIsMobileMenuOpen(false);
-                    setActiveModal("signup");
-                  }}
-                  className="w-full bg-white text-black hover:bg-slate-200 rounded-full py-6 font-semibold text-base justify-center transition-all"
-                >
-                  Get started <ArrowRight className="ml-2 h-4 w-4" />
-                </Button>
+                <button onClick={() => { setIsMobileMenuOpen(false); setActiveModal("login"); }} className="w-full text-center text-slate-300 hover:text-white font-semibold py-3 border border-white/10 rounded-full hover:bg-white/5 transition-all text-base">Sign in</button>
+                <Button onClick={() => { setIsMobileMenuOpen(false); setActiveModal("signup"); }} className="w-full bg-white text-black hover:bg-slate-200 rounded-full py-6 font-semibold text-base justify-center transition-all">Get started <ArrowRight className="ml-2 h-4 w-4" /></Button>
               </div>
             </motion.div>
           )}
         </AnimatePresence>
       </motion.nav>
-
       {/* Hero Section */}
-      <section className="relative mx-auto max-w-7xl px-6 pt-36 sm:pt-48 pb-20 text-center">
-        {/* Glow Effects */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 h-[350px] w-[350px] sm:h-[600px] sm:w-[600px] bg-cyan-500/10 rounded-full blur-3xl pointer-events-none z-0" />
-        
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, ease: "easeOut" }}
-          className="relative z-10"
-        >
-
-          <h1 className="font-heading text-4xl sm:text-6xl lg:text-7xl font-bold tracking-tight text-white mb-6 text-balance max-w-5xl mx-auto leading-[1.1]">
-            Learn <span className="bg-gradient-to-r from-cyan-400 to-teal-400 bg-clip-text text-transparent">smarter</span>, not harder.
-          </h1>
-          <p className="mx-auto max-w-3xl text-lg sm:text-xl text-slate-400 mb-10 text-balance leading-relaxed">
-            Ask questions, upload study material, build smart revision plans, and keep every learning session organized in one workspace. No fluff, just results.
-          </p>
-        </motion.div>
-        
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.2, ease: "easeOut" }}
-          className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-20 relative z-10 max-w-md mx-auto sm:max-w-none"
-        >
-          <Button onClick={() => setActiveModal("signup")} className="bg-white text-black hover:bg-slate-200 rounded-full px-10 h-14 text-lg font-medium w-full sm:w-auto shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all">
-            Start studying <ArrowRight className="ml-2 h-5 w-5" />
-          </Button>
-          <Link href="#features" className="w-full sm:w-auto">
-            <Button variant="outline" className="border-white/10 bg-[#141414]/60 hover:bg-[#1f1f1f]/80 text-white rounded-full px-10 h-14 text-lg font-medium w-full transition-all">
-              Explore features
-            </Button>
-          </Link>
-        </motion.div>
-        
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.8, delay: 0.4, ease: "easeOut" }}
-          className="relative z-10"
-        >
-          <DemoChat onTriggerSignup={() => setActiveModal("signup")} />
-        </motion.div>
-        
-        {/* Dashboard Image Mockup */}
-        <motion.div 
-          initial={{ opacity: 0, y: 40 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 1, delay: 0.5, ease: "easeOut" }}
-          className="relative mx-auto max-w-5xl rounded-[2rem] overflow-hidden border border-white/10 shadow-[0_0_80px_rgba(6,182,212,0.08)] bg-[#0e1115]/50 p-2 z-10"
-        >
-          <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a] via-transparent to-transparent z-20 pointer-events-none" />
-           <Image
-             src="/dashboard-mockup.png"
-             alt="Lerna AI Tutoring Dashboard Mockup"
-             width={2048}
-             height={1366}
-             className="w-full h-auto object-cover rounded-[1.7rem]"
-             priority
-           />
-        </motion.div>
+      <section className="relative w-full min-h-screen flex items-center pt-24 overflow-hidden bg-gradient-to-br from-[#030b17] via-[#081a3d] to-[#030b17]">
+        <div className="max-w-7xl mx-auto px-6 w-full grid lg:grid-cols-2 gap-12 items-center relative z-10">
+          <motion.div
+            initial={{ opacity: 0, x: -30 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.8, ease: "easeOut" }}
+            className="text-left"
+          >
+            <h1 className="font-heading text-5xl sm:text-7xl lg:text-[5.5rem] font-bold tracking-tighter text-white mb-8 leading-[1.05]">
+              Learn smarter,<br/>not harder.
+            </h1>
+            <p className="text-lg sm:text-xl text-blue-100/70 mb-10 leading-relaxed max-w-lg">
+              Ask questions, upload study material, build smart revision plans, and keep every learning session organized in one workspace. No fluff, just results.
+            </p>
+            <div className="flex flex-col sm:flex-row items-center gap-4">
+              <Button onClick={() => setActiveModal("login")} className="bg-white text-black hover:bg-gray-200 rounded-full px-8 h-14 text-base font-semibold shadow-[0_0_40px_rgba(255,255,255,0.2)] transition-all w-full sm:w-auto">
+                Start Studying
+              </Button>
+              <Link href="#features" className="w-full sm:w-auto">
+                <Button variant="outline" className="border-white/10 bg-[#141414]/60 hover:bg-[#1f1f1f]/80 text-white rounded-full px-8 h-14 text-base font-semibold transition-all w-full">
+                  Explore features
+                </Button>
+              </Link>
+            </div>
+          </motion.div>
+          
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 1, delay: 0.2, ease: "easeOut" }}
+            className="relative h-[400px] sm:h-[500px] lg:h-[700px] w-full"
+          >
+             <RobotCanvas />
+          </motion.div>
+        </div>
       </section>
-
       {/* How It Works Section */}
-      <section id="how-it-works" className="border-t border-white/5 bg-[#08080a] py-24 sm:py-32 relative overflow-hidden">
+      <section id="how-it-works" className="border-t border-white/5 bg-[#061022] py-24 sm:py-32 relative overflow-hidden">
         <div className="absolute top-1/2 left-1/4 -translate-y-1/2 h-[400px] w-[400px] bg-cyan-500/5 rounded-full blur-3xl pointer-events-none" />
         <div className="mx-auto max-w-7xl px-6 relative z-10">
           <div className="text-center max-w-3xl mx-auto mb-16 sm:mb-24">
@@ -683,7 +609,7 @@ function HomePageContent() {
       </section>
 
       {/* Pricing Section */}
-      <section id="pricing" className="bg-[#08080a] border-t border-white/5 py-24 sm:py-32 relative overflow-hidden">
+      <section id="pricing" className="bg-[#061022] border-t border-white/5 py-24 sm:py-32 relative overflow-hidden">
         <div className="absolute bottom-0 right-1/4 h-[400px] w-[400px] bg-cyan-500/5 rounded-full blur-3xl pointer-events-none" />
         <div className="mx-auto max-w-7xl px-6 relative z-10">
           <div className="text-center max-w-3xl mx-auto mb-16 sm:mb-24">
@@ -874,7 +800,7 @@ function HomePageContent() {
       </section>
 
       {/* FAQ Section */}
-      <section id="faq" className="bg-[#08080a] border-t border-white/5 py-24 sm:py-32 relative overflow-hidden">
+      <section id="faq" className="bg-[#061022] border-t border-white/5 py-24 sm:py-32 relative overflow-hidden">
         <div className="mx-auto max-w-4xl px-6 relative z-10">
           <div className="text-center max-w-3xl mx-auto mb-16 sm:mb-24">
             <h2 className="font-heading text-4xl sm:text-5xl font-semibold tracking-tight text-white mb-6">
@@ -932,7 +858,7 @@ function HomePageContent() {
       </section>
 
       {/* CTA & Footer Section */}
-      <footer className="bg-[#0a0a0a] pt-24 border-t border-white/5">
+      <footer className="bg-[#030b17] pt-24 border-t border-white/5">
         <div className="relative overflow-hidden h-[240px] flex justify-center items-center border-b border-white/5">
           <div className="w-[2000px] md:w-[4000px] h-[800px] absolute -top-[720px] left-1/2 -translate-x-1/2 bg-gradient-to-b from-[#0a0a0a] via-[#141414] to-cyan-500/10 rounded-[100%]"></div>
           <div className="w-20 md:w-80 h-10 bg-gradient-to-l from-cyan-500/20 via-cyan-500/10 to-transparent blur-[4.95px] absolute top-1/2 -translate-y-1/2 right-[56%]"></div>
@@ -1056,7 +982,7 @@ function HomePageContent() {
 export default function HomePage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
+      <div className="min-h-screen bg-[#030b17] flex items-center justify-center">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-cyan-500 border-t-transparent"></div>
       </div>
     }>

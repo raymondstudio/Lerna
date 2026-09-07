@@ -25,6 +25,10 @@ export const metadata: Metadata = {
   keywords: ["AI tutor", "Lerna", "smart learning", "study app", "AI education", "PDF learning", "revision plans", "AI study buddy"],
   authors: [{ name: "Raymond Iorliam" }],
   creator: "Raymond Iorliam",
+  icons: {
+    icon: "/assets/Lerna Logo-black.jpg",
+    apple: "/assets/Lerna Logo-black.jpg"
+  },
   openGraph: {
     type: "website",
     locale: "en_US",
