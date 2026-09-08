@@ -370,14 +370,14 @@ function HomePageContent() {
       <nav
         className="absolute md:fixed top-6 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-7xl z-50 rounded-2xl border border-white/10 bg-[#0a0a0a]/50 backdrop-blur-xl mix-blend-plus-lighter shadow-2xl"
       >
-        <div className="flex items-center justify-between px-4 sm:px-6 py-4">
+        <div className="flex items-center justify-between px-4 sm:px-4 py-2">
           <div className="flex items-center gap-3">
             <Image
               src="/assets/lerna-full-white.png"
               alt="Lerna"
-              width={160}
-              height={50}
-              className="h-10 w-auto object-contain"
+                width={260}
+                height={50}
+              className="h-16 w-auto object-contain"
               priority
             />
           </div>
@@ -444,7 +444,7 @@ function HomePageContent() {
                 <Link 
                   href="#faq" 
                   onClick={() => setIsMobileMenuOpen(false)}
-                  className="text-slate-300 hover:text-white font-medium transition-colors text-base py-2 border-b border-white/5"
+                  className="text-slate-300 hover:text-white font-medium transition-colors text-base py-2"
                 >
                   FAQ
                 </Link>
@@ -895,9 +895,9 @@ function HomePageContent() {
                   <Image
                     src="/assets/lerna-full-white.png"
                     alt="Lerna"
-                    width={160}
-                    height={50}
-                    className="h-10 w-auto object-contain"
+                    width={260}
+                    height={100}
+                    className="h-16 w-auto object-contain"
                   />
                 </div>
                 <p className="text-slate-400 text-sm max-w-xs leading-relaxed">

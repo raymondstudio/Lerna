@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 
 import { AuthContext, type AuthCredentials, type SignUpCredentials } from "@/context/auth-context";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { getAppUrl } from "@/lib/supabase/config";
 import { buildOAuthRedirectUrl } from "@/lib/auth/oauth";
 import { normalizeProfile } from "@/lib/profile";
 
@@ -204,6 +205,7 @@ export function AuthProvider({ children, initialSession }: { children: ReactNode
             tos_accepted_at: acceptedTos ? new Date().toISOString() : undefined,
             privacy_accepted_at: acceptedPrivacy ? new Date().toISOString() : undefined,
           },
+          emailRedirectTo: `${getAppUrl()}/auth/callback`,
         },
       });
 
