@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useState, useEffect, Suspense, type ReactNode } from "react";
 import { useSearchParams } from "next/navigation";
 import { 
@@ -371,10 +372,14 @@ function HomePageContent() {
       >
         <div className="flex items-center justify-between px-4 sm:px-6 py-4">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-500 text-black">
-              <Brain className="h-6 w-6" />
-            </div>
-            <span className="font-heading font-semibold text-white tracking-tight text-xl">Lerna</span>
+            <Image
+              src="/assets/lerna-full-white.png"
+              alt="Lerna"
+              width={160}
+              height={50}
+              className="h-10 w-auto object-contain"
+              priority
+            />
           </div>
           
           {/* Desktop Navigation Links */}
@@ -887,8 +892,13 @@ function HomePageContent() {
               {/* Brand Column */}
               <div className="flex flex-col space-y-4 col-span-2">
                 <div className="flex items-center gap-3">
-                  <Brain className="h-9 w-9 text-cyan-500" />
-                  <h3 className="text-3xl font-heading font-semibold tracking-tight text-white leading-none">Lerna</h3>
+                  <Image
+                    src="/assets/lerna-full-white.png"
+                    alt="Lerna"
+                    width={160}
+                    height={50}
+                    className="h-10 w-auto object-contain"
+                  />
                 </div>
                 <p className="text-slate-400 text-sm max-w-xs leading-relaxed">
                   Experience the most intuitive AI tutoring platform built for actual studying. Ask questions, upload PDFs, and master courses.
