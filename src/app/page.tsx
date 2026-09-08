@@ -4,6 +4,8 @@ import Link from "next/link";
 import Image from "next/image";
 import { useState, useEffect, Suspense, type ReactNode } from "react";
 import { useSearchParams } from "next/navigation";
+import dynamic from "next/dynamic";
+const RobotCanvas = dynamic(() => import("@/components/3d/RobotCanvas").then(mod => mod.RobotCanvas), { ssr: false });
 import { 
   ArrowRight, 
   BookOpen, 
@@ -382,28 +384,23 @@ function HomePageContent() {
             />
           </div>
           
-          {/* Desktop Navigation Links */}
-          <div className="hidden md:flex items-center gap-5 lg:gap-6">
-            <Link href="#how-it-works" className="text-slate-300 hover:text-white font-medium transition-colors text-base">How it works</Link>
-            <Link href="#features" className="text-slate-300 hover:text-white font-medium transition-colors text-base">Features</Link>
-            <Link href="#pricing" className="text-slate-300 hover:text-white font-medium transition-colors text-base">Pricing</Link>
-            <Link href="#faq" className="text-slate-300 hover:text-white font-medium transition-colors text-base">FAQ</Link>
+          <div className="hidden md:flex items-center gap-8">
+            <Link href="#how-it-works" className="text-slate-300 hover:text-white text-sm font-medium transition-colors">How it works</Link>
+            <Link href="#features" className="text-slate-300 hover:text-white text-sm font-medium transition-colors">Features</Link>
+            <Link href="#pricing" className="text-slate-300 hover:text-white text-sm font-medium transition-colors">Pricing</Link>
+            <Link href="#faq" className="text-slate-300 hover:text-white text-sm font-medium transition-colors">FAQ</Link>
           </div>
           
-          {/* Desktop Auth Actions */}
           <div className="hidden md:flex items-center gap-4">
-            <button onClick={() => setActiveModal("login")} className="text-slate-300 hover:text-white font-medium transition-colors text-base">Sign in</button>
-            <Button onClick={() => setActiveModal("signup")} className="bg-white text-black hover:bg-slate-200 rounded-full px-5 lg:px-6 h-11 text-base font-medium transition-all">
-              Get started <ArrowRight className="ml-2 h-4 w-4" />
+            <Button onClick={() => setActiveModal("signup")} className="bg-white text-black hover:bg-slate-200 rounded-full px-6 h-10 text-sm font-semibold transition-all">
+              Get started
             </Button>
           </div>
-
+          
           {/* Mobile Hamburger menu toggle */}
           <button 
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
             className="flex md:hidden items-center justify-center p-2 text-slate-400 hover:text-white transition-colors"
-            aria-label="Toggle navigation menu"
-            aria-expanded={isMobileMenuOpen}
           >
             {isMobileMenuOpen ? (
               <X className="h-6 w-6" />
@@ -412,7 +409,7 @@ function HomePageContent() {
             )}
           </button>
         </div>
-
+        
         {/* Mobile Dropdown Panel */}
         <AnimatePresence>
           {isMobileMenuOpen && (
@@ -450,24 +447,8 @@ function HomePageContent() {
                 </Link>
               </div>
               <div className="flex flex-col gap-3">
-                <button 
-                  onClick={() => {
-                    setIsMobileMenuOpen(false);
-                    setActiveModal("login");
-                  }}
-                  className="w-full text-center text-slate-300 hover:text-white font-semibold py-3 border border-white/10 rounded-full hover:bg-white/5 transition-all text-base"
-                >
-                  Sign in
-                </button>
-                <Button 
-                  onClick={() => {
-                    setIsMobileMenuOpen(false);
-                    setActiveModal("signup");
-                  }}
-                  className="w-full bg-white text-black hover:bg-slate-200 rounded-full py-6 font-semibold text-base justify-center transition-all"
-                >
-                  Get started <ArrowRight className="ml-2 h-4 w-4" />
-                </Button>
+                <button onClick={() => { setIsMobileMenuOpen(false); setActiveModal("login"); }} className="w-full text-center text-slate-300 hover:text-white font-semibold py-3 border border-white/10 rounded-full hover:bg-white/5 transition-all text-base">Sign in</button>
+                <Button onClick={() => { setIsMobileMenuOpen(false); setActiveModal("signup"); }} className="w-full bg-white text-black hover:bg-slate-200 rounded-full py-6 font-semibold text-base justify-center transition-all">Get started <ArrowRight className="ml-2 h-4 w-4" /></Button>
               </div>
             </div>
           )}
@@ -520,9 +501,8 @@ function HomePageContent() {
         </motion.div>
         
       </section>
-
       {/* How It Works Section */}
-      <section id="how-it-works" className="border-t border-white/5 bg-[#08080a] py-24 sm:py-32 relative overflow-hidden">
+      <section id="how-it-works" className="border-t border-white/5 bg-[#061022] py-24 sm:py-32 relative overflow-hidden">
         <div className="absolute top-1/2 left-1/4 -translate-y-1/2 h-[400px] w-[400px] bg-cyan-500/5 rounded-full blur-3xl pointer-events-none" />
         <div className="mx-auto max-w-7xl px-6 relative z-10">
           <div className="text-center max-w-3xl mx-auto mb-16 sm:mb-24">
@@ -606,7 +586,7 @@ function HomePageContent() {
       </section>
 
       {/* Pricing Section */}
-      <section id="pricing" className="bg-[#08080a] border-t border-white/5 py-24 sm:py-32 relative overflow-hidden">
+      <section id="pricing" className="bg-[#061022] border-t border-white/5 py-24 sm:py-32 relative overflow-hidden">
         <div className="absolute bottom-0 right-1/4 h-[400px] w-[400px] bg-cyan-500/5 rounded-full blur-3xl pointer-events-none" />
         <div className="mx-auto max-w-7xl px-6 relative z-10">
           <div className="text-center max-w-3xl mx-auto mb-16 sm:mb-24">
@@ -797,7 +777,7 @@ function HomePageContent() {
       </section>
 
       {/* FAQ Section */}
-      <section id="faq" className="bg-[#08080a] border-t border-white/5 py-24 sm:py-32 relative overflow-hidden">
+      <section id="faq" className="bg-[#061022] border-t border-white/5 py-24 sm:py-32 relative overflow-hidden">
         <div className="mx-auto max-w-4xl px-6 relative z-10">
           <div className="text-center max-w-3xl mx-auto mb-16 sm:mb-24">
             <h2 className="font-heading text-4xl sm:text-5xl font-semibold tracking-tight text-white mb-6">
@@ -855,7 +835,7 @@ function HomePageContent() {
       </section>
 
       {/* CTA & Footer Section */}
-      <footer className="bg-[#0a0a0a] pt-24 border-t border-white/5">
+      <footer className="bg-[#030b17] pt-24 border-t border-white/5">
         <div className="relative overflow-hidden h-[240px] flex justify-center items-center border-b border-white/5">
           <div className="w-[2000px] md:w-[4000px] h-[800px] absolute -top-[720px] left-1/2 -translate-x-1/2 bg-gradient-to-b from-[#0a0a0a] via-[#141414] to-cyan-500/10 rounded-[100%]"></div>
           <div className="w-20 md:w-80 h-10 bg-gradient-to-l from-cyan-500/20 via-cyan-500/10 to-transparent blur-[4.95px] absolute top-1/2 -translate-y-1/2 right-[56%]"></div>
