@@ -273,16 +273,6 @@ export function ChatInput({
           >
             <Paperclip className="h-5 w-5" />
           </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            aria-label="Search Web"
-            disabled={disabled}
-            className="h-9 w-9 rounded-full text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
-          >
-            <Globe className="h-5 w-5" />
-          </Button>
         </div>
 
         <textarea
