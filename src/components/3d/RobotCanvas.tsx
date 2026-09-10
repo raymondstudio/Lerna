@@ -63,7 +63,7 @@ function Robot() {
         {/* Head */}
         <mesh ref={headRef} position={[0, 1.3, 0]}>
           <sphereGeometry args={[0.7, 64, 64]} />
-          <meshStandardMaterial 
+          <meshPhysicalMaterial 
             color="#0a1930" 
             metalness={1.0} 
             roughness={0.05} 
