@@ -2,6 +2,7 @@
 
 import { ReactNode, useMemo, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { 
   Brain, 
@@ -77,10 +78,13 @@ export function DashboardShell({ children }: { children: ReactNode }) {
       {/* Sidebar Header */}
       <div className="flex items-center justify-between px-3 py-4 border-b border-white/5">
         <Link href="/" className="flex items-center gap-2.5 px-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-cyan-500 text-black">
-            <Brain className="h-5 w-5" />
-          </div>
-          <span className="font-heading font-semibold text-white tracking-tight text-lg">Lerna</span>
+          <Image
+            src="/assets/lerna-full-white.png"
+            alt="Lerna"
+            width={128}
+            height={50}
+            className="h-12 w-auto object-contain"
+          />
         </Link>
         <Button
           onClick={() => setSidebarOpen(false)}

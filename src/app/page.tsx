@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useState, useEffect, Suspense, type ReactNode } from "react";
 import { useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
@@ -371,9 +372,16 @@ function HomePageContent() {
       <nav
         className="absolute md:fixed top-6 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-7xl z-50 rounded-2xl border border-white/10 bg-[#0a0a0a]/50 backdrop-blur-xl mix-blend-plus-lighter shadow-2xl"
       >
-        <div className="max-w-7xl mx-auto px-6 flex items-center justify-between">
+        <div className="flex items-center justify-between px-4 sm:px-4 py-2">
           <div className="flex items-center gap-3">
-            <img src="/assets/lerna-logo.svg" alt="Lerna Logo" className="h-8 w-auto" />
+            <Image
+              src="/assets/lerna-full-white.png"
+              alt="Lerna"
+                width={260}
+                height={50}
+              className="h-16 w-auto object-contain"
+              priority
+            />
           </div>
           
           <div className="hidden md:flex items-center gap-8">
@@ -409,10 +417,34 @@ function HomePageContent() {
               className="md:hidden absolute top-[calc(100%+0.5rem)] left-0 right-0 rounded-2xl border border-white/10 bg-[#0a0a0a] backdrop-blur-2xl p-6 shadow-2xl flex flex-col gap-6 z-40 overflow-hidden"
             >
               <div className="flex flex-col gap-4">
-                <Link href="#how-it-works" onClick={() => setIsMobileMenuOpen(false)} className="text-slate-300 hover:text-white font-medium transition-colors text-base py-2 border-b border-white/5">How it works</Link>
-                <Link href="#features" onClick={() => setIsMobileMenuOpen(false)} className="text-slate-300 hover:text-white font-medium transition-colors text-base py-2 border-b border-white/5">Features</Link>
-                <Link href="#pricing" onClick={() => setIsMobileMenuOpen(false)} className="text-slate-300 hover:text-white font-medium transition-colors text-base py-2 border-b border-white/5">Pricing</Link>
-                <Link href="#faq" onClick={() => setIsMobileMenuOpen(false)} className="text-slate-300 hover:text-white font-medium transition-colors text-base py-2 border-b border-white/5">FAQ</Link>
+                <Link 
+                  href="#how-it-works" 
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="text-slate-300 hover:text-white font-medium transition-colors text-base py-2 border-b border-white/5"
+                >
+                  How it works
+                </Link>
+                <Link 
+                  href="#features" 
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="text-slate-300 hover:text-white font-medium transition-colors text-base py-2 border-b border-white/5"
+                >
+                  Features
+                </Link>
+                <Link 
+                  href="#pricing" 
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="text-slate-300 hover:text-white font-medium transition-colors text-base py-2 border-b border-white/5"
+                >
+                  Pricing
+                </Link>
+                <Link 
+                  href="#faq" 
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="text-slate-300 hover:text-white font-medium transition-colors text-base py-2"
+                >
+                  FAQ
+                </Link>
               </div>
               <div className="flex flex-col gap-3">
                 <button onClick={() => { setIsMobileMenuOpen(false); setActiveModal("login"); }} className="w-full text-center text-slate-300 hover:text-white font-semibold py-3 border border-white/10 rounded-full hover:bg-white/5 transition-all text-base">Sign in</button>
@@ -447,13 +479,13 @@ function HomePageContent() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.2, ease: "easeOut" }}
-          className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-20 relative z-10 max-w-md mx-auto sm:max-w-none"
+          className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-20 relative z-10 max-w-xs mx-auto sm:max-w-none"
         >
-          <Button onClick={() => setActiveModal("signup")} className="bg-white text-black hover:bg-slate-200 rounded-full px-10 h-14 text-lg font-medium w-full sm:w-auto shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all">
+          <Button onClick={() => setActiveModal("signup")} className="bg-white text-black hover:bg-slate-200 rounded-full px-6 sm:px-10 h-12 sm:h-14 text-base sm:text-lg font-medium w-full sm:w-auto shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all">
             Start studying <ArrowRight className="ml-2 h-5 w-5" />
           </Button>
           <Link href="#features" className="w-full sm:w-auto">
-            <Button variant="outline" className="border-white/10 bg-[#141414]/60 hover:bg-[#1f1f1f]/80 text-white rounded-full px-10 h-14 text-lg font-medium w-full transition-all">
+            <Button variant="outline" className="border-white/10 bg-[#141414]/60 hover:bg-[#1f1f1f]/80 text-white rounded-full px-6 sm:px-10 h-12 sm:h-14 text-base sm:text-lg font-medium w-full transition-all">
               Explore features
             </Button>
           </Link>
@@ -840,8 +872,13 @@ function HomePageContent() {
               {/* Brand Column */}
               <div className="flex flex-col space-y-4 col-span-2">
                 <div className="flex items-center gap-3">
-                  <Brain className="h-9 w-9 text-cyan-500" />
-                  <h3 className="text-3xl font-heading font-semibold tracking-tight text-white leading-none">Lerna</h3>
+                  <Image
+                    src="/assets/lerna-full-white.png"
+                    alt="Lerna"
+                    width={260}
+                    height={100}
+                    className="h-16 w-auto object-contain"
+                  />
                 </div>
                 <p className="text-slate-400 text-sm max-w-xs leading-relaxed">
                   Experience the most intuitive AI tutoring platform built for actual studying. Ask questions, upload PDFs, and master courses.

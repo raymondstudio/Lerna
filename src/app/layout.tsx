@@ -26,8 +26,9 @@ export const metadata: Metadata = {
   authors: [{ name: "Raymond Iorliam" }],
   creator: "Raymond Iorliam",
   icons: {
-    icon: "/assets/Lerna Logo-black.jpg",
-    apple: "/assets/Lerna Logo-black.jpg"
+    icon: "/assets/lerna-logo-white-big.png",
+    shortcut: "/assets/lerna-logo-white-big.png",
+    apple: "/assets/lerna-logo-white-big.png",
   },
   openGraph: {
     type: "website",
