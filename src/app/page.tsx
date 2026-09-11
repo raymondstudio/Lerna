@@ -899,7 +899,7 @@ function HomePageContent() {
               <div className="flex flex-col space-y-4">
                 <h4 className="text-white text-sm font-semibold uppercase tracking-wider">Legal</h4>
                 <ul className="flex flex-col space-y-3 text-sm">
-                  <li><Link href="#" className="text-slate-400 hover:text-white transition-colors">Privacy Policy</Link></li>
+                  <li><Link href="/privacy-policy" className="text-slate-400 hover:text-white transition-colors">Privacy Policy</Link></li>
                   <li><Link href="#" className="text-slate-400 hover:text-white transition-colors">Terms of Service</Link></li>
                 </ul>
               </div>
