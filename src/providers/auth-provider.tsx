@@ -239,13 +239,35 @@ export function AuthProvider({ children, initialSession }: { children: ReactNode
 
       setError(null);
 
-      const options: any = {
-        redirectTo: buildOAuthRedirectUrl(redirectTo ?? "/chat"),
-      };
+      let builtRedirectTo: string;
+      try {
+        builtRedirectTo = buildOAuthRedirectUrl(redirectTo ?? "/chat");
+      } catch (urlError) {
+        console.error("[auth:provider] buildOAuthRedirectUrl FAILED", { urlError });
+        throw urlError;
+      }
 
-      const { error: oauthError } = await supabase.auth.signInWithOAuth({
+      console.info("[auth:provider] signInWithOAuth starting", {
+        provider,
+        redirectTo: builtRedirectTo,
+        supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL ?? "(not set)",
+        hasAnonKey: Boolean(
+          process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
+          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+        ),
+      });
+
+      const { data: oauthData, error: oauthError } = await supabase.auth.signInWithOAuth({
         provider: provider as any,
-        options,
+        options: { redirectTo: builtRedirectTo },
+      });
+
+      console.info("[auth:provider] signInWithOAuth response", {
+        hasUrl: Boolean(oauthData?.url),
+        oauthUrl: oauthData?.url ?? "(no URL returned — CRITICAL)",
+        errorMessage: oauthError?.message ?? null,
+        errorStatus: (oauthError as any)?.status ?? null,
+        errorName: oauthError?.name ?? null,
       });
 
       if (oauthError) {
