@@ -865,7 +865,8 @@ function HomePageContent() {
             </Link>
           </motion.div>
         </div>
-      </section>ction>
+      </section>
+
 
       {/* FAQ Section */}
       <section id="faq" className="py-24 sm:py-32 relative overflow-hidden">
