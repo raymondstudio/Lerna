@@ -481,53 +481,51 @@ function HomePageContent() {
       </nav>
 
       {/* Hero Section */}
-      <section className="relative mx-auto max-w-7xl px-6 pt-40 sm:pt-48 pb-20 text-center overflow-hidden">
+      <section className="relative mx-auto max-w-7xl px-6 pt-40 sm:pt-48 pb-20 overflow-hidden">
         {/* Abstract Background Elements */}
         <div className="absolute top-1/4 left-1/2 -translate-x-1/2 h-[500px] w-[800px] bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-cyan-500/10 via-teal-500/5 to-transparent blur-[120px] pointer-events-none z-0" />
         
-        <motion.div
-          initial={{ opacity: 0, y: 40 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-          className="relative z-10 flex flex-col items-center"
-        >
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-white/5 bg-white/[0.02] text-sm text-cyan-400 font-medium mb-8 backdrop-blur-md">
-            <Sparkles className="w-4 h-4" />
-            Lerna Intelligence 2.0 is live
-          </div>
-
-          <h1 className="font-heading text-5xl sm:text-7xl lg:text-[5rem] font-semibold tracking-tight text-white mb-8 text-balance max-w-5xl leading-[1.05]">
-            Learn <span className="bg-gradient-to-r from-white via-cyan-100 to-cyan-300 bg-clip-text text-transparent">smarter</span>,<br className="hidden sm:block" /> not harder.
-          </h1>
-          <p className="max-w-2xl text-lg sm:text-xl text-slate-400 mb-12 text-balance leading-relaxed">
-            Upload your dense lecture material and let our AI tutor break it down. Build interactive revision plans and master complex topics in half the time.
-          </p>
-        </motion.div>
-        
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
-          className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-24 relative z-10 max-w-sm mx-auto sm:max-w-none"
-        >
-          <Button onClick={() => setActiveModal("signup")} className="bg-white text-black hover:bg-slate-200 rounded-full px-8 h-14 text-base font-semibold w-full sm:w-auto shadow-[0_0_40px_rgba(255,255,255,0.1)] hover:scale-[1.02] active:scale-[0.98] transition-all">
-            Start studying for free
-          </Button>
-          <Link href="#features" className="w-full sm:w-auto">
-            <Button variant="outline" className="border-white/10 bg-white/[0.02] hover:bg-white/[0.05] text-white rounded-full px-8 h-14 text-base font-semibold w-full backdrop-blur-md transition-all">
-              Explore capabilities <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
-          </Link>
-        </motion.div>
-        
-        <motion.div
-          initial={{ opacity: 0, y: 40 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 1, delay: 0.4, ease: [0.16, 1, 0.3, 1] }}
-          className="relative z-10 perspective-1000"
-        >
-          <DemoChat />
-        </motion.div>
+        <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+          <motion.div
+            initial={{ opacity: 0, y: 40 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+            className="relative z-10 flex flex-col items-start text-left"
+          >
+            <h1 className="font-heading text-5xl sm:text-7xl lg:text-[4.5rem] xl:text-[5rem] font-semibold tracking-tight text-white mb-8 text-balance max-w-5xl leading-[1.05]">
+              Learn <span className="bg-gradient-to-r from-white via-cyan-100 to-cyan-300 bg-clip-text text-transparent">smarter</span>,<br className="hidden sm:block" /> 
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-500 blur-[1px] relative inline-block after:absolute after:inset-0 after:bg-blue-500/20 after:blur-xl after:-z-10">not harder.</span>
+            </h1>
+            <p className="max-w-2xl text-lg sm:text-xl text-slate-400 mb-12 text-balance leading-relaxed">
+              Upload your dense lecture material and let our AI tutor break it down. Build interactive revision plans and master complex topics in half the time.
+            </p>
+            
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
+              className="flex flex-col sm:flex-row items-center justify-start gap-4 mb-12 lg:mb-0 relative z-10 w-full sm:w-auto"
+            >
+              <Button onClick={() => setActiveModal("signup")} className="bg-white text-black hover:bg-slate-200 rounded-full px-8 h-14 text-base font-semibold w-full sm:w-auto shadow-[0_0_40px_rgba(255,255,255,0.1)] hover:scale-[1.02] active:scale-[0.98] transition-all">
+                Start studying for free
+              </Button>
+              <Link href="#features" className="w-full sm:w-auto">
+                <Button variant="outline" className="border-white/10 bg-white/[0.02] hover:bg-white/[0.05] text-white rounded-full px-8 h-14 text-base font-semibold w-full backdrop-blur-md transition-all">
+                  Explore capabilities <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              </Link>
+            </motion.div>
+          </motion.div>
+          
+          <motion.div
+            initial={{ opacity: 0, y: 40 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 1, delay: 0.4, ease: [0.16, 1, 0.3, 1] }}
+            className="relative z-10 perspective-1000 w-full"
+          >
+            <DemoChat />
+          </motion.div>
+        </div>
       </section>
       {/* How It Works Section */}
       <section id="how-it-works" className="py-32 relative overflow-hidden">
