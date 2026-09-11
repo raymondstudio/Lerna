@@ -180,7 +180,7 @@ export default function PrivacyPolicyPage() {
               </p>
               <div className="mt-6 p-6 bg-white/[0.02] border border-white/10 rounded-2xl">
                 <p className="font-semibold text-white mb-2">Lerna AI Privacy Team</p>
-                <p>Email: <a href="mailto:support@learn.app" className="text-cyan-400 hover:text-cyan-300">support@learn.app</a></p>
+                <p>Email: <a href="mailto:support@uselerna.app" className="text-cyan-400 hover:text-cyan-300">support@uselerna.app</a></p>
               </div>
             </section>
 
@@ -202,7 +202,7 @@ export default function PrivacyPolicyPage() {
             <Link href="/" className="text-slate-400 hover:text-white transition-colors">Home</Link>
             <Link href="/privacy-policy" className="text-white">Privacy Policy</Link>
             <Link href="#" className="text-slate-400 hover:text-white transition-colors">Terms of Service</Link>
-            <a href="mailto:support@learn.app" className="text-slate-400 hover:text-white transition-colors">Support</a>
+            <a href="mailto:support@uselerna.app" className="text-slate-400 hover:text-white transition-colors">Support</a>
           </div>
           <div className="w-full h-[1px] bg-white/10 mt-4" />
           <p className="text-slate-500 text-sm">

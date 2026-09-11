@@ -908,7 +908,7 @@ function HomePageContent() {
               <div className="flex flex-col space-y-4">
                 <h4 className="text-white text-sm font-semibold uppercase tracking-wider">Connect</h4>
                 <ul className="flex flex-col space-y-3 text-sm">
-                  <li><Link href="mailto:support@learn.app" className="text-slate-400 hover:text-white transition-colors">Contact Support</Link></li>
+                  <li><Link href="mailto:support@uselerna.app" className="text-slate-400 hover:text-white transition-colors">Contact Support</Link></li>
                   <li><Link href="https://github.com" target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-white transition-colors">GitHub</Link></li>
                 </ul>
               </div>
