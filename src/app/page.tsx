@@ -450,6 +450,14 @@ function HomePageContent() {
   const searchParams = useSearchParams();
 
   useEffect(() => {
+    // Intercept misplaced OAuth codes (Supabase allowlist fallback)
+    const code = searchParams.get("code");
+    if (code) {
+      const nextPath = searchParams.get("next") || "/chat";
+      window.location.replace(`/auth/callback?code=${code}&next=${nextPath}`);
+      return;
+    }
+
     const auth = searchParams.get("auth");
     if (auth === "login") setActiveModal("login");
     if (auth === "signup") setActiveModal("signup");

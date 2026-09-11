@@ -57,7 +57,7 @@ export const metadata: Metadata = {
     canonical: "https://learn.app",
   },
   verification: {
-    google: "B2jCJ9T6mDH8KwKS6o8N95Xaya6ucc_L95i0Elo8bnI",
+    google: "fxKf0VEAWV9KMXuOj1YU-itMeDVSiFQyFJjq6gzozVw",
   },
 };
 
