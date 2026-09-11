@@ -1006,7 +1006,7 @@ function HomePageContent() {
               <p>Copyright &copy; {new Date().getFullYear()} Lerna AI. All rights reserved.</p>
               <div className="flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                <span className="text-slate-400">All systems operational</span>
+                <span className="text-slate-400">Learn Smarter with Lerna AI</span>
               </div>
             </div>
           </div>
