@@ -831,14 +831,8 @@ function HomePageContent() {
       </section>
 
       {/* CTA & Footer Section */}
-      <footer className="bg-[#030b17] pt-24 border-t border-white/5">
+      <footer className="pt-24">
         <div className="relative overflow-hidden h-[240px] flex justify-center items-center border-b border-white/5">
-          <div className="w-[2000px] md:w-[4000px] h-[800px] absolute -top-[720px] left-1/2 -translate-x-1/2 bg-gradient-to-b from-[#0a0a0a] via-[#141414] to-cyan-500/10 rounded-[100%]"></div>
-          <div className="w-20 md:w-80 h-10 bg-gradient-to-l from-cyan-500/20 via-cyan-500/10 to-transparent blur-[4.95px] absolute top-1/2 -translate-y-1/2 right-[56%]"></div>
-          <div className="w-20 md:w-80 h-10 bg-gradient-to-r from-cyan-500/20 via-cyan-500/10 to-transparent blur-[4.95px] absolute top-1/2 -translate-y-1/2 left-[56%]"></div>
-          <div className="absolute top-1/2 -translate-y-1/2 right-1/2 w-[300px] md:w-[1000px] h-[70px] md:h-[140px] bg-gradient-to-l from-cyan-500/10 via-cyan-500/5 to-transparent blur-[60px] [clip-path:polygon(100%_50%,0_0,0_100%)] pointer-events-none z-0"></div>
-          <div className="absolute top-1/2 -translate-y-1/2 left-1/2 w-[300px] md:w-[1000px] h-[70px] md:h-[140px] bg-gradient-to-r from-cyan-500/10 via-cyan-500/5 to-transparent blur-[60px] [clip-path:polygon(0_50%,100%_0,100%_100%)] pointer-events-none z-0"></div>
-          
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -858,7 +852,6 @@ function HomePageContent() {
               <ArrowRight className="w-5 h-5" />
             </button>
           </motion.div>
-          <div className="w-[2000px] md:w-[4000px] h-[800px] absolute -bottom-[720px] left-1/2 -translate-x-1/2 rounded-[100%] pointer-events-none bg-gradient-to-t from-[#0a0a0a] via-[#141414] to-cyan-500/10"></div>
         </div>
 
         <div className="pt-20 pb-8 md:px-6 px-4">
