@@ -456,9 +456,7 @@ function HomePageContent() {
       </nav>
 
       {/* Hero Section */}
-      <section className="relative mx-auto max-w-7xl px-6 pt-36 sm:pt-48 pb-20 text-center">
-        {/* Glow Effects */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 h-[350px] w-[350px] sm:h-[600px] sm:w-[600px] bg-cyan-500/10 rounded-full blur-3xl pointer-events-none z-0" />
+      <section className="relative mx-auto max-w-7xl px-6 pt-48 pb-20 text-center">
         
         <motion.div
           initial={{ opacity: 0, y: 30 }}
@@ -502,8 +500,7 @@ function HomePageContent() {
         
       </section>
       {/* How It Works Section */}
-      <section id="how-it-works" className="border-t border-white/5 bg-[#061022] py-24 sm:py-32 relative overflow-hidden">
-        <div className="absolute top-1/2 left-1/4 -translate-y-1/2 h-[400px] w-[400px] bg-cyan-500/5 rounded-full blur-3xl pointer-events-none" />
+      <section id="how-it-works" className="border-t py-24 sm:py-32 relative overflow-hidden">
         <div className="mx-auto max-w-7xl px-6 relative z-10">
           <div className="text-center max-w-3xl mx-auto mb-16 sm:mb-24">
             <h2 className="font-heading text-4xl sm:text-5xl font-semibold tracking-tight text-white mb-6">
@@ -586,8 +583,7 @@ function HomePageContent() {
       </section>
 
       {/* Pricing Section */}
-      <section id="pricing" className="bg-[#061022] border-t border-white/5 py-24 sm:py-32 relative overflow-hidden">
-        <div className="absolute bottom-0 right-1/4 h-[400px] w-[400px] bg-cyan-500/5 rounded-full blur-3xl pointer-events-none" />
+      <section id="pricing" className="py-24 sm:py-32 relative overflow-hidden">
         <div className="mx-auto max-w-7xl px-6 relative z-10">
           <div className="text-center max-w-3xl mx-auto mb-16 sm:mb-24">
             <h2 className="font-heading text-4xl sm:text-5xl font-semibold tracking-tight text-white mb-6">
@@ -608,7 +604,7 @@ function HomePageContent() {
                 transition={{ duration: 0.6, delay: index * 0.15 }}
                 className={`flex flex-col justify-between bg-white/[0.01] border rounded-3xl p-8 sm:p-10 relative overflow-hidden ${
                   plan.isComingSoon 
-                    ? "border-cyan-500/20 shadow-[0_0_50px_rgba(6,182,212,0.04)]" 
+                    ? "border-cyan-500/20" 
                     : "border-white/5"
                 }`}
               >
@@ -777,7 +773,7 @@ function HomePageContent() {
       </section>
 
       {/* FAQ Section */}
-      <section id="faq" className="bg-[#061022] border-t border-white/5 py-24 sm:py-32 relative overflow-hidden">
+      <section id="faq" className="py-24 sm:py-32 relative overflow-hidden">
         <div className="mx-auto max-w-4xl px-6 relative z-10">
           <div className="text-center max-w-3xl mx-auto mb-16 sm:mb-24">
             <h2 className="font-heading text-4xl sm:text-5xl font-semibold tracking-tight text-white mb-6">
