@@ -350,6 +350,9 @@ export function SignupForm({
           </svg>
           Continue with Google
         </Button>
+        <p className="text-[11px] leading-relaxed text-slate-500 dark:text-slate-400 text-center px-2">
+          By continuing with Google, Lerna AI will request access to your name, email address, and profile picture to personalize your study account. We use this data strictly to secure your session and build your custom profile. See our <a href="/privacy-policy" className="underline hover:text-slate-300">Privacy Policy</a> for details.
+        </p>
       </div>
 
       <div className="relative">
