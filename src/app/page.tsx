@@ -196,18 +196,42 @@ const testimonials = [
     quote: "Lerna completely changed how I study for midterms. I uploaded 50 pages of biology slides and it explained the Krebs cycle better than my textbook.",
     name: "Sarah L.",
     role: "Pre-Med Student",
+    avatar: "https://api.dicebear.com/9.x/notionists/svg?seed=SarahL&backgroundColor=b5ead7&skinColor=brown",
     rating: 5
   },
   {
     quote: "The interactive quiz generator is incredible. Instead of passively reading, I can test myself on the exact material our instructor covered in class.",
     name: "Alex M.",
     role: "Computer Science Junior",
+    avatar: "https://api.dicebear.com/9.x/notionists/svg?seed=AlexM&backgroundColor=ffd6a5&skinColor=darkBrown",
     rating: 5
   },
   {
     quote: "Having my study sessions persist across devices means I can start on my laptop and continue reading on my phone on the train. A lifesaver.",
     name: "David K.",
     role: "Law Student",
+    avatar: "https://api.dicebear.com/9.x/notionists/svg?seed=DavidK&backgroundColor=c1e1c1&skinColor=brown",
+    rating: 5
+  },
+  {
+    quote: "I used to reread the same lecture notes without knowing what I actually remembered. Lerna turns them into focused questions that make revision much more active.",
+    name: "Maya T.",
+    role: "Psychology Student",
+    avatar: "https://api.dicebear.com/9.x/notionists/svg?seed=MayaT&backgroundColor=fde2e4&skinColor=brown",
+    rating: 5
+  },
+  {
+    quote: "The study plans gave me structure when I was juggling three deadlines. I can see what to review next instead of wasting time deciding where to begin.",
+    name: "Jordan P.",
+    role: "Engineering Student",
+    avatar: "https://api.dicebear.com/9.x/notionists/svg?seed=JordanP&backgroundColor=d4e6f1&skinColor=darkBrown",
+    rating: 5
+  },
+  {
+    quote: "Being able to ask follow-up questions about my own uploaded materials is the difference. It feels like having a patient study partner available whenever I need one.",
+    name: "Nia O.",
+    role: "Graduate Student",
+    avatar: "https://api.dicebear.com/9.x/notionists/svg?seed=NiaO&backgroundColor=e8d5b7&skinColor=darkBrown",
     rating: 5
   }
 ];
@@ -270,6 +294,60 @@ function FAQItem({ question, answer }: { question: string; answer: string }) {
           </motion.div>
         )}
       </AnimatePresence>
+    </div>
+  );
+}
+
+function TestimonialCard({ testimonial }: { testimonial: typeof testimonials[number] }) {
+  return (
+    <article className="rounded-3xl border border-white/5 bg-white/[0.01] p-6 sm:p-8 transition-colors hover:border-cyan-500/20 hover:bg-white/[0.025]">
+      <div className="mb-6 flex items-start justify-between gap-4">
+        <div className="flex min-w-0 items-center gap-3">
+          <div
+            role="img"
+            aria-label={`${testimonial.name} avatar`}
+            className="h-11 w-11 shrink-0 overflow-hidden rounded-full border border-white/10 bg-white/5 bg-cover bg-center"
+            style={{ backgroundImage: `url(${testimonial.avatar})` }}
+          />
+          <div className="min-w-0">
+            <h4 className="truncate text-sm font-semibold text-white">{testimonial.name}</h4>
+            <p className="mt-1 truncate text-xs text-slate-500">{testimonial.role}</p>
+          </div>
+        </div>
+        <div className="flex shrink-0 gap-0.5 text-cyan-400" aria-label={`${testimonial.rating} out of 5 stars`}>
+          {[...Array(testimonial.rating)].map((_, index) => (
+            <Star key={index} className="h-4 w-4 fill-current" />
+          ))}
+        </div>
+      </div>
+      <p className="text-base leading-relaxed text-slate-300 italic">&quot;{testimonial.quote}&quot;</p>
+    </article>
+  );
+}
+
+function TestimonialMarqueeColumn({
+  items,
+  reverse = false,
+}: {
+  items: typeof testimonials;
+  reverse?: boolean;
+}) {
+  const marqueeItems = [...items, ...items];
+
+  return (
+    <div className="min-w-0 flex-1 overflow-hidden">
+      <div className={`flex flex-col ${reverse ? "animate-marquee-down" : "animate-marquee-up"}`}>
+        <div className="flex shrink-0 flex-col gap-6 pb-6">
+          {marqueeItems.map((testimonial, index) => (
+            <TestimonialCard key={`${testimonial.name}-${index}`} testimonial={testimonial} />
+          ))}
+        </div>
+        <div className="flex shrink-0 flex-col gap-6 pb-6" aria-hidden="true">
+          {marqueeItems.map((testimonial, index) => (
+            <TestimonialCard key={`${testimonial.name}-duplicate-${index}`} testimonial={testimonial} />
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
@@ -347,7 +425,7 @@ function HomePageContent() {
   }, [searchParams]);
 
   return (
-    <main className="min-h-screen bg-[#0a0a0a] text-slate-200 selection:bg-cyan-500/30 font-body overflow-x-hidden [&_*]:[animation:none!important] [&_*]:[transition:none!important]">
+    <main className="min-h-screen bg-[#0a0a0a] text-slate-200 selection:bg-cyan-500/30 font-body overflow-x-hidden">
       {/* Structured Data JSON-LD */}
       <script
         type="application/ld+json"
@@ -652,39 +730,33 @@ function HomePageContent() {
       <section id="testimonials" className="mx-auto max-w-7xl px-6 py-24 sm:py-32">
         <div className="text-center max-w-3xl mx-auto mb-16 sm:mb-24">
           <h2 className="font-heading text-4xl sm:text-5xl font-semibold tracking-tight text-white mb-6">
-            Loved by students everywhere
+            Real study wins from Lerna students
           </h2>
           <p className="text-lg sm:text-xl text-slate-400">
-            See how Lerna AI is helping college and university students study smarter.
+            See how students are using Lerna AI to turn scattered materials into confident progress.
           </p>
         </div>
 
-        <div className="grid gap-8 md:grid-cols-3">
-          {testimonials.map((t, idx) => (
-            <motion.div
-              key={t.name}
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.6, delay: idx * 0.1 }}
-              className="bg-white/[0.01] border border-white/5 rounded-3xl p-8 flex flex-col justify-between hover:border-cyan-500/10 transition-colors"
-            >
-              <div>
-                <div className="flex gap-1 mb-6 text-cyan-400">
-                  {[...Array(t.rating)].map((_, i) => (
-                    <Star key={i} className="h-5 w-5 fill-current" />
-                  ))}
-                </div>
-                <p className="text-slate-300 text-base sm:text-lg leading-relaxed italic mb-8">
-                  "{t.quote}"
-                </p>
-              </div>
-              <div>
-                <h4 className="font-semibold text-white text-base">{t.name}</h4>
-                <p className="text-slate-500 text-sm mt-0.5">{t.role}</p>
-              </div>
-            </motion.div>
-          ))}
+        <div
+          className="relative overflow-hidden"
+          style={{
+            maskImage: "linear-gradient(to bottom, transparent, black 10%, black 90%, transparent)",
+            WebkitMaskImage: "linear-gradient(to bottom, transparent, black 10%, black 90%, transparent)",
+          }}
+        >
+          <div className="grid gap-6 md:hidden">
+            {testimonials.map((testimonial) => (
+              <TestimonialCard key={testimonial.name} testimonial={testimonial} />
+            ))}
+          </div>
+
+          <div className="hidden h-[640px] gap-6 md:flex">
+            <TestimonialMarqueeColumn items={testimonials.filter((_, index) => index % 3 === 0)} />
+            <TestimonialMarqueeColumn items={testimonials.filter((_, index) => index % 3 === 1)} reverse />
+            <div className="hidden min-w-0 flex-1 lg:block">
+              <TestimonialMarqueeColumn items={testimonials.filter((_, index) => index % 3 === 2)} />
+            </div>
+          </div>
         </div>
       </section>
 
@@ -831,25 +903,30 @@ function HomePageContent() {
       </section>
 
       {/* CTA & Footer Section */}
-      <footer className="pt-24">
-        <div className="relative overflow-hidden h-[240px] flex justify-center items-center border-b border-white/5">
-          <motion.div 
+      <footer>
+        <div className="relative overflow-hidden border-y border-cyan-500/10 bg-cyan-500/[0.03] px-6 py-16 sm:py-20">
+          <div className="absolute -top-24 left-1/2 h-48 w-96 -translate-x-1/2 rounded-full bg-cyan-500/10 blur-3xl pointer-events-none" />
+          <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="flex gap-3 justify-center relative items-center z-10"
+            className="relative z-10 mx-auto flex max-w-3xl flex-col items-center text-center"
           >
-            <button 
-              onClick={() => setActiveModal("signup")} 
-              className="inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-all text-slate-950 py-2 rounded-full h-12 px-8 text-[15px] bg-cyan-500 hover:bg-cyan-400 shadow-[0_0_20px_rgba(6,182,212,0.3)] hover:scale-[1.02]"
+            <span className="mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-cyan-400">
+              Your next breakthrough starts here
+            </span>
+            <h2 className="font-heading text-3xl font-semibold tracking-tight text-white sm:text-5xl">
+              Make every study session count.
+            </h2>
+            <p className="mt-4 max-w-2xl text-base leading-relaxed text-slate-400 sm:text-lg">
+              Bring your notes, questions, and goals into one focused workspace built to help you learn with confidence.
+            </p>
+            <button
+              onClick={() => setActiveModal("signup")}
+              className="mt-8 inline-flex h-12 items-center justify-center gap-2 rounded-full bg-cyan-500 px-7 text-sm font-semibold text-slate-950 shadow-[0_0_25px_rgba(6,182,212,0.25)] transition-all hover:scale-[1.02] hover:bg-cyan-400"
             >
               Get started for free
-            </button>
-            <button 
-              onClick={() => setActiveModal("signup")}
-              className="inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium transition-all text-slate-950 rounded-full w-12 h-12 bg-cyan-500 hover:bg-cyan-400 shadow-[0_0_20px_rgba(6,182,212,0.3)] hover:scale-[1.02]"
-            >
-              <ArrowRight className="w-5 h-5" />
+              <ArrowRight className="h-4 w-4" />
             </button>
           </motion.div>
         </div>
