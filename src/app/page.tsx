@@ -341,57 +341,63 @@ function DemoChat() {
   };
 
   return (
-    <div className="w-full max-w-4xl mx-auto rounded-[2.5rem] border border-slate-200 dark:border-white/10 bg-white/80 dark:bg-[#0a0a0a]/80 backdrop-blur-3xl p-2 shadow-2xl relative overflow-hidden group">
+    // min-w-0 on the outer wrapper prevents the demo from exceeding its grid cell on mobile
+    <div className="w-full min-w-0 rounded-2xl sm:rounded-[2.5rem] border border-slate-200 dark:border-white/10 bg-white/80 dark:bg-[#0a0a0a]/80 backdrop-blur-3xl p-1.5 sm:p-2 shadow-2xl relative overflow-hidden group">
       {/* Glossy top edge highlight */}
       <div className="absolute top-0 left-1/4 right-1/4 h-[1px] bg-gradient-to-r from-transparent via-black/20 dark:via-white/20 to-transparent" />
       
-      <div className="bg-slate-50 dark:bg-[#111] rounded-[2rem] border border-slate-200 dark:border-white/5 p-6 sm:p-8 relative overflow-hidden h-full flex flex-col">
+      <div className="bg-slate-50 dark:bg-[#111] rounded-xl sm:rounded-[2rem] border border-slate-200 dark:border-white/5 p-4 sm:p-6 lg:p-8 relative overflow-hidden flex flex-col">
         {/* Subtle background glow */}
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full bg-cyan-500/5 blur-[100px] pointer-events-none" />
         
-        <div className="flex items-center justify-between mb-8 relative z-10">
-          <div className="flex items-center gap-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-400/20 to-teal-400/5 border border-cyan-500/20 text-cyan-500 dark:text-cyan-400 shadow-inner">
-              <Brain className="h-6 w-6" />
+        {/* Header */}
+        <div className="flex items-center justify-between mb-4 sm:mb-6 relative z-10 gap-2 min-w-0">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+            <div className="flex h-9 w-9 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-xl sm:rounded-2xl bg-gradient-to-br from-cyan-400/20 to-teal-400/5 border border-cyan-500/20 text-cyan-500 dark:text-cyan-400">
+              <Brain className="h-5 w-5" />
             </div>
-            <div>
-              <h3 className="text-lg font-semibold text-slate-900 dark:text-white tracking-tight">Interactive AI Tutor</h3>
-              <p className="text-sm text-slate-500 dark:text-slate-400">Powered by Lerna Intelligence</p>
+            <div className="min-w-0">
+              <h3 className="text-sm sm:text-base font-semibold text-slate-900 dark:text-white tracking-tight truncate">Interactive AI Tutor</h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 truncate">Powered by Lerna Intelligence</p>
             </div>
           </div>
-          <div className="hidden sm:flex gap-1.5">
+          <div className="hidden sm:flex gap-1.5 shrink-0">
             <div className="w-3 h-3 rounded-full bg-slate-300 dark:bg-white/10" />
             <div className="w-3 h-3 rounded-full bg-slate-300 dark:bg-white/10" />
             <div className="w-3 h-3 rounded-full bg-slate-300 dark:bg-white/10" />
           </div>
         </div>
 
-        {/* Messages area */}
-        <div className="space-y-6 mb-8 flex-1 relative z-10 overflow-y-auto max-h-[300px] pr-2 custom-scrollbar">
+        {/* Messages area — scroll internally, never expands the page */}
+        <div className="space-y-4 sm:space-y-6 mb-4 sm:mb-6 relative z-10 overflow-y-auto max-h-[220px] sm:max-h-[300px] pr-1">
           {messages.map((msg, i) => (
-            <div key={i} className={`flex gap-4 ${msg.role === "user" ? "flex-row-reverse" : ""}`}>
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${msg.role === "ai" ? "bg-cyan-500/20 border border-cyan-500/30" : "bg-emerald-500/20 border border-emerald-500/30"}`}>
+            <div key={i} className={`flex gap-2 sm:gap-3 min-w-0 ${msg.role === "user" ? "flex-row-reverse" : ""}`}>
+              <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center shrink-0 ${msg.role === "ai" ? "bg-cyan-500/20 border border-cyan-500/30" : "bg-emerald-500/20 border border-emerald-500/30"}`}>
                 {msg.role === "ai" ? (
-                  <Sparkles className="w-4 h-4 text-cyan-600 dark:text-cyan-400" />
+                  <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-cyan-600 dark:text-cyan-400" />
                 ) : (
-                  <div className="w-4 h-4 text-emerald-600 dark:text-emerald-400 font-bold text-xs flex items-center justify-center">U</div>
+                  <div className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-600 dark:text-emerald-400 font-bold text-xs flex items-center justify-center">U</div>
                 )}
               </div>
-              <div className={`border rounded-2xl p-4 text-sm leading-relaxed max-w-[85%] ${
-                msg.role === "ai" 
-                  ? "bg-white dark:bg-white/5 border-slate-200 dark:border-white/5 rounded-tl-sm text-slate-700 dark:text-slate-200" 
-                  : "bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/20 rounded-tr-sm text-emerald-900 dark:text-emerald-100"
-              }`}>
+              {/* min-w-0 + overflow-wrap prevents long AI responses from widening the container */}
+              <div
+                className={`border rounded-2xl p-3 sm:p-4 text-xs sm:text-sm leading-relaxed min-w-0 max-w-[85%] break-words ${
+                  msg.role === "ai"
+                    ? "bg-white dark:bg-white/5 border-slate-200 dark:border-white/5 rounded-tl-sm text-slate-700 dark:text-slate-200"
+                    : "bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/20 rounded-tr-sm text-emerald-900 dark:text-emerald-100"
+                }`}
+                style={{ overflowWrap: "anywhere" }}
+              >
                 {msg.content}
               </div>
             </div>
           ))}
           {isTyping && (
-            <div className="flex gap-4">
-              <div className="w-8 h-8 rounded-full bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center shrink-0">
-                <Sparkles className="w-4 h-4 text-cyan-600 dark:text-cyan-400" />
+            <div className="flex gap-2 sm:gap-3">
+              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center shrink-0">
+                <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-cyan-600 dark:text-cyan-400" />
               </div>
-              <div className="bg-white dark:bg-white/5 border border-slate-200 dark:border-white/5 rounded-2xl rounded-tl-sm p-4 flex items-center gap-1.5">
+              <div className="bg-white dark:bg-white/5 border border-slate-200 dark:border-white/5 rounded-2xl rounded-tl-sm p-3 sm:p-4 flex items-center gap-1.5">
                 <div className="w-2 h-2 bg-cyan-500/50 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
                 <div className="w-2 h-2 bg-cyan-500/50 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
                 <div className="w-2 h-2 bg-cyan-500/50 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
@@ -401,15 +407,16 @@ function DemoChat() {
         </div>
 
         <div className="relative z-10 mt-auto">
-          {/* Starters */}
+          {/* Starter chips — truncate long labels on narrow screens */}
           {messages.length === 1 && (
-            <div className="flex flex-wrap gap-2 mb-4">
+            <div className="flex flex-col sm:flex-row flex-wrap gap-2 mb-3 sm:mb-4">
               {starters.map((starter) => (
                 <button
                   key={starter}
                   type="button"
                   onClick={() => handleSend(starter)}
-                  className="text-xs font-medium text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 border border-slate-200 dark:border-white/10 rounded-full px-4 py-2 transition-all text-left"
+                  className="text-xs font-medium text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 border border-slate-200 dark:border-white/10 rounded-full px-3 py-2 sm:px-4 transition-all text-left truncate max-w-full"
+                  title={starter}
                 >
                   {starter}
                 </button>
@@ -417,25 +424,25 @@ function DemoChat() {
             </div>
           )}
 
-          {/* Input row */}
-          <form 
+          {/* Input row — min-w-0 on input prevents it from overflowing flex container */}
+          <form
             onSubmit={(e) => { e.preventDefault(); handleSend(inputValue); }}
-            className="flex gap-3 relative group/input"
+            className="flex gap-2 sm:gap-3 relative group/input min-w-0"
           >
-            <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/20 to-teal-500/20 rounded-2xl blur-xl opacity-0 group-hover/input:opacity-100 transition-opacity duration-500" />
+            <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/20 to-teal-500/20 rounded-xl sm:rounded-2xl blur-xl opacity-0 group-hover/input:opacity-100 transition-opacity duration-500" />
             <input
               type="text"
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               placeholder="Ask a study question..."
-              className="relative flex-1 bg-white dark:bg-black/60 backdrop-blur-sm border border-slate-200 dark:border-white/10 rounded-2xl px-6 py-4 text-base text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-cyan-500/50 transition-colors shadow-inner"
+              className="relative flex-1 min-w-0 bg-white dark:bg-black/60 backdrop-blur-sm border border-slate-200 dark:border-white/10 rounded-xl sm:rounded-2xl px-3 sm:px-5 py-3 sm:py-4 text-sm sm:text-base text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-cyan-500/50 transition-colors"
             />
             <button
               type="submit"
               disabled={!inputValue.trim()}
-              className="relative h-auto px-6 rounded-2xl bg-slate-900 dark:bg-white text-white dark:text-black font-semibold text-sm disabled:opacity-50 flex items-center justify-center gap-2 hover:bg-slate-800 dark:hover:bg-slate-200 transition-colors"
+              className="relative shrink-0 h-auto px-3 sm:px-5 rounded-xl sm:rounded-2xl bg-slate-900 dark:bg-white text-white dark:text-black font-semibold text-sm disabled:opacity-50 flex items-center justify-center gap-1.5 hover:bg-slate-800 dark:hover:bg-slate-200 transition-colors"
             >
-              Ask <ArrowRight className="w-4 h-4" />
+              <span className="hidden sm:inline">Ask</span> <ArrowRight className="w-4 h-4" />
             </button>
           </form>
         </div>
@@ -580,22 +587,23 @@ function HomePageContent() {
       </nav>
 
       {/* Hero Section */}
-      <section className="relative mx-auto max-w-7xl px-6 pt-40 sm:pt-48 pb-20 overflow-hidden">
-        {/* Abstract Background Elements */}
-        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 h-[500px] w-[800px] bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-cyan-400/20 via-teal-400/10 dark:from-cyan-500/10 dark:via-teal-500/5 to-transparent blur-[120px] pointer-events-none z-0" />
+      <section className="relative mx-auto max-w-7xl px-4 sm:px-6 pt-32 sm:pt-40 md:pt-48 pb-16 sm:pb-20">
+        {/* Abstract Background Elements — pointer-events-none so they never cause scroll */}
+        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 h-[400px] w-[600px] sm:h-[500px] sm:w-[800px] bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-cyan-400/20 via-teal-400/10 dark:from-cyan-500/10 dark:via-teal-500/5 to-transparent blur-[120px] pointer-events-none z-0" />
         
-        <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+        <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
           <motion.div
             initial={{ opacity: 0, y: 40 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
             className="relative z-10 flex flex-col items-start text-left"
           >
-            <h1 className="font-heading text-5xl sm:text-7xl lg:text-[4.5rem] xl:text-[5rem] font-semibold tracking-tight text-slate-900 dark:text-white mb-8 text-balance max-w-5xl leading-[1.05]">
-              Learn <span className="bg-gradient-to-r from-slate-800 via-cyan-600 to-cyan-500 dark:from-white dark:via-cyan-100 dark:to-cyan-300 bg-clip-text text-transparent">smarter</span>,<br className="hidden sm:block" /> 
+            {/* text-4xl base keeps heading inside 320px viewport; scales up at sm and lg */}
+            <h1 className="font-heading text-4xl sm:text-5xl md:text-6xl lg:text-[4.5rem] xl:text-[5rem] font-semibold tracking-tight text-slate-900 dark:text-white mb-6 sm:mb-8 leading-[1.08] max-w-2xl">
+              Learn <span className="bg-gradient-to-r from-slate-800 via-cyan-600 to-cyan-500 dark:from-white dark:via-cyan-100 dark:to-cyan-300 bg-clip-text text-transparent">smarter</span>,{" "}
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-cyan-600 dark:from-blue-400 dark:to-cyan-500 blur-[1px] relative inline-block after:absolute after:inset-0 after:bg-blue-500/10 dark:after:bg-blue-500/20 after:blur-xl after:-z-10">not harder.</span>
             </h1>
-            <p className="max-w-2xl text-lg sm:text-xl text-slate-600 dark:text-slate-400 mb-12 text-balance leading-relaxed">
+            <p className="max-w-xl text-base sm:text-lg md:text-xl text-slate-600 dark:text-slate-400 mb-8 sm:mb-12 leading-relaxed">
               Upload your dense lecture material and let our AI tutor break it down. Build interactive revision plans and master complex topics in half the time.
             </p>
             
@@ -603,14 +611,20 @@ function HomePageContent() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
-              className="flex flex-col sm:flex-row items-center justify-start gap-4 mb-12 lg:mb-0 relative z-10 w-full sm:w-auto"
+              className="flex flex-col sm:flex-row items-stretch sm:items-center justify-start gap-3 sm:gap-4 mb-10 lg:mb-0 relative z-10 w-full"
             >
-              <Button onClick={() => setActiveModal("signup")} className="bg-slate-900 dark:bg-white text-white dark:text-black hover:bg-slate-800 dark:hover:bg-slate-200 rounded-full px-8 h-14 text-base font-semibold w-full sm:w-auto shadow-xl dark:shadow-[0_0_40px_rgba(255,255,255,0.1)] hover:scale-[1.02] active:scale-[0.98] transition-all">
+              <Button
+                onClick={() => setActiveModal("signup")}
+                className="bg-slate-900 dark:bg-white text-white dark:text-black hover:bg-slate-800 dark:hover:bg-slate-200 rounded-full px-6 sm:px-8 h-12 sm:h-14 text-sm sm:text-base font-semibold w-full sm:w-auto shadow-xl dark:shadow-[0_0_40px_rgba(255,255,255,0.1)] hover:scale-[1.02] active:scale-[0.98] transition-all whitespace-nowrap"
+              >
                 Start studying for free
               </Button>
               <Link href="#features" className="w-full sm:w-auto">
-                <Button variant="outline" className="border-slate-300 dark:border-white/10 bg-white/50 dark:bg-white/[0.02] hover:bg-slate-100 dark:hover:bg-white/[0.05] text-slate-900 dark:text-white rounded-full px-8 h-14 text-base font-semibold w-full backdrop-blur-md transition-all">
-                  Explore capabilities <ArrowRight className="ml-2 h-4 w-4" />
+                <Button
+                  variant="outline"
+                  className="border-slate-300 dark:border-white/10 bg-white/50 dark:bg-white/[0.02] hover:bg-slate-100 dark:hover:bg-white/[0.05] text-slate-900 dark:text-white rounded-full px-6 sm:px-8 h-12 sm:h-14 text-sm sm:text-base font-semibold w-full backdrop-blur-md transition-all whitespace-nowrap"
+                >
+                  Explore capabilities <ArrowRight className="ml-2 h-4 w-4 shrink-0" />
                 </Button>
               </Link>
             </motion.div>
@@ -620,7 +634,7 @@ function HomePageContent() {
             initial={{ opacity: 0, y: 40 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 1, delay: 0.4, ease: [0.16, 1, 0.3, 1] }}
-            className="relative z-10 perspective-1000 w-full"
+            className="relative z-10 w-full min-w-0"
           >
             <DemoChat />
           </motion.div>
