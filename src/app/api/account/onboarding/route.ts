@@ -1,176 +1,164 @@
 import { NextResponse } from "next/server";
+import {
+  ONBOARDING_ACCOUNT_TYPES,
+  buildOnboardingProfileData,
+  onboardingSubmissionSchema,
+  type OnboardingAccountType,
+} from "@/lib/onboarding";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
-export async function POST(req: Request) {
+function normalizeAccountType(value: unknown): OnboardingAccountType | "" {
+  if (typeof value !== "string" || !value.trim()) return "";
+  const exact = ONBOARDING_ACCOUNT_TYPES.find((type) => type.toLowerCase() === value.trim().toLowerCase());
+  if (exact) return exact;
+  if (value.toLowerCase().includes("educat")) return "Teacher";
+  if (value.toLowerCase().includes("learn")) return "Other";
+  return "Other";
+}
+
+function stringList(value: unknown) {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
+}
+
+export async function GET() {
+  const requestId = crypto.randomUUID();
   try {
     const supabase = await createSupabaseServerClient();
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user) {
-      return NextResponse.json({ success: false, error: "Unauthenticated. Please sign in to save your profile." }, { status: 401 });
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      return NextResponse.json(
+        { success: false, error: "Please sign in again to load your profile.", requestId },
+        { status: 401 },
+      );
     }
 
-    const body = await req.json();
-    const {
-      accountType,
-      institution,
-      institutionId,
-      institutionType,
-      department,
-      customDepartment,
-      studyLevel,
-      studyGoals,
-      learningGoals,
-      company,
-      industry,
-      jobTitle,
-      occupation,
-      areaOfInterest,
-      field,
-      goals,
-    } = body;
+    const { data: profile, error } = await supabase
+      .from("profiles")
+      .select("account_type,institution,institution_id,institution_type,faculty,department,study_level,company,occupation,industry,field,study_goals,interests")
+      .eq("id", user.id)
+      .maybeSingle();
 
-    // ── 1. Universal validation ────────────────────────────────────────────────
-    if (!accountType || accountType.trim() === "") {
-      return NextResponse.json({
-        success: false,
-        error: "Validation Error: Please select who you are (e.g., Student, Teacher) to customize your workspace.",
-        field: "accountType",
-      }, { status: 400 });
+    if (error) {
+      console.error("[api:account:onboarding] Profile load failed", {
+        requestId,
+        userId: user.id,
+        code: error.code,
+        message: error.message,
+      });
+      return NextResponse.json(
+        { success: false, error: "We could not load your saved profile.", requestId },
+        { status: 500 },
+      );
     }
 
-    // Determine which path the user is on (mirrors client-side accountPath logic)
-    const normalized = accountType.toLowerCase();
-    const isStudent = !normalized.includes("teacher") && !normalized.includes("professional") && !normalized.includes("learner") && !normalized.includes("other");
-    const isTeacher = normalized.includes("teacher");
-    const isProfessional = normalized.includes("professional");
-    // isOther covers "Other" and "learner"
+    return NextResponse.json({
+      success: true,
+      requestId,
+      data: profile
+        ? {
+            accountType: normalizeAccountType(profile.account_type),
+            institution: profile.institution ?? "",
+            institutionId: profile.institution_id ?? "",
+            institutionType: profile.institution_type ?? "University",
+            faculty: profile.faculty ?? "",
+            department: profile.department ?? "",
+            studyLevel: profile.study_level ?? "",
+            company: profile.company ?? "",
+            occupation: profile.occupation ?? "",
+            industry: profile.industry ?? "",
+            field: profile.field ?? "",
+            studyGoals: stringList(profile.study_goals),
+            interests: stringList(profile.interests),
+          }
+        : {},
+    });
+  } catch (error) {
+    console.error("[api:account:onboarding] Unexpected profile load error", { requestId, error });
+    return NextResponse.json(
+      { success: false, error: "We could not load your saved profile.", requestId },
+      { status: 500 },
+    );
+  }
+}
 
-    // ── 2. Path-specific validation ───────────────────────────────────────────
+export async function POST(req: Request) {
+  const requestId = crypto.randomUUID();
 
-    if (isStudent) {
-      // Students must have institution, department, and studyLevel
-      if (!institution || institution.trim() === "") {
-        return NextResponse.json({
-          success: false,
-          error: "Validation Error: Please search or add your school so we can tailor your study experience.",
-          field: "institution",
-        }, { status: 400 });
-      }
+  try {
+    const supabase = await createSupabaseServerClient();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
 
-      const selectedDepartment = department === "Other" ? customDepartment : department;
-      if (!selectedDepartment || selectedDepartment.trim() === "") {
-        return NextResponse.json({
-          success: false,
-          error: "Validation Error: Please specify your study department, major, or field of study.",
-          field: "department",
-        }, { status: 400 });
-      }
-
-      if (!studyLevel || studyLevel.trim() === "") {
-        return NextResponse.json({
-          success: false,
-          error: "Validation Error: Please specify your academic study level so the AI can calibrate explanation depth.",
-          field: "studyLevel",
-        }, { status: 400 });
-      }
-
-      const goals = Array.isArray(studyGoals) ? studyGoals : (Array.isArray(learningGoals) ? learningGoals : []);
-      if (goals.length === 0) {
-        return NextResponse.json({
-          success: false,
-          error: "Validation Error: Please select at least one learning goal to focus your tutoring session.",
-          field: "studyGoals",
-        }, { status: 400 });
-      }
+    if (authError || !user) {
+      return NextResponse.json(
+        { success: false, error: "Please sign in again to save your profile.", requestId },
+        { status: 401 },
+      );
     }
 
-    if (isTeacher) {
-      // Teachers just need institution or company — at least one context field
-      const hasContext = (institution && institution.trim()) || (company && company.trim());
-      if (!hasContext) {
-        return NextResponse.json({
+    let rawBody: unknown;
+    try {
+      rawBody = await req.json();
+    } catch {
+      return NextResponse.json(
+        { success: false, error: "The onboarding information could not be read.", requestId },
+        { status: 400 },
+      );
+    }
+
+    const parsed = onboardingSubmissionSchema.safeParse(rawBody);
+    if (!parsed.success) {
+      const firstIssue = parsed.error.issues[0];
+      console.warn("[api:account:onboarding] Invalid payload", {
+        requestId,
+        userId: user.id,
+        fields: parsed.error.issues.map((issue) => issue.path.join(".")),
+      });
+      return NextResponse.json(
+        {
           success: false,
-          error: "Validation Error: Please tell us where you teach so we can personalize your workspace.",
-          field: "institution",
-        }, { status: 400 });
-      }
+          error: firstIssue?.path[0] === "accountType"
+            ? "Choose the option that best describes you before continuing."
+            : "Please review the information you entered and try again.",
+          field: firstIssue?.path.join(".") || undefined,
+          requestId,
+        },
+        { status: 400 },
+      );
     }
 
-    if (isProfessional) {
-      // Professionals must have company — institution is optional
-      if (!company || company.trim() === "") {
-        return NextResponse.json({
-          success: false,
-          error: "Validation Error: Please tell us where you work so we can tailor examples to your context.",
-          field: "company",
-        }, { status: 400 });
-      }
-    }
-
-    // ── 3. Build the profile_data payload conditionally ───────────────────────
-    const selectedDepartment = department === "Other" ? customDepartment : department;
-    const resolvedGoals: string[] = Array.isArray(studyGoals)
-      ? studyGoals
-      : Array.isArray(learningGoals)
-      ? learningGoals
-      : Array.isArray(goals)
-      ? goals
-      : [];
-
-    const profileData: Record<string, unknown> = {
-      account_type: accountType.trim(),
-      onboarding_completed: true,
-    };
-
-    if (isStudent) {
-      profileData.institution = institution?.trim() ?? null;
-      profileData.institution_id = institutionId || null;
-      profileData.institution_type = institutionType || "University";
-      profileData.department = selectedDepartment?.trim() ?? null;
-      profileData.study_level = studyLevel?.trim() ?? null;
-    } else if (isTeacher) {
-      profileData.institution = (institution || company || "").trim() || null;
-      profileData.institution_type = institutionType || "University";
-      profileData.department = department?.trim() || null;
-      profileData.occupation = occupation?.trim() || null;
-    } else if (isProfessional) {
-      profileData.company = company?.trim() || null;
-      profileData.industry = industry?.trim() || null;
-      profileData.job_title = jobTitle?.trim() || null;
-      profileData.area_of_interest = areaOfInterest?.trim() || null;
-      // institution left null — not required for professionals
-      profileData.institution = null;
-      profileData.institution_id = null;
-    } else {
-      // "Other" / independent learner
-      profileData.occupation = occupation?.trim() || null;
-      profileData.area_of_interest = areaOfInterest?.trim() || null;
-      profileData.field = field?.trim() || null;
-      // institution left null — not required for others
-      profileData.institution = null;
-      profileData.institution_id = null;
-    }
-
-    // ── 4. Perform transactional onboarding update in DB via RPC ──────────────
+    const profileData = buildOnboardingProfileData(parsed.data);
     const { data, error } = await supabase.rpc("complete_onboarding", {
       target_user_id: user.id,
       profile_data: profileData,
-      pref_data: {
-        learning_goals: resolvedGoals,
-      },
+      pref_data: {},
     });
 
     if (error) {
-      console.error("[api:account:onboarding] RPC transaction failed:", error);
-      return NextResponse.json({ success: false, error: `Database Transaction Failed: ${error.message}` }, { status: 500 });
+      console.error("[api:account:onboarding] Profile transaction failed", {
+        requestId,
+        userId: user.id,
+        code: error.code,
+        message: error.message,
+        details: error.details,
+      });
+      return NextResponse.json(
+        {
+          success: false,
+          error: "We could not save your profile. Your progress is still available on this device, so please try again.",
+          requestId,
+        },
+        { status: 500 },
+      );
     }
 
-    return NextResponse.json({ success: true, data });
-  } catch (err) {
-    console.error("[api:account:onboarding] Unexpected server exception:", err);
-    return NextResponse.json({ success: false, error: `Internal Server Error: ${err instanceof Error ? err.message : String(err)}` }, { status: 500 });
+    return NextResponse.json({ success: true, data, requestId });
+  } catch (error) {
+    console.error("[api:account:onboarding] Unexpected error", { requestId, error });
+    return NextResponse.json(
+      { success: false, error: "Something went wrong while saving your profile. Please try again.", requestId },
+      { status: 500 },
+    );
   }
 }

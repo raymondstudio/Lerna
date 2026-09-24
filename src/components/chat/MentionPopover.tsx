@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { BookOpen } from "lucide-react";
+import { BookOpen, Loader2, Search } from "lucide-react";
 
 type Course = {
   id: string;
@@ -15,9 +15,11 @@ type MentionPopoverProps = {
   onSelect: (course: Course) => void;
   isOpen: boolean;
   query: string;
+  isLoading?: boolean;
+  error?: string | null;
 };
 
-export function MentionPopover({ courses, onSelect, isOpen, query }: MentionPopoverProps) {
+export function MentionPopover({ courses, onSelect, isOpen, query, isLoading = false, error = null }: MentionPopoverProps) {
   const [activeIndex, setActiveIndex] = useState(0);
   const listRef = useRef<HTMLUListElement>(null);
 
@@ -79,9 +81,10 @@ export function MentionPopover({ courses, onSelect, isOpen, query }: MentionPopo
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: 6, scale: 0.97 }}
           transition={{ duration: 0.12, ease: "easeOut" }}
-          className="absolute bottom-full mb-2 left-0 w-full max-w-sm z-50 bg-[#141414] border border-white/10 rounded-xl overflow-hidden"
+          className="absolute bottom-full left-0 z-50 mb-2 flex max-h-[min(24rem,calc(100dvh-8rem))] w-full max-w-sm flex-col overflow-hidden rounded-xl border border-white/10 bg-[#141414] shadow-2xl"
           role="listbox"
           aria-label="Course mentions"
+          aria-busy={isLoading}
         >
           {/* Header */}
           <div className="flex items-center gap-2 px-3 py-2 border-b border-white/5">
@@ -91,14 +94,29 @@ export function MentionPopover({ courses, onSelect, isOpen, query }: MentionPopo
             </span>
           </div>
 
-          {filtered.length === 0 ? (
+          <div className="flex items-center gap-2 border-b border-white/5 px-3 py-2 text-xs text-slate-500">
+            <Search className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+            <span className="truncate">{query ? `Searching “${query}”` : "Type after @ to search your courses"}</span>
+          </div>
+
+          {isLoading ? (
+            <div className="flex items-center justify-center gap-2 px-4 py-5 text-sm text-slate-400" role="status">
+              <Loader2 className="h-4 w-4 animate-spin text-cyan-400" aria-hidden="true" />
+              Loading courses…
+            </div>
+          ) : error ? (
+            <div className="px-4 py-5 text-center text-sm text-amber-300" role="status">
+              {error}
+            </div>
+          ) : filtered.length === 0 ? (
             <div className="px-4 py-5 text-center text-sm text-slate-500">
               No courses found
             </div>
           ) : (
-            <ul ref={listRef} className="max-h-52 overflow-y-auto py-1 scrollbar-hide">
+            <ul ref={listRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain py-1 scrollbar-hide">
               {filtered.map((course, index) => (
                 <li
+                  id={`course-option-${course.id}`}
                   key={course.id}
                   data-index={index}
                   role="option"

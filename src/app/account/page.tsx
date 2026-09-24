@@ -31,6 +31,7 @@ import { DashboardShell } from "@/components/layout/DashboardShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { buildProfileUpdatePayload, stripUndefined } from "@/lib/profile";
+import { ONBOARDING_ACCOUNT_TYPES, type OnboardingAccountType } from "@/lib/onboarding";
 
 type TabId = "profile" | "preferences" | "subscription" | "security" | "stats" | "support" | "about";
 
@@ -42,13 +43,19 @@ export default function AccountPage() {
   // Profile Form States
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
+  const [accountType, setAccountType] = useState<OnboardingAccountType>("Student");
   const [institution, setInstitution] = useState("");
   const [institutionId, setInstitutionId] = useState("");
   const [institutionType, setInstitutionType] = useState("University");
+  const [faculty, setFaculty] = useState("");
   const [department, setDepartment] = useState("");
   const [studyLevel, setStudyLevel] = useState("");
   const [studyGoals, setStudyGoals] = useState<string[]>([]);
-  const [isStudent, setIsStudent] = useState(true);
+  const [company, setCompany] = useState("");
+  const [occupation, setOccupation] = useState("");
+  const [industry, setIndustry] = useState("");
+  const [field, setField] = useState("");
+  const [interests, setInterests] = useState<string[]>([]);
   const [gender, setGender] = useState("");
   const [age, setAge] = useState<number | "">("");
 
@@ -210,6 +217,8 @@ export default function AccountPage() {
   };
 
   const supabase = createSupabaseBrowserClient();
+  const isStudent = accountType === "Student";
+  const usesInstitution = accountType === "Student" || accountType === "Teacher" || accountType === "Researcher";
 
   useEffect(() => {
     if (!loading && !user) {
@@ -229,13 +238,22 @@ export default function AccountPage() {
         if (profile) {
           setFirstName(profile.first_name || "");
           setLastName(profile.last_name || "");
+          const savedAccountType = ONBOARDING_ACCOUNT_TYPES.find(
+            (type) => type.toLowerCase() === String(profile.account_type || "").toLowerCase(),
+          );
+          setAccountType(savedAccountType || (profile.is_student ? "Student" : "Other"));
           setInstitution(profile.institution || "");
           setInstitutionId(profile.institution_id || "");
           setInstitutionType(profile.institution_type || "University");
+          setFaculty(profile.faculty || "");
           setDepartment(profile.department || "");
           setStudyLevel(profile.study_level || "");
           setStudyGoals(profile.study_goals || []);
-          setIsStudent(profile.is_student ?? true);
+          setCompany(profile.company || "");
+          setOccupation(profile.occupation || "");
+          setIndustry(profile.industry || "");
+          setField(profile.field || "");
+          setInterests(profile.interests || []);
           setGender(profile.gender || "Prefer not to say");
           setAge(profile.age || "");
           
@@ -357,9 +375,15 @@ export default function AccountPage() {
         institution,
         institutionId,
         institutionType,
+        faculty,
         department,
         studyLevel,
-        studyGoals,
+        studyGoals: studyGoals.filter(Boolean),
+        company,
+        occupation,
+        industry,
+        field,
+        interests,
         isStudent,
         gender,
         age,
@@ -375,26 +399,30 @@ export default function AccountPage() {
         securityAlertsEnabled,
         dailyGoalMinutes,
         preferredTheme,
-        accountType: isStudent ? "Student" : profile?.accountType || "Professional",
+        accountType,
         country: profile?.country,
         timezone: profile?.timezone,
-        faculty: profile?.faculty,
-        occupation: profile?.occupation,
-        industry: profile?.industry,
-        field: profile?.field,
         bio: profile?.bio,
         favoriteSubjects: profile?.favoriteSubjects,
-        interests: profile?.interests,
         accessibilityPreferences: profile?.accessibilityPreferences,
         learningPreferences: profile?.learningPreferences,
       }));
 
-      const { error: profileErr } = await supabase
+      const { data: savedProfile, error: profileErr } = await supabase
         .from("profiles")
         .update(profilePayload)
-        .eq("id", user.id);
+        .eq("id", user.id)
+        .select("id,updated_at")
+        .single();
 
-      if (profileErr) throw profileErr;
+      if (profileErr || !savedProfile) {
+        console.error("[account] Profile update failed", {
+          userId: user.id,
+          code: profileErr?.code,
+          message: profileErr?.message,
+        });
+        throw new Error("We could not save your profile. Please check your connection and try again.");
+      }
 
       // Log event
       await supabase.from("events").insert({
@@ -415,7 +443,12 @@ export default function AccountPage() {
         setQuotaUsage(usageRes);
       }
     } catch (err) {
-      setProfileError(err instanceof Error ? err.message : "Failed to save details.");
+      console.error("[account] Failed to save profile", err);
+      setProfileError(
+        err instanceof Error
+          ? err.message
+          : "We could not save your profile. Please try again.",
+      );
     } finally {
       setProfileSaving(false);
     }
@@ -688,21 +721,26 @@ export default function AccountPage() {
                     </div>
                   </div>
 
-                  <div className="p-4 rounded-xl border border-white/5 bg-[#14161a] flex justify-between items-center">
-                    <div className="space-y-0.5">
-                      <span className="text-xs font-bold text-white block">Student Account status</span>
-                      <span className="text-[9px] text-slate-500 block">Flag this to configure custom study courses and levels.</span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setIsStudent(!isStudent)}
-                      className={`w-11 h-6 rounded-full transition-colors relative ${isStudent ? "bg-cyan-500" : "bg-white/10"}`}
+                  <div className="space-y-1.5">
+                    <label htmlFor="account-type" className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">
+                      Account type
+                    </label>
+                    <select
+                      id="account-type"
+                      value={accountType}
+                      onChange={(event) => setAccountType(event.target.value as OnboardingAccountType)}
+                      className="w-full h-11 px-3.5 rounded-lg border border-white/5 bg-[#14161a] text-xs font-semibold text-slate-300 focus:outline-none focus:ring-2 focus:ring-cyan-500/50"
                     >
-                      <div className={`absolute top-1 left-1 bg-slate-950 w-4 h-4 rounded-full transition-transform ${isStudent ? "translate-x-5" : ""}`} />
-                    </button>
+                      {ONBOARDING_ACCOUNT_TYPES.map((type) => (
+                        <option key={type} value={type}>{type === "Teacher" ? "Teacher / Educator" : type}</option>
+                      ))}
+                    </select>
+                    <p className="text-[10px] text-slate-500">
+                      Only your account type is required. All other personalization fields can be left blank.
+                    </p>
                   </div>
 
-                  {isStudent && (
+                  {usesInstitution && (
                     <div className="space-y-4 animate-in fade-in duration-200">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-1.5 relative">
@@ -896,6 +934,19 @@ export default function AccountPage() {
                           )}
                         </div>
 
+                        {isStudent ? (
+                          <div className="space-y-1.5">
+                            <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">
+                              Faculty / School <span className="normal-case tracking-normal text-slate-600">(optional)</span>
+                            </label>
+                            <Input
+                              value={faculty}
+                              onChange={e => setFaculty(e.target.value)}
+                              className="bg-[#14161a] border-white/5 h-11"
+                            />
+                          </div>
+                        ) : null}
+
                         <div className="space-y-1.5">
                           <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Department / Course</label>
                           <Input 
@@ -908,7 +959,46 @@ export default function AccountPage() {
                     </div>
                   )}
 
-                  <div className="grid grid-cols-2 gap-4">
+                  {!isStudent && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in fade-in duration-200">
+                      {accountType === "Professional" ? (
+                        <>
+                          <div className="space-y-1.5">
+                            <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Company <span className="normal-case tracking-normal text-slate-600">(optional)</span></label>
+                            <Input value={company} onChange={e => setCompany(e.target.value)} className="bg-[#14161a] border-white/5 h-11" />
+                          </div>
+                          <div className="space-y-1.5">
+                            <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Industry <span className="normal-case tracking-normal text-slate-600">(optional)</span></label>
+                            <Input value={industry} onChange={e => setIndustry(e.target.value)} className="bg-[#14161a] border-white/5 h-11" />
+                          </div>
+                        </>
+                      ) : null}
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">
+                          {accountType === "Teacher" ? "Teaching role" : "Occupation / Role"} <span className="normal-case tracking-normal text-slate-600">(optional)</span>
+                        </label>
+                        <Input value={occupation} onChange={e => setOccupation(e.target.value)} className="bg-[#14161a] border-white/5 h-11" />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">
+                          {accountType === "Teacher" ? "Subject / Discipline" : accountType === "Researcher" ? "Research field" : "Learning field"} <span className="normal-case tracking-normal text-slate-600">(optional)</span>
+                        </label>
+                        <Input value={field} onChange={e => setField(e.target.value)} className="bg-[#14161a] border-white/5 h-11" />
+                      </div>
+                      {accountType === "Researcher" ? (
+                        <div className="space-y-1.5 md:col-span-2">
+                          <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Research interests <span className="normal-case tracking-normal text-slate-600">(optional, comma separated)</span></label>
+                          <Input
+                            value={interests.join(", ")}
+                            onChange={e => setInterests(e.target.value.split(",").map(item => item.trim()).filter(Boolean))}
+                            className="bg-[#14161a] border-white/5 h-11"
+                          />
+                        </div>
+                      ) : null}
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-1.5">
                       <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Study Level</label>
                       <Input 
@@ -921,7 +1011,7 @@ export default function AccountPage() {
                       <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Learning Goals</label>
                       <Input 
                         value={studyGoals.join(", ")} 
-                        onChange={e => setStudyGoals(e.target.value.split(",").map(s => s.trim()))} 
+                        onChange={e => setStudyGoals(e.target.value.split(",").map(s => s.trim()).filter(Boolean))}
                         className="bg-[#14161a] border-white/5 h-11"
                       />
                     </div>

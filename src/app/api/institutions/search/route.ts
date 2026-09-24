@@ -13,18 +13,19 @@ export async function GET(req: Request) {
     }
 
     const { searchParams } = new URL(req.url);
-    const query = searchParams.get("query") || "";
+    const query = (searchParams.get("query") || "").trim().slice(0, 120);
     const type = searchParams.get("type") || undefined;
-    const limit = parseInt(searchParams.get("limit") || "20");
+    const requestedLimit = Number(searchParams.get("limit") || "20");
+    const limit = Number.isFinite(requestedLimit) ? Math.min(Math.max(Math.trunc(requestedLimit), 1), 50) : 20;
 
-    if (!query.trim()) {
+    if (!query) {
       return NextResponse.json({ success: true, data: [] });
     }
 
     const data = await searchInstitutions(query, type, limit);
     return NextResponse.json({ success: true, data });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("[api:institutions:search] Error:", err);
-    return NextResponse.json({ success: false, error: err.message || String(err) }, { status: 500 });
+    return NextResponse.json({ success: false, error: "Institution search is temporarily unavailable." }, { status: 500 });
   }
 }

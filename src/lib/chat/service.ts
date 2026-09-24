@@ -1,7 +1,7 @@
 import { generateText } from "@/lib/gemini/client";
 import type { ChatMessage, ChatSource } from "./types";
 import { formatRagContext, retrieveMaterialContext } from "@/lib/materials/retrieval";
-import { normalizeProfile } from "@/lib/profile";
+import { buildAIProfileContext, normalizeProfile } from "@/lib/profile";
 
 const SYSTEM_PROMPT = `You are Lerna AI, an elite personal learning companion and academic tutor. 
 
@@ -110,25 +110,7 @@ export async function getAIResponse(
 
       const profile = normalizeProfile(profileResult.data, subscriptionResult.data, roleResult.data);
 
-      if (profile?.onboardingCompleted) {
-        const goals = profile.studyGoals || [];
-        const preferenceSummary = [
-          profile.teachingStyle,
-          profile.preferredQuizFormat,
-          profile.preferredLanguage,
-          profile.preferredQuestionType,
-        ].filter(Boolean).join(", ");
-
-        profileContext = `\n\n=== USER MEMORY ===
-- Name: ${profile.displayName || `${profile.firstName} ${profile.lastName}`.trim() || "N/A"}
-- Role / Account Type: ${profile.accountType || "N/A"}
-- Institution: ${profile.institution || "N/A"}
-- Department: ${profile.department || profile.field || "N/A"}
-- Level: ${profile.studyLevel || "N/A"}
-- Country: ${profile.country || "N/A"}
-- Goals: ${Array.isArray(goals) ? goals.join(", ") : "N/A"}
-- Preferences: ${preferenceSummary || "N/A"}`;
-      }
+      if (profile) profileContext = buildAIProfileContext(profile);
     } catch (err) {
       console.error("[chat] Failed to fetch profile context for prompt personalization:", err);
     }

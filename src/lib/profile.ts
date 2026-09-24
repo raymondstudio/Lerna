@@ -13,6 +13,7 @@ export type NormalizedProfile = {
   faculty: string;
   department: string;
   studyLevel: string;
+  company: string;
   occupation: string;
   industry: string;
   field: string;
@@ -84,13 +85,14 @@ export function normalizeProfile(profile: Record<string, any> | null | undefined
     displayName,
     avatarUrl: asString(profile.avatar_url),
     onboardingCompleted: Boolean(profile.onboarding_completed),
-    accountType: asString(profile.account_type, "Student"),
+    accountType: asString(profile.account_type, profile.is_student === false ? "Other" : "Student"),
     institution: asString(profile.institution),
     institutionId: asString(profile.institution_id),
     institutionType: asString(profile.institution_type),
     faculty: asString(profile.faculty),
     department: asString(profile.department),
-    studyLevel: asString(profile.study_level, "Undergraduate"),
+    studyLevel: asString(profile.study_level),
+    company: asString(profile.company),
     occupation: asString(profile.occupation),
     industry: asString(profile.industry),
     field: asString(profile.field),
@@ -144,6 +146,7 @@ export function normalizeProfile(profile: Record<string, any> | null | undefined
     institution_id: normalized.institutionId,
     institution_type: normalized.institutionType,
     study_level: normalized.studyLevel,
+    company: normalized.company,
     study_goals: normalized.studyGoals,
     favorite_subjects: normalized.favoriteSubjects,
     accessibility_preferences: normalized.accessibilityPreferences,
@@ -189,6 +192,7 @@ export function buildProfileUpdatePayload(data: Record<string, any>) {
     faculty: asString(data.faculty).trim() || null,
     department: asString(data.department).trim() || null,
     study_level: asString(data.studyLevel ?? data.study_level).trim() || null,
+    company: asString(data.company).trim() || null,
     occupation: asString(data.occupation).trim() || null,
     industry: asString(data.industry).trim() || null,
     field: asString(data.field).trim() || null,
@@ -223,4 +227,72 @@ export function buildProfileUpdatePayload(data: Record<string, any>) {
 
 export function stripUndefined<T extends Record<string, any>>(input: T) {
   return Object.fromEntries(Object.entries(input).filter(([, value]) => value !== undefined)) as Partial<T>;
+}
+
+export function buildAIProfileContext(profile: NormalizedProfile) {
+  if (!profile.onboardingCompleted) return "";
+
+  const generalLines: Array<[string, string]> = [
+    ["Name", profile.displayName || `${profile.firstName} ${profile.lastName}`.trim()],
+    ["Role", profile.accountType],
+    ["Goals", profile.studyGoals.join(", ")],
+    [
+      "Learning preferences",
+      [
+        profile.teachingStyle,
+        profile.difficulty,
+        profile.preferredQuizFormat,
+        profile.preferredQuestionType,
+        profile.preferredLanguage,
+        profile.responseLength,
+      ]
+        .filter(Boolean)
+        .join(", "),
+    ],
+  ];
+  const role = profile.accountType.toLowerCase();
+  const roleLines: Array<[string, string]> = role.includes("student")
+    ? [
+        ["Institution", profile.institution],
+        ["Faculty", profile.faculty],
+        ["Department / Program", profile.department],
+        ["Study level", profile.studyLevel],
+      ]
+    : role.includes("teacher") || role.includes("educator")
+      ? [
+          ["Institution", profile.institution],
+          ["Department", profile.department],
+          ["Subject / Discipline", profile.field],
+          ["Teaching role", profile.occupation],
+          ["Teaching level", profile.studyLevel],
+        ]
+      : role.includes("professional")
+        ? [
+            ["Company", profile.company],
+            ["Occupation / Role", profile.occupation],
+            ["Industry", profile.industry],
+            ["Learning field", profile.field],
+            ["Skill level", profile.studyLevel],
+          ]
+        : role.includes("research")
+          ? [
+              ["Institution", profile.institution],
+              ["Research field", profile.field],
+              ["Research stage", profile.studyLevel],
+              ["Research interests", profile.interests.join(", ")],
+            ]
+          : [
+              ["Occupation / Role", profile.occupation],
+              ["Learning field", profile.field],
+              ["Interests", profile.interests.join(", ")],
+              ["Current level", profile.studyLevel],
+            ];
+  const lines = [...generalLines, ...roleLines, ["Country", profile.country] as [string, string]];
+
+  const available = lines.filter(([, value]) => value.trim().length > 0);
+  if (available.length === 0) return "";
+
+  return `\n\n=== USER PROFILE CONTEXT ===
+Use these details only to calibrate relevance, terminology, and difficulty. Do not recite them or repeatedly address the user by name.
+${available.map(([label, value]) => `- ${label}: ${value}`).join("\n")}`;
 }

@@ -3,8 +3,8 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 export async function getUserPreferences(userId: string) {
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase
-    .from("user_preferences")
-    .select("*")
+    .from("profiles")
+    .select("teaching_style,difficulty,preferred_language,preferred_quiz_format,flashcard_preference,response_length,voice_preference,study_goals")
     .eq("id", userId)
     .single();
 
@@ -29,6 +29,6 @@ export async function getUserPreferences(userId: string) {
     flashcardPreference: data.flashcard_preference,
     responseLength: data.response_length,
     voicePreference: data.voice_preference,
-    learningGoals: data.learning_goals || [],
+    learningGoals: data.study_goals || [],
   };
 }

@@ -45,24 +45,59 @@ export function ChatInput({
   const [showMentionPopover, setShowMentionPopover] = useState(false);
   const [mentionStart, setMentionStart] = useState(-1);
   const [activeMention, setActiveMention] = useState<Course | null>(null);
+  const [coursesLoading, setCoursesLoading] = useState(false);
+  const [coursesError, setCoursesError] = useState<string | null>(null);
 
-  // Fetch courses once on mount (best-effort; ignore errors silently)
+  // Query a bounded result set only while the mention picker is open. This
+  // avoids loading a user's entire course history into every chat composer.
   useEffect(() => {
-    fetch("/api/courses")
-      .then((res) => (res.ok ? res.json() : null))
-      .then((payload) => {
-        if (payload?.courses && Array.isArray(payload.courses)) {
-          setCourses(
-            payload.courses.map((c: any) => ({
-              id: c.id as string,
-              code: (c.code ?? "") as string,
-              title: (c.title ?? "") as string,
-            }))
-          );
+    if (!showMentionPopover) return;
+
+    const controller = new AbortController();
+    const timeout = window.setTimeout(async () => {
+      setCoursesLoading(true);
+      setCoursesError(null);
+      try {
+        const params = new URLSearchParams({
+          compact: "true",
+          query: mentionQuery,
+          limit: "50",
+        });
+        const response = await fetch(`/api/courses?${params}`, { signal: controller.signal });
+        const payload: unknown = await response.json();
+        if (!response.ok) throw new Error("Course search failed");
+
+        const rows =
+          payload && typeof payload === "object" && "courses" in payload && Array.isArray(payload.courses)
+            ? payload.courses
+            : [];
+        setCourses(
+          rows.flatMap((row) => {
+            if (!row || typeof row !== "object") return [];
+            const record = row as Record<string, unknown>;
+            if (typeof record.id !== "string") return [];
+            return [{
+              id: record.id,
+              code: typeof record.code === "string" ? record.code : "",
+              title: typeof record.title === "string" ? record.title : "",
+            }];
+          }),
+        );
+      } catch (error) {
+        if (!controller.signal.aborted) {
+          console.error("[chat-input] Course search failed", error);
+          setCoursesError("Courses could not be loaded. Try again.");
         }
-      })
-      .catch(() => {/* silently ignore */});
-  }, []);
+      } finally {
+        if (!controller.signal.aborted) setCoursesLoading(false);
+      }
+    }, 200);
+
+    return () => {
+      controller.abort();
+      window.clearTimeout(timeout);
+    };
+  }, [mentionQuery, showMentionPopover]);
 
   // Auto-resize textarea
   useEffect(() => {
@@ -199,6 +234,8 @@ export function ChatInput({
         onSelect={handleMentionSelect}
         isOpen={showMentionPopover}
         query={mentionQuery}
+        isLoading={coursesLoading}
+        error={coursesError}
       />
 
       {/* Attached materials chips */}

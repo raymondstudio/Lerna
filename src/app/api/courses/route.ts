@@ -10,14 +10,28 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { data, error } = await supabase
+    const rawQuery = request.nextUrl.searchParams.get("query")?.trim().slice(0, 100) ?? "";
+    const searchQuery = rawQuery.replace(/[,()%]/g, " ").replace(/\s+/g, " ").trim();
+    const compact = request.nextUrl.searchParams.get("compact") === "true";
+    const requestedLimit = Number(request.nextUrl.searchParams.get("limit") ?? (compact ? 50 : 200));
+    const limit = Number.isFinite(requestedLimit) ? Math.min(Math.max(Math.trunc(requestedLimit), 1), 200) : 50;
+
+    let coursesQuery = supabase
       .from("courses")
-      .select("*, uploaded_materials(id)")
-      .order("created_at", { ascending: false });
+      .select(compact ? "id,code,title" : "*, uploaded_materials(id)")
+      .eq("user_id", userResponse.user.id);
+
+    if (searchQuery) {
+      coursesQuery = coursesQuery.or(`code.ilike.%${searchQuery}%,title.ilike.%${searchQuery}%`);
+    }
+
+    const { data, error } = await coursesQuery
+      .order(compact ? "code" : "created_at", { ascending: compact })
+      .limit(limit);
 
     if (error) {
       console.error("[api:courses] fetch failed", error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: "Courses could not be loaded." }, { status: 500 });
     }
 
     return NextResponse.json({ courses: data });

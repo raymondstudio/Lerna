@@ -29,21 +29,38 @@ export async function updateProfileIdentity(userId: string, profileData: any) {
   return true;
 }
 
-export async function updateProfilePreferences(userId: string, prefData: any) {
+export async function updateProfilePreferences(userId: string, prefData: Record<string, unknown>) {
   const supabase = await createSupabaseServerClient();
+  const profileData = {
+    teaching_style: prefData.teaching_style,
+    difficulty: prefData.difficulty,
+    preferred_language: prefData.preferred_language,
+    preferred_quiz_format: prefData.preferred_quiz_format,
+    flashcard_preference: prefData.flashcard_preference,
+    response_length: prefData.response_length,
+    voice_preference: prefData.voice_preference,
+    study_goals: prefData.learning_goals,
+    updated_at: new Date().toISOString(),
+  };
   const { error } = await supabase
-    .from("user_preferences")
-    .update(prefData)
+    .from("profiles")
+    .update(Object.fromEntries(Object.entries(profileData).filter(([, value]) => value !== undefined)))
     .eq("id", userId);
   if (error) throw error;
   return true;
 }
 
-export async function updateProfileNotifications(userId: string, notifData: any) {
+export async function updateProfileNotifications(userId: string, notifData: Record<string, unknown>) {
   const supabase = await createSupabaseServerClient();
+  const profileData = {
+    marketing_updates_enabled: notifData.marketing,
+    security_alerts_enabled: notifData.security_alerts,
+    study_reminder_enabled: notifData.study_reminders,
+    updated_at: new Date().toISOString(),
+  };
   const { error } = await supabase
-    .from("notification_preferences")
-    .update(notifData)
+    .from("profiles")
+    .update(Object.fromEntries(Object.entries(profileData).filter(([, value]) => value !== undefined)))
     .eq("id", userId);
   if (error) throw error;
   return true;
@@ -63,4 +80,3 @@ export async function checkEmailExists(email: string): Promise<boolean> {
   }
   return data && data.length > 0 ? true : false;
 }
-
