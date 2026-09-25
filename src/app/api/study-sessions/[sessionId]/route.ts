@@ -60,6 +60,7 @@ export async function GET(
       .select("id,title,topic_category,last_message,created_at,updated_at,course_id,status,duration_seconds,topics_covered,summary,notes,study_messages(id,role,content,created_at,sources)")
       .eq("id", sessionId)
       .eq("user_id", user.id)
+      .order("created_at", { ascending: true, foreignTable: "study_messages" })
       .maybeSingle();
 
     if (error || !session) {
@@ -158,6 +159,7 @@ export async function PATCH(req: Request, context: { params: Promise<{ sessionId
       .eq("id", sessionId)
       .eq("user_id", user.id)
       .select("id,title,topic_category,last_message,created_at,updated_at,course_id,status,duration_seconds,topics_covered,summary,notes,study_messages(id,role,content,created_at,sources)")
+      .order("created_at", { ascending: true, foreignTable: "study_messages" })
       .single();
 
     if (error || !session) {
@@ -219,19 +221,39 @@ export async function DELETE(_req: Request, context: { params: Promise<{ session
       );
     }
 
-    const { error } = await supabase.from("study_sessions").delete().eq("id", sessionId).eq("user_id", user.id);
+    const { data: deletedSessions, error } = await supabase
+      .from("study_sessions")
+      .delete()
+      .eq("id", sessionId)
+      .eq("user_id", user.id)
+      .select("id");
 
     if (error) {
+      console.error("[api:study-sessions] delete failed", { requestId, sessionId, userId: user.id, error });
       return NextResponse.json(
         {
           success: false,
           requestId,
           error: {
             code: "DELETE_FAILED",
-            message: error.message,
+            message: "Unable to delete this conversation.",
           },
         },
         { status: 500 }
+      );
+    }
+
+    if (!deletedSessions || deletedSessions.length === 0) {
+      return NextResponse.json(
+        {
+          success: false,
+          requestId,
+          error: {
+            code: "NOT_FOUND",
+            message: "Conversation not found.",
+          },
+        },
+        { status: 404 },
       );
     }
 
@@ -240,13 +262,14 @@ export async function DELETE(_req: Request, context: { params: Promise<{ session
       requestId,
     });
   } catch (error) {
+    console.error("[api:study-sessions] unexpected delete error", { requestId, error });
     return NextResponse.json(
       {
         success: false,
         requestId,
         error: {
           code: "SERVER_ERROR",
-          message: error instanceof Error ? error.message : "Unable to delete the study session.",
+          message: "Unable to delete this conversation.",
         },
       },
       { status: 500 }

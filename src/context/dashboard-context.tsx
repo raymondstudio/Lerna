@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState, useMemo, useCallback, ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, useMemo, useCallback, useRef, ReactNode } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import type { ChatMessage } from "@/lib/chat/types";
 import type { StudySessionRecord } from "@/lib/study-sessions/types";
@@ -41,6 +41,7 @@ type DashboardContextType = {
   mobileSidebarOpen: boolean;
   setMobileSidebarOpen: (open: boolean) => void;
   createSession: (firstPrompt?: string) => Promise<StudySessionRecord>;
+  deleteSession: (sessionId: string) => Promise<void>;
   upsertSession: (session: StudySessionRecord) => void;
   appendMessage: (sessionId: string, message: ChatMessage) => void;
 };
@@ -89,9 +90,11 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const deletedSessionIdsRef = useRef(new Set<string>());
 
   useEffect(() => {
     if (!ready || !user) {
+      deletedSessionIdsRef.current.clear();
       setSessions([]);
       setActiveSessionId(null);
       setLoadingSessions(false);
@@ -105,7 +108,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
       setError(null);
 
       try {
-        const response = await fetch("/api/study-sessions", {
+        const response = await fetch("/api/study-sessions?summary=true&limit=50", {
           method: "GET",
           headers: { "Content-Type": "application/json" },
         });
@@ -118,7 +121,11 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
           throw new Error(payload.error?.message || "Unable to load study sessions.");
         }
 
-        const nextSessions = sortSessions((payload.data?.sessions ?? []).map(normalizeSession));
+        const nextSessions = sortSessions(
+          (payload.data?.sessions ?? [])
+            .map(normalizeSession)
+            .filter((session) => !deletedSessionIdsRef.current.has(session.id)),
+        );
         setSessions(nextSessions);
       } catch (loadError) {
         if (!cancelled) setError(loadError instanceof Error ? loadError.message : "Unable to load study sessions.");
@@ -132,6 +139,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
 
   const upsertSession = useCallback((session: StudySessionRecord) => {
     const normalizedSession = normalizeSession(session);
+    if (deletedSessionIdsRef.current.has(normalizedSession.id)) return;
     setSessions((current) => {
       const withoutCurrent = current.filter((item) => item.id !== normalizedSession.id);
       return sortSessions([normalizedSession, ...withoutCurrent]);
@@ -185,6 +193,24 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     return session;
   }, [upsertSession]);
 
+  const deleteSession = useCallback(async (sessionId: string) => {
+    setError(null);
+    const response = await fetch(`/api/study-sessions/${encodeURIComponent(sessionId)}`, {
+      method: "DELETE",
+    });
+    const payload = (await response.json()) as { success?: boolean; error?: ApiErrorResponse };
+
+    if (!response.ok || !payload.success) {
+      const message = payload.error?.message || "Unable to delete this conversation.";
+      setError(message);
+      throw new Error(message);
+    }
+
+    setSessions((current) => current.filter((session) => session.id !== sessionId));
+    deletedSessionIdsRef.current.add(sessionId);
+    setActiveSessionId((current) => current === sessionId ? null : current);
+  }, []);
+
   const value = useMemo(
     () => ({
       sessions,
@@ -198,10 +224,11 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
       mobileSidebarOpen,
       setMobileSidebarOpen,
       createSession,
+      deleteSession,
       upsertSession,
       appendMessage,
     }),
-    [sessions, activeSessionId, loadingSessions, error, sidebarOpen, mobileSidebarOpen, createSession, upsertSession, appendMessage]
+    [sessions, activeSessionId, loadingSessions, error, sidebarOpen, mobileSidebarOpen, createSession, deleteSession, upsertSession, appendMessage]
   );
 
   return <DashboardContext.Provider value={value}>{children}</DashboardContext.Provider>;

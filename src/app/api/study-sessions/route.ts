@@ -30,7 +30,7 @@ function mapStudySessionRow(session: any): StudySessionRecord {
   };
 }
 
-export async function GET() {
+export async function GET(req: Request) {
   const requestId = crypto.randomUUID();
   const supabase = await createSupabaseServerClient();
   const { data: userData } = await supabase.auth.getUser();
@@ -50,21 +50,50 @@ export async function GET() {
     );
   }
 
-  const { data: sessions, error } = await supabase
+  const url = new URL(req.url);
+  const summaryOnly = url.searchParams.get("summary") === "true";
+  const rawQuery = url.searchParams.get("query")?.trim().slice(0, 100) ?? "";
+  const searchQuery = rawQuery.replace(/[^\p{L}\p{N}\s._-]/gu, " ").replace(/\s+/g, " ").trim();
+  const limitParam = url.searchParams.get("limit");
+  const requestedLimit = Number(limitParam ?? (summaryOnly ? 50 : Number.NaN));
+  const limit = Number.isFinite(requestedLimit) ? Math.min(Math.max(Math.trunc(requestedLimit), 1), 200) : null;
+  const select = summaryOnly
+    ? "id,title,topic_category,last_message,created_at,updated_at,course_id,status,duration_seconds,topics_covered,summary,notes"
+    : "id,title,topic_category,last_message,created_at,updated_at,course_id,status,duration_seconds,topics_covered,summary,notes,study_messages(id,role,content,created_at,sources)";
+
+  let sessionsQuery = supabase
     .from("study_sessions")
-    .select("id,title,topic_category,last_message,created_at,updated_at,course_id,status,duration_seconds,topics_covered,summary,notes,study_messages(id,role,content,created_at,sources)")
-    .eq("user_id", user.id)
-    .order("updated_at", { ascending: false })
-    .order("created_at", { ascending: true, foreignTable: "study_messages" });
+    .select(select)
+    .eq("user_id", user.id);
+
+  if (searchQuery) {
+    sessionsQuery = sessionsQuery.or(
+      `title.ilike.%${searchQuery}%,topic_category.ilike.%${searchQuery}%,last_message.ilike.%${searchQuery}%`,
+    );
+  }
+
+  let orderedQuery = sessionsQuery
+    .order("updated_at", { ascending: false });
+
+  if (limit !== null) {
+    orderedQuery = orderedQuery.limit(limit);
+  }
+
+  if (!summaryOnly) {
+    orderedQuery = orderedQuery.order("created_at", { ascending: true, foreignTable: "study_messages" });
+  }
+
+  const { data: sessions, error } = await orderedQuery;
 
   if (error) {
+    console.error("[api:study-sessions] fetch failed", { requestId, error });
     return NextResponse.json(
       {
         success: false,
         requestId,
         error: {
           code: "FETCH_FAILED",
-          message: error.message,
+          message: "Study sessions could not be loaded.",
         },
       },
       { status: 500 }

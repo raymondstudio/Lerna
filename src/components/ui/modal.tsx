@@ -3,7 +3,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 
 interface ModalProps {
   isOpen: boolean;
@@ -16,6 +16,7 @@ export function Modal({ isOpen, onClose, children, title }: ModalProps) {
   const [mounted, setMounted] = useState(false);
   const dialogRef = useRef<HTMLDivElement>(null);
   const titleId = useId();
+  const reduceMotion = useReducedMotion();
 
   useEffect(() => {
     setMounted(true);
@@ -30,7 +31,7 @@ export function Modal({ isOpen, onClose, children, title }: ModalProps) {
 
     const focusTimer = window.setTimeout(() => {
       const firstFocusable = dialogRef.current?.querySelector<HTMLElement>(
-        'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        'button:not([disabled]):not([tabindex="-1"]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
       );
       (firstFocusable ?? dialogRef.current)?.focus();
     }, 0);
@@ -53,7 +54,7 @@ export function Modal({ isOpen, onClose, children, title }: ModalProps) {
       if (e.key !== "Tab" || !dialogRef.current) return;
       const focusable = Array.from(
         dialogRef.current.querySelectorAll<HTMLElement>(
-          'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+          'button:not([disabled]):not([tabindex="-1"]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
         ),
       ).filter((element) => !element.hasAttribute("hidden"));
 
@@ -85,8 +86,11 @@ export function Modal({ isOpen, onClose, children, title }: ModalProps) {
     <AnimatePresence>
       {isOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4">
-          <motion.div
-            initial={{ opacity: 0 }}
+          <motion.button
+            type="button"
+            tabIndex={-1}
+            aria-hidden="true"
+            initial={reduceMotion ? { opacity: 1 } : { opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
@@ -98,10 +102,10 @@ export function Modal({ isOpen, onClose, children, title }: ModalProps) {
             aria-modal="true"
             aria-labelledby={titleId}
             tabIndex={-1}
-            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            initial={reduceMotion ? { opacity: 1 } : { opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            transition={{ type: "spring", duration: 0.5, bounce: 0 }}
+            exit={reduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.95, y: 20 }}
+            transition={reduceMotion ? { duration: 0 } : { type: "spring", duration: 0.32, bounce: 0 }}
             className="relative flex max-h-[calc(100dvh-1rem)] min-h-0 w-full max-w-md flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#0f1115] shadow-2xl sm:max-h-[calc(100dvh-2rem)]"
           >
             <div className="flex min-h-14 shrink-0 items-center justify-between border-b border-white/5 bg-[#0f1115] px-4 sm:px-6">

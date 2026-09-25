@@ -1,18 +1,16 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowDown, LogOut, Menu, Plus, Search, Brain, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
 
 import { ChatInput } from "./ChatInput";
 import { ChatMessage as ChatMessageComponent } from "./ChatMessage";
 import { TypingIndicator } from "./TypingIndicator";
 import { useAuth } from "@/hooks/use-auth";
 import type { ChatMessage } from "@/lib/chat/types";
+import type { ChatReferenceSelection } from "@/lib/chat/references";
 import type { StudySessionRecord } from "@/lib/study-sessions/types";
 import type { UploadedMaterialRecord } from "@/lib/uploads/types";
-import { DEFAULT_STUDY_SESSION_TITLE } from "@/lib/study-sessions/title";
 import { useDashboard } from "@/context/dashboard-context";
 
 type ApiErrorResponse = {
@@ -20,16 +18,7 @@ type ApiErrorResponse = {
   message: string;
 };
 
-type SessionsApiResponse = {
-  success: boolean;
-  requestId: string;
-  data?: {
-    sessions: StudySessionRecord[];
-  };
-  error?: ApiErrorResponse;
-};
-
-type SessionCreateApiResponse = {
+type SessionApiResponse = {
   success: boolean;
   requestId: string;
   data?: {
@@ -72,40 +61,6 @@ function sessionToMessages(session: StudySessionRecord | null | undefined): Chat
   return session.messages.map(toChatMessage);
 }
 
-function sortSessions(sessions: StudySessionRecord[] = []) {
-  return [...sessions].sort((left, right) => new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime());
-}
-
-function normalizeSession(session: any): StudySessionRecord {
-  const messages = Array.isArray(session?.messages)
-    ? session.messages
-    : Array.isArray(session?.study_messages)
-      ? session.study_messages.map((message: any) => ({
-          id: message.id,
-          role: message.role,
-          content: message.content,
-          createdAt: message.created_at,
-          sources: Array.isArray(message.sources) ? message.sources : [],
-        }))
-      : [];
-
-  return {
-    id: session.id,
-    title: session.title,
-    topicCategory: session.topicCategory ?? session.topic_category ?? "General",
-    lastMessage: session.lastMessage ?? session.last_message ?? "",
-    createdAt: session.createdAt ?? session.created_at ?? new Date().toISOString(),
-    updatedAt: session.updatedAt ?? session.updated_at ?? new Date().toISOString(),
-    messages: messages.map((message: any) => ({
-      id: message.id,
-      role: message.role,
-      content: message.content,
-      createdAt: message.createdAt ?? message.created_at ?? new Date().toISOString(),
-      sources: Array.isArray(message.sources) ? message.sources : [],
-    })),
-  };
-}
-
 export function StudyWorkspace() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -119,20 +74,20 @@ export function StudyWorkspace() {
     createSession,
     upsertSession,
     appendMessage,
-    setMobileSidebarOpen,
   } = useDashboard();
 
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [chatCourseId, setChatCourseId] = useState<string | null>(null);
+  const [chatReference, setChatReference] = useState<ChatReferenceSelection | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [loadingActiveSession, setLoadingActiveSession] = useState(false);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const transcriptRef = useRef<HTMLDivElement>(null);
   const [isNearBottom, setIsNearBottom] = useState(true);
 
   const [activeSessionMaterials, setActiveSessionMaterials] = useState<UploadedMaterialRecord[]>([]);
-  const [loadingMaterials, setLoadingMaterials] = useState(false);
+  const [, setLoadingMaterials] = useState(false);
 
   const initialSyncRef = useRef(false);
 
@@ -229,6 +184,37 @@ export function StudyWorkspace() {
 
   const currentSessionId = paramSessionId ?? null;
 
+  useEffect(() => {
+    if (!ready || !user || !currentSessionId) {
+      setLoadingActiveSession(false);
+      return;
+    }
+
+    const controller = new AbortController();
+    setLoadingActiveSession(true);
+
+    void (async () => {
+      try {
+        const response = await fetch(`/api/study-sessions/${encodeURIComponent(currentSessionId)}`, {
+          signal: controller.signal,
+        });
+        const payload = (await response.json()) as SessionApiResponse;
+        if (!response.ok || !payload.success || !payload.data?.session) {
+          throw new Error(payload.error?.message || "Unable to load this conversation.");
+        }
+        upsertSession(payload.data.session);
+      } catch (loadError) {
+        if (controller.signal.aborted) return;
+        setError(loadError instanceof Error ? loadError.message : "Unable to load this conversation.");
+        router.replace("/chat");
+      } finally {
+        if (!controller.signal.aborted) setLoadingActiveSession(false);
+      }
+    })();
+
+    return () => controller.abort();
+  }, [currentSessionId, ready, router, upsertSession, user]);
+
   const activeSession = useMemo(
     () => (currentSessionId ? sessions.find((s) => s.id === currentSessionId) ?? null : null),
     [sessions, currentSessionId]
@@ -266,14 +252,6 @@ export function StudyWorkspace() {
     }
   }, [activeMessages.length, sending, activeSessionId, isNearBottom]);
 
-  async function handleNewSession() {
-    if (sending || loadingSessions) return;
-    setError(null);
-    setActiveSessionId(null); // Clear active session in context
-    router.push("/chat");
-    if (window.innerWidth < 768) setMobileSidebarOpen(false);
-  }
-
   async function handleSend(text: string) {
     const trimmed = text.trim();
     if (!trimmed || sending || loadingSessions || authLoading || !ready) return;
@@ -307,7 +285,8 @@ export function StudyWorkspace() {
         body: JSON.stringify({
           sessionId: sessionForRequest.id,
           messages: optimisticMessages,
-          ...(chatCourseId ? { courseId: chatCourseId } : {}),
+          ...(chatReference?.courseId ? { courseId: chatReference.courseId } : {}),
+          ...(chatReference?.materialId ? { materialId: chatReference.materialId } : {}),
         }),
       });
 
@@ -363,7 +342,7 @@ export function StudyWorkspace() {
       const uploadingMsg: ChatMessage = {
         id: `sys-${Date.now()}`,
         role: "assistant",
-        content: `*Analyzing your document: ${file.name}...*`,
+        content: `*Analyzing your document: ${file.name}…*`,
         timestamp: Date.now(),
       };
       appendMessage(sessionForRequest.id, uploadingMsg);
@@ -403,100 +382,98 @@ export function StudyWorkspace() {
     }
   }
 
+  const composer = (
+    <ChatInput
+      onSend={handleSend}
+      onUpload={handleUpload}
+      isUploading={isUploading}
+      disabled={sending || loadingSessions || loadingActiveSession || authLoading || !ready}
+      onReferenceChange={setChatReference}
+      materials={activeSessionMaterials}
+      onDeleteMaterial={handleDeleteMaterial}
+    />
+  );
+
   return (
-    <div className="flex flex-col flex-1 h-full w-full relative min-w-0 bg-[#0a0a0a] overflow-hidden">
+    <div className="relative flex h-full w-full min-w-0 flex-1 flex-col overflow-hidden bg-[#0a0a0a]">
       {error && (
-        <div className="absolute top-16 left-1/2 -translate-x-1/2 z-20 w-full max-w-md p-4">
+        <div className="absolute left-1/2 top-4 z-20 w-full max-w-md -translate-x-1/2 p-4" role="alert">
           <div className="rounded-lg border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-200 shadow-xl">
             {error}
           </div>
         </div>
       )}
 
-      {loadingSessions && currentSessionId ? (
-        <div className="flex-1 flex flex-col px-4 md:px-8 pb-32 pt-16 md:pt-20">
-          <div className="mx-auto max-w-3xl w-full flex flex-col gap-6 animate-pulse">
+      {(loadingSessions || loadingActiveSession) && currentSessionId ? (
+        <div className="flex min-h-0 flex-1 flex-col px-4 pb-8 pt-12 md:px-8 md:pt-16" aria-label="Loading conversation" role="status">
+          <div className="mx-auto flex w-full max-w-3xl animate-pulse flex-col gap-6 motion-reduce:animate-none">
             <div className="flex items-start gap-4">
-              <div className="h-8 w-8 rounded-full bg-white/10 shrink-0" />
-              <div className="space-y-2 flex-1">
-                <div className="h-4 bg-white/10 rounded w-1/4" />
-                <div className="h-4 bg-white/5 rounded w-5/6" />
-                <div className="h-4 bg-white/5 rounded w-2/3" />
+              <div className="h-8 w-8 shrink-0 rounded-full bg-white/10" />
+              <div className="flex-1 space-y-2">
+                <div className="h-4 w-1/4 rounded bg-white/10" />
+                <div className="h-4 w-5/6 rounded bg-white/5" />
+                <div className="h-4 w-2/3 rounded bg-white/5" />
               </div>
             </div>
             <div className="flex items-start gap-4 pt-6">
-              <div className="h-8 w-8 rounded-full bg-white/10 shrink-0" />
-              <div className="space-y-2 flex-1">
-                <div className="h-4 bg-white/10 rounded w-1/5" />
-                <div className="h-4 bg-white/5 rounded w-3/4" />
+              <div className="h-8 w-8 shrink-0 rounded-full bg-white/10" />
+              <div className="flex-1 space-y-2">
+                <div className="h-4 w-1/5 rounded bg-white/10" />
+                <div className="h-4 w-3/4 rounded bg-white/5" />
               </div>
             </div>
           </div>
         </div>
       ) : hasMessages ? (
-        <div
-          className="flex-1 overflow-y-auto px-4 md:px-8 pb-32 pt-16 md:pt-20 scrollbar-hide"
-          ref={transcriptRef}
-          onScroll={handleTranscriptScroll}
-        >
-          <div className="mx-auto max-w-3xl flex flex-col gap-6">
-            {activeMessages.map((message) => (
-              <ChatMessageComponent key={message.id} message={message} />
-            ))}
-            {sending && (
-              <div className="flex justify-start">
-                <TypingIndicator />
-              </div>
-            )}
-            <div ref={messagesEndRef} className="h-4" />
+        <>
+          <div
+            className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-6 pt-8 md:px-8 md:pt-12"
+            ref={transcriptRef}
+            onScroll={handleTranscriptScroll}
+            aria-busy={sending}
+          >
+            <div className="mx-auto flex max-w-3xl flex-col gap-6">
+              {activeMessages.map((message) => (
+                <ChatMessageComponent key={message.id} message={message} />
+              ))}
+              {sending && (
+                <div className="flex justify-start" role="status" aria-label="Lerna is responding">
+                  <TypingIndicator />
+                </div>
+              )}
+              <div ref={messagesEndRef} className="h-2" />
+            </div>
           </div>
-        </div>
+          <div className="z-10 shrink-0 bg-gradient-to-t from-[#0a0a0a] via-[#0a0a0a] to-[#0a0a0a]/80 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 sm:px-4 md:pb-4">
+            <div className="mx-auto max-w-3xl">
+              {composer}
+              <p className="mt-2 text-center text-[11px] text-slate-500">Lerna can make mistakes. Verify important information.</p>
+            </div>
+          </div>
+        </>
       ) : (
-        <div className="flex-1 flex flex-col items-center justify-center px-4 md:px-8 pb-32">
-          <h1 className="text-3xl md:text-4xl font-medium text-white mb-8">Where should we begin?</h1>
-          
-          <div className="w-full max-w-3xl">
-            <ChatInput
-              onSend={handleSend}
-              onUpload={handleUpload}
-              isUploading={isUploading}
-              disabled={sending || loadingSessions || authLoading || !ready}
-              courseId={chatCourseId ?? undefined}
-              onCourseId={(id) => setChatCourseId(id)}
-              materials={activeSessionMaterials}
-              onDeleteMaterial={handleDeleteMaterial}
-            />
-          </div>
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 md:px-8">
+          <div className="mx-auto flex min-h-full w-full max-w-3xl flex-col justify-end pb-[max(1rem,env(safe-area-inset-bottom))] pt-8 md:justify-center md:py-12">
+            <h1 className="mb-5 text-center text-2xl font-medium text-white text-balance sm:text-3xl md:mb-7 md:text-4xl">
+              Where should we begin?
+            </h1>
 
-          <div className="mt-8 flex flex-wrap justify-center gap-2 max-w-2xl">
-            {starterPrompts.map((prompt) => (
-              <button
-                key={prompt}
-                onClick={() => handleSend(prompt)}
-                className="rounded-full border border-white/10 bg-[#141414] px-4 py-2 text-sm text-slate-300 transition-colors hover:bg-[#202020] hover:text-white"
-              >
-                {prompt}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
+            {composer}
 
-      {/* Floating Input (when active) */}
-      {hasMessages && (
-        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-[#0a0a0a] via-[#0a0a0a]/80 to-transparent p-4 pb-6">
-          <div className="mx-auto max-w-3xl">
-            <ChatInput
-              onSend={handleSend}
-              onUpload={handleUpload}
-              isUploading={isUploading}
-              disabled={sending || loadingSessions || authLoading || !ready}
-              courseId={chatCourseId ?? undefined}
-              onCourseId={(id) => setChatCourseId(id)}
-              materials={activeSessionMaterials}
-              onDeleteMaterial={handleDeleteMaterial}
-            />
-            <p className="text-center text-[11px] text-slate-500 mt-2">Lerna can make mistakes. Consider verifying important information.</p>
+            <div className="mt-4 flex w-full snap-x snap-mandatory gap-2 overflow-x-auto overscroll-x-contain pb-2 md:mt-5 md:flex-wrap md:justify-center md:overflow-visible md:pb-0">
+              {starterPrompts.map((prompt) => (
+                <button
+                  key={prompt}
+                  type="button"
+                  onClick={() => handleSend(prompt)}
+                  disabled={sending || loadingSessions || authLoading || !ready}
+                  className="min-h-11 shrink-0 snap-start whitespace-nowrap rounded-full border border-white/10 bg-[#141414] px-4 py-2 text-sm text-slate-300 transition-colors hover:border-white/20 hover:bg-[#202020] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 disabled:pointer-events-none disabled:opacity-50"
+                >
+                  {prompt}
+                </button>
+              ))}
+            </div>
+            <div className="h-[clamp(1rem,7dvh,4rem)] shrink-0 md:hidden" aria-hidden="true" />
           </div>
         </div>
       )}

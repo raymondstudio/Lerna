@@ -57,6 +57,7 @@ async function fetchSessionWithMessages(supabase: Awaited<ReturnType<typeof crea
     .select("id,title,topic_category,last_message,created_at,updated_at,course_id,study_messages(id,role,content,created_at,sources)")
     .eq("id", sessionId)
     .eq("user_id", userId)
+    .order("created_at", { ascending: true, foreignTable: "study_messages" })
     .maybeSingle();
 
   if (error) {
@@ -73,6 +74,12 @@ export async function POST(req: Request) {
     const body: unknown = await req.json();
     const messages = (body as { messages?: ChatMessage[] })?.messages;
     const sessionId = typeof (body as { sessionId?: unknown })?.sessionId === "string" ? (body as { sessionId?: string }).sessionId : null;
+    const requestedCourseId = typeof (body as { courseId?: unknown })?.courseId === "string"
+      ? (body as { courseId: string }).courseId
+      : null;
+    const requestedMaterialId = typeof (body as { materialId?: unknown })?.materialId === "string"
+      ? (body as { materialId: string }).materialId
+      : null;
     const supabase = await createSupabaseServerClient();
     const { data: userData } = await supabase.auth.getUser();
     const user = userData.user;
@@ -164,6 +171,94 @@ export async function POST(req: Request) {
       });
     }
 
+    if (requestedCourseId) {
+      const { data: ownedCourse, error: courseLookupError } = await supabase
+        .from("courses")
+        .select("id")
+        .eq("id", requestedCourseId)
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (courseLookupError) {
+        console.error("[chat] course reference lookup failed", { requestId, courseLookupError });
+        return NextResponse.json(
+          {
+            success: false,
+            requestId,
+            error: { code: "REFERENCE_LOOKUP_FAILED", message: "The selected course could not be loaded." },
+          },
+          { status: 500 },
+        );
+      }
+
+      if (!ownedCourse) {
+        return NextResponse.json(
+          {
+            success: false,
+            requestId,
+            error: { code: "REFERENCE_NOT_FOUND", message: "The selected course is no longer available." },
+          },
+          { status: 404 },
+        );
+      }
+
+      const { error: courseUpdateError } = await supabase
+        .from("study_sessions")
+        .update({ course_id: ownedCourse.id })
+        .eq("id", session.id)
+        .eq("user_id", user.id);
+
+      if (courseUpdateError) {
+        console.error("[chat] course scope update failed", { requestId, courseUpdateError });
+        return NextResponse.json(
+          {
+            success: false,
+            requestId,
+            error: { code: "REFERENCE_SAVE_FAILED", message: "The selected course could not be applied." },
+          },
+          { status: 500 },
+        );
+      }
+
+      session = { ...session, course_id: ownedCourse.id };
+    }
+
+    let selectedMaterialId: string | null = null;
+    if (requestedMaterialId) {
+      const { data: ownedMaterial, error: materialLookupError } = await supabase
+        .from("uploaded_materials")
+        .select("id")
+        .eq("id", requestedMaterialId)
+        .eq("user_id", user.id)
+        .is("deleted_at", null)
+        .maybeSingle();
+
+      if (materialLookupError) {
+        console.error("[chat] material reference lookup failed", { requestId, materialLookupError });
+        return NextResponse.json(
+          {
+            success: false,
+            requestId,
+            error: { code: "REFERENCE_LOOKUP_FAILED", message: "The selected material could not be loaded." },
+          },
+          { status: 500 },
+        );
+      }
+
+      if (!ownedMaterial) {
+        return NextResponse.json(
+          {
+            success: false,
+            requestId,
+            error: { code: "REFERENCE_NOT_FOUND", message: "The selected material is no longer available." },
+          },
+          { status: 404 },
+        );
+      }
+
+      selectedMaterialId = ownedMaterial.id;
+    }
+
     if (session.title === DEFAULT_STUDY_SESSION_TITLE) {
       const nextTitle = generateStudySessionTitle(lastUserMessage.content);
       const { error: renameError } = await supabase
@@ -218,14 +313,19 @@ export async function POST(req: Request) {
       contentLength: lastUserMessage.content.length,
     });
 
-    let documentIds: string[] = [];
-    const { data: materials } = await supabase
-      .from("uploaded_materials")
-      .select("id")
-      .or(`session_id.eq.${session.id}${session.course_id ? `,course_id.eq.${session.course_id}` : ""}`)
-      .is("deleted_at", null);
-    if (materials) {
-      documentIds = materials.map((m) => m.id);
+    let documentIds: string[] = selectedMaterialId ? [selectedMaterialId] : [];
+    if (!selectedMaterialId) {
+      const { data: materials, error: materialsError } = await supabase
+        .from("uploaded_materials")
+        .select("id")
+        .or(`session_id.eq.${session.id}${session.course_id ? `,course_id.eq.${session.course_id}` : ""}`)
+        .is("deleted_at", null);
+
+      if (materialsError) {
+        console.error("[chat] scoped material lookup failed", { requestId, materialsError });
+      } else if (materials) {
+        documentIds = materials.map((material) => material.id);
+      }
     }
 
     const aiMessage = await getAIResponse(messages, session.id, user.id, documentIds);

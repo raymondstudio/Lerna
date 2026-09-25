@@ -1,6 +1,6 @@
 "use client";
 
-import { ReactNode, useMemo, useState } from "react";
+import { ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
@@ -15,13 +15,17 @@ import {
   Menu, 
   Plus,
   Search,
-  User 
+  User,
+  Loader2,
 } from "lucide-react";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Modal } from "@/components/ui/modal";
+import { ConversationActions } from "@/components/chat/ConversationActions";
 import { useAuth } from "@/hooks/use-auth";
 import { useDashboard } from "@/context/dashboard-context";
+import type { StudySessionRecord } from "@/lib/study-sessions/types";
 
 export function DashboardShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
@@ -37,20 +41,106 @@ export function DashboardShell({ children }: { children: ReactNode }) {
     setSidebarOpen,
     mobileSidebarOpen,
     setMobileSidebarOpen,
+    deleteSession,
   } = useDashboard();
 
   const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<StudySessionRecord[]>([]);
+  const [searchingSessions, setSearchingSessions] = useState(false);
+  const [sessionSearchError, setSessionSearchError] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; title: string } | null>(null);
+  const [deletingSession, setDeletingSession] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const reduceMotion = useReducedMotion();
+  const mobileDrawerRef = useRef<HTMLElement>(null);
 
   const filteredSessions = useMemo(() => {
     const norm = searchQuery.trim().toLowerCase();
     if (!norm) return sessions;
-    return sessions.filter((s) => {
-      const title = s.title?.toLowerCase() || "";
-      const cat = s.topicCategory?.toLowerCase() || "";
-      const msg = s.lastMessage?.toLowerCase() || "";
-      return title.includes(norm) || cat.includes(norm) || msg.includes(norm);
+    return searchResults;
+  }, [searchQuery, searchResults, sessions]);
+
+  useEffect(() => {
+    const query = searchQuery.trim();
+    if (!query) {
+      setSearchResults([]);
+      setSearchingSessions(false);
+      setSessionSearchError(null);
+      return;
+    }
+
+    const controller = new AbortController();
+    const timeout = window.setTimeout(async () => {
+      setSearchingSessions(true);
+      setSessionSearchError(null);
+      try {
+        const params = new URLSearchParams({ summary: "true", limit: "30", query });
+        const response = await fetch(`/api/study-sessions?${params}`, { signal: controller.signal });
+        const payload = (await response.json()) as {
+          success?: boolean;
+          data?: { sessions?: StudySessionRecord[] };
+          error?: { message?: string };
+        };
+        if (!response.ok || !payload.success) {
+          throw new Error(payload.error?.message || "Conversations could not be searched.");
+        }
+        setSearchResults(payload.data?.sessions ?? []);
+      } catch (error) {
+        if (!controller.signal.aborted) {
+          setSearchResults([]);
+          setSessionSearchError(error instanceof Error ? error.message : "Conversations could not be searched.");
+        }
+      } finally {
+        if (!controller.signal.aborted) setSearchingSessions(false);
+      }
+    }, 250);
+
+    return () => {
+      controller.abort();
+      window.clearTimeout(timeout);
+    };
+  }, [searchQuery]);
+
+  useEffect(() => {
+    if (!mobileSidebarOpen) return;
+    const previouslyFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const frame = window.requestAnimationFrame(() => {
+      mobileDrawerRef.current?.querySelector<HTMLElement>("button, a, input")?.focus();
     });
-  }, [searchQuery, sessions]);
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setMobileSidebarOpen(false);
+        return;
+      }
+      if (event.key === "Tab" && mobileDrawerRef.current) {
+        const focusable = Array.from(
+          mobileDrawerRef.current.querySelectorAll<HTMLElement>(
+            'button:not([disabled]), a[href], input:not([disabled]), [tabindex]:not([tabindex="-1"])',
+          ),
+        );
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (!first || !last) return;
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault();
+          last.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault();
+          first.focus();
+        }
+      }
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", handleKeyDown);
+      previouslyFocused?.focus();
+    };
+  }, [mobileSidebarOpen, setMobileSidebarOpen]);
 
   const navItems = [
     { name: "Chat Tutor", href: "/chat", icon: Brain },
@@ -71,6 +161,30 @@ export function DashboardShell({ children }: { children: ReactNode }) {
     if (window.innerWidth < 768) setMobileSidebarOpen(false);
   };
 
+  const handleDeleteRequest = (id: string, title: string) => {
+    setDeleteError(null);
+    setDeleteTarget({ id, title: title || "Untitled conversation" });
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteTarget || deletingSession) return;
+    const deletingActiveSession = deleteTarget.id === activeSessionId;
+    setDeletingSession(true);
+    setDeleteError(null);
+
+    try {
+      await deleteSession(deleteTarget.id);
+      setSearchResults((current) => current.filter((session) => session.id !== deleteTarget.id));
+      setDeleteTarget(null);
+      if (deletingActiveSession) router.replace("/chat");
+      if (window.innerWidth < 768) setMobileSidebarOpen(false);
+    } catch (error) {
+      setDeleteError(error instanceof Error ? error.message : "Unable to delete this conversation.");
+    } finally {
+      setDeletingSession(false);
+    }
+  };
+
   const showSessionListLoading = loadingSessions && sessions.length === 0;
 
   const sidebarContent = (
@@ -87,12 +201,16 @@ export function DashboardShell({ children }: { children: ReactNode }) {
           />
         </Link>
         <Button
-          onClick={() => setSidebarOpen(false)}
+          onClick={() => {
+            if (window.innerWidth < 768) setMobileSidebarOpen(false);
+            else setSidebarOpen(false);
+          }}
           variant="ghost"
           size="icon"
-          className="hidden md:flex h-8 w-8 text-slate-400 hover:text-slate-200 hover:bg-[#202020] shrink-0"
+          aria-label="Close sidebar"
+          className="flex h-11 w-11 text-slate-400 hover:text-slate-200 hover:bg-[#202020] shrink-0 md:h-8 md:w-8"
         >
-          <PanelLeftClose className="h-4.5 w-4.5" />
+          <PanelLeftClose className="h-4.5 w-4.5" aria-hidden="true" />
         </Button>
       </div>
 
@@ -142,29 +260,45 @@ export function DashboardShell({ children }: { children: ReactNode }) {
             <Search className="absolute left-5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-500" />
             <Input
               type="text"
-              placeholder="Search chats..."
+              name="conversation-search"
+              aria-label="Search conversations"
+              autoComplete="off"
+              placeholder="Search chats…"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="h-8 pl-8 pr-3 text-xs bg-[#0a0a0a] border-white/5 rounded-lg text-white placeholder-slate-600 focus-visible:ring-cyan-500/30"
             />
           </div>
 
-          {showSessionListLoading ? (
-            <div className="text-xs text-slate-500 px-3 py-2">Loading...</div>
+          {showSessionListLoading || searchingSessions ? (
+            <div className="flex items-center gap-2 px-3 py-2 text-xs text-slate-500" role="status">
+              <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" aria-hidden="true" />
+              {searchingSessions ? "Searching…" : "Loading…"}
+            </div>
+          ) : sessionSearchError ? (
+            <div className="px-3 py-2 text-xs text-amber-300" role="alert">{sessionSearchError}</div>
           ) : filteredSessions.length > 0 ? (
-            <div className="space-y-0.5 overflow-y-auto max-h-[220px] pr-1">
+            <div className="max-h-[min(40dvh,22rem)] space-y-0.5 overflow-y-auto overscroll-contain pr-1">
               {filteredSessions.map((session) => (
-                <button
-                  key={session.id}
-                  onClick={() => handleSessionClick(session.id)}
-                  className={`w-full text-left px-3 py-2 text-xs rounded-lg truncate transition-colors block ${
-                    session.id === activeSessionId && pathname === "/chat"
-                      ? "bg-[#202020] text-white font-medium"
-                      : "text-slate-400 hover:bg-[#202020] hover:text-white"
-                  }`}
-                >
-                  {session.title || "Untitled Session"}
-                </button>
+                <div key={session.id} className="group/conversation flex min-w-0 items-center gap-1 rounded-lg">
+                  <button
+                    type="button"
+                    onClick={() => handleSessionClick(session.id)}
+                    title={session.title || "Untitled conversation"}
+                    className={`block min-h-11 min-w-0 flex-1 truncate rounded-lg px-3 py-2 text-left text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 md:min-h-8 ${
+                      session.id === activeSessionId && pathname === "/chat"
+                        ? "bg-[#202020] text-white font-medium"
+                        : "text-slate-400 hover:bg-[#202020] hover:text-white"
+                    }`}
+                  >
+                    {session.title || "Untitled conversation"}
+                  </button>
+                  <ConversationActions
+                    conversationId={session.id}
+                    conversationTitle={session.title || "Untitled conversation"}
+                    onRequestDelete={handleDeleteRequest}
+                  />
+                </div>
               ))}
             </div>
           ) : (
@@ -205,9 +339,15 @@ export function DashboardShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="flex h-[100dvh] w-full bg-[#0a0a0a] text-slate-200 overflow-hidden font-body">
+      <a
+        href="#dashboard-main-content"
+        className="sr-only z-[60] rounded-md bg-white px-4 py-2 text-sm font-medium text-black focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"
+      >
+        Skip to main content
+      </a>
       {/* Desktop Sidebar */}
       <aside
-        className={`hidden md:flex flex-col bg-[#141414] border-r border-white/5 transition-all duration-300 ease-in-out shrink-0 ${
+        className={`hidden md:flex flex-col bg-[#141414] border-r border-white/5 transition-[width] duration-300 ease-in-out motion-reduce:transition-none shrink-0 ${
           sidebarOpen ? "w-[260px]" : "w-0 overflow-hidden border-none"
         }`}
       >
@@ -221,6 +361,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
             variant="ghost"
             size="icon"
             onClick={() => setSidebarOpen(true)}
+            aria-label="Open sidebar"
             className="h-10 w-10 text-slate-400 hover:text-slate-200 hover:bg-[#202020] border border-white/5 bg-[#141414]/80 backdrop-blur-md rounded-xl"
           >
             <PanelLeftOpen className="h-5 w-5" />
@@ -230,14 +371,22 @@ export function DashboardShell({ children }: { children: ReactNode }) {
 
       {/* Mobile Drawer Sidebar */}
       {mobileSidebarOpen && (
-        <div className="fixed inset-0 z-50 flex md:hidden">
+        <div className="fixed inset-0 z-40 flex md:hidden">
           {/* Backdrop */}
-          <div 
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity" 
+          <button
+            type="button"
+            aria-label="Close sidebar"
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity motion-reduce:transition-none"
             onClick={() => setMobileSidebarOpen(false)} 
           />
           {/* Menu Drawer */}
-          <aside className="relative flex w-[260px] flex-col bg-[#141414] border-r border-white/5 h-full animate-in slide-in-from-left duration-200">
+          <aside
+            ref={mobileDrawerRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Workspace navigation"
+            className="relative flex h-full w-[min(18rem,85vw)] flex-col border-r border-white/5 bg-[#141414] animate-in slide-in-from-left duration-200 motion-reduce:animate-none"
+          >
             {sidebarContent}
           </aside>
         </div>
@@ -260,11 +409,12 @@ export function DashboardShell({ children }: { children: ReactNode }) {
           </div>
         )}
         {/* Mobile Header */}
-        <div className="flex items-center justify-between p-3 md:hidden border-b border-white/5 bg-[#141414] shrink-0 z-10">
+        <div data-chat-mobile-header className="z-10 flex shrink-0 items-center justify-between border-b border-white/5 bg-[#141414] p-3 md:hidden">
           <Button
             variant="ghost"
             size="icon"
             onClick={() => setMobileSidebarOpen(true)}
+            aria-label="Open sidebar"
             className="h-9 w-9 text-slate-400 hover:bg-[#202020] rounded-lg"
           >
             <Menu className="h-5 w-5" />
@@ -274,18 +424,49 @@ export function DashboardShell({ children }: { children: ReactNode }) {
         </div>
 
         {/* Content Injector with Motion Page Transition */}
-        <main className="flex-1 overflow-hidden relative min-h-0">
+        <main id="dashboard-main-content" tabIndex={-1} className="relative min-h-0 flex-1 overflow-hidden">
           <motion.div
             key={pathname}
-            initial={{ opacity: 0, y: 8 }}
+            initial={reduceMotion ? { opacity: 1 } : { opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.2, ease: "easeOut" }}
+            transition={{ duration: reduceMotion ? 0 : 0.2, ease: "easeOut" }}
             className="h-full w-full flex flex-col"
           >
             {children}
           </motion.div>
         </main>
       </div>
+
+      <Modal
+        isOpen={Boolean(deleteTarget)}
+        onClose={() => {
+          if (!deletingSession) setDeleteTarget(null);
+        }}
+        title="Delete conversation?"
+      >
+        <div className="space-y-5">
+          <div className="space-y-2">
+            <p className="break-words text-sm font-medium text-white">{deleteTarget?.title}</p>
+            <p className="text-sm leading-6 text-slate-400">
+              This conversation and its messages will be removed from your history. Uploaded materials will remain in your library.
+            </p>
+          </div>
+          {deleteError && (
+            <p role="alert" className="rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 text-sm text-red-200">
+              {deleteError}
+            </p>
+          )}
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            <Button type="button" variant="ghost" onClick={() => setDeleteTarget(null)} disabled={deletingSession}>
+              Cancel
+            </Button>
+            <Button type="button" variant="destructive" onClick={handleDeleteConfirm} disabled={deletingSession}>
+              {deletingSession && <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />}
+              {deletingSession ? "Deleting…" : "Delete"}
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }
