@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=1280, height=720">
+  <title>Lerna AI Launch Video</title>
+  <script src="assets/js/gsap.min.js"></script>
+  <script src="assets/music/audio-data.js"></script>
+  <style>
+    @font-face{font-family:"Space Grotesk";src:url("assets/fonts/space-grotesk.woff2") format("woff2");font-weight:300 700}
+    @font-face{font-family:"Manrope";src:url("assets/fonts/manrope.woff2") format("woff2");font-weight:200 800}
+    :root{--bg:#0a0a0a;--panel:#12191d;--panel2:#1b2a30;--cyan:#06b6d4;--light:#76e8f1;--ink:#f8fafc;--muted:#b8c9ce;--line:#385159}
+    *{box-sizing:border-box}html,body{width:1280px;height:720px;margin:0;overflow:hidden;background:var(--bg);color:var(--ink)}
+    body{font-family:"Manrope",system-ui,sans-serif}#root{position:relative;width:100%;height:100%;overflow:hidden;background:var(--bg)}
+    .clip{position:absolute;inset:0;width:100%;height:100%;overflow:hidden}
+    .scene{background:#0a0a0a}.scene:before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 77% 45%,rgba(6,182,212,.16),transparent 47%);pointer-events:none}
+    .grid{position:absolute;inset:0;opacity:.20;background-image:linear-gradient(#42636b 1px,transparent 1px),linear-gradient(90deg,#42636b 1px,transparent 1px);background-size:70px 70px;mask-image:linear-gradient(90deg,transparent,#000)}
+    #audio-glow{position:absolute;z-index:8;left:62%;top:25%;width:390px;height:390px;border-radius:50%;background:radial-gradient(circle,rgba(6,182,212,.28),transparent 68%);filter:blur(40px);opacity:.12;pointer-events:none}
+    .demo-cursor{position:absolute;z-index:5;width:34px;height:42px;pointer-events:none;filter:drop-shadow(0 3px 4px #0009);opacity:0}.demo-cursor svg{display:block;width:34px;height:42px}
+    h1,h2,h3,p{margin:0}h1,h2,h3{font-family:"Space Grotesk",system-ui,sans-serif}.eyebrow{color:var(--light);font-size:19px;font-weight:800;letter-spacing:.18em;text-transform:uppercase}
+    .accent{color:var(--light)}.rule{height:3px;background:linear-gradient(90deg,var(--cyan),transparent)}
+    .hook{position:relative;z-index:2;height:100%;display:grid;grid-template-columns:1.1fr .9fr;align-items:center;padding:70px 86px;gap:42px}
+    .hook h1{margin-top:24px;font-size:78px;line-height:1.03;letter-spacing:-.06em;font-weight:650}.hook .rule{width:190px;margin-top:36px}
+    .paper-stage{position:relative;height:460px;display:grid;place-items:center}.paper{position:absolute;width:320px;height:390px;border-radius:18px;background:#dbeaed;color:#25444a;padding:34px;box-shadow:0 30px 80px #0008}
+    .paper.back{transform:rotate(-10deg) translate(-24px,8px);background:#accbd1}.paper.mid{transform:rotate(7deg) translate(27px,-7px);background:#c4dde1}.paper.front{transform:rotate(-2deg)}
+    .paper small{font-size:17px;letter-spacing:.12em;font-weight:800}.paper strong{display:block;margin-top:46px;font-family:"Space Grotesk";font-size:38px;line-height:1.1}
+    .paper-line{height:8px;border-radius:8px;background:#719da5;margin-top:17px}.paper-line.short{width:67%}.sticker{position:absolute;right:-25px;bottom:31px;width:94px;height:94px;border-radius:25px;background:var(--cyan);color:#05262c;display:grid;place-items:center;font-size:50px}
+    .product{padding:40px 70px 46px}.scene-top{position:relative;z-index:2;display:flex;justify-content:space-between;align-items:end;margin-bottom:22px}.scene-top h2{font-size:46px;letter-spacing:-.045em;line-height:1.05;margin-top:5px}.scene-top .step{font-size:19px;font-weight:800;color:var(--light);letter-spacing:.1em}
+    .window{position:relative;z-index:2;width:1140px;height:540px;display:flex;overflow:hidden;border:2px solid var(--line);border-radius:25px;background:var(--panel);box-shadow:0 25px 95px #0008}
+    .sidebar{width:242px;flex:none;padding:24px 18px;background:#0e1518;border-right:2px solid #293e45}.logo-small{display:block;width:150px;height:auto;margin:0 0 36px 3px}
+    .nav{font-size:21px;font-weight:700;color:#d8e5e8;padding:14px 16px;border-radius:13px;margin-bottom:7px}.nav.active{background:#123c46;border:1px solid #327b8a;color:#ecfeff}
+    .sidebar-note{font-size:18px;line-height:1.5;color:var(--muted);border-top:1px solid #345057;padding:22px 7px 0;margin-top:28px}
+    .main{flex:1;min-width:0;padding:34px 42px}.chip{display:inline-flex;align-items:center;gap:10px;padding:8px 14px;border-radius:999px;background:#19333a;border:1px solid #47737d;color:#e5fdff;font-size:18px;font-weight:700}
+    .dot{width:10px;height:10px;border-radius:50%;background:var(--light)}.main h3{font-size:33px;letter-spacing:-.03em;line-height:1.1;margin-top:19px}.sub{font-size:20px;line-height:1.45;color:var(--muted);margin-top:10px}
+    .dropzone{display:flex;justify-content:space-between;align-items:center;gap:22px;min-height:190px;padding:28px 32px;border-radius:22px;border:2px dashed #2d9bb0;background:#11272d;margin-top:24px}
+    .dropzone strong{font-family:"Space Grotesk";font-size:29px}.dropzone p{font-size:19px;line-height:1.45;color:var(--muted);max-width:420px;margin-top:8px}
+    .upload-icon{width:106px;height:106px;flex:none;border-radius:24px;background:#0c4a59;color:var(--light);display:grid;place-items:center;font-size:53px}.cta{display:inline-block;background:var(--cyan);color:#05262d;font-size:18px;font-weight:800;padding:10px 18px;border-radius:11px;margin-top:15px}
+    .file-row{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;margin-top:21px;border-radius:16px;border:1px solid #405e66;background:#1a2b30}
+    .file-label{font-size:21px;font-weight:750}.pdf{display:inline-grid;place-items:center;width:47px;height:47px;margin-right:14px;border-radius:10px;background:#135364;color:#bdfaff;font-size:17px;font-weight:900}.ready{font-size:18px;font-weight:800;color:#a8f7db}
+    .chat-main{display:flex;flex-direction:column;height:100%}.chat-header{display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #33515a;padding-bottom:19px}.chat-header h3{margin:0}
+    .thread{flex:1;padding-top:24px}.bubble{max-width:680px;padding:18px 23px;border-radius:19px;font-size:24px;line-height:1.38}.bubble.user{margin-left:auto;background:#176477;border-bottom-right-radius:4px}.bubble.tutor{margin-top:23px;background:#203035;border:1px solid #425e66;border-bottom-left-radius:4px}.bubble b{color:var(--light)}
+    .input{display:flex;align-items:center;justify-content:space-between;border:2px solid #405d66;border-radius:17px;background:#101d21;color:#d4e2e5;padding:14px 18px;font-size:20px}.send{width:42px;height:42px;border-radius:10px;background:var(--cyan);color:#05262d;display:grid;place-items:center;font-size:25px;font-weight:900}
+    .quiz-wrap{width:960px;margin:5px auto 0;position:relative;z-index:2}.quiz-card{padding:37px 43px;border-radius:27px;border:2px solid #41616a;background:#16252a;box-shadow:0 26px 90px #0008}
+    .quiz-top{display:flex;justify-content:space-between;font-size:20px;letter-spacing:.05em;font-weight:800;color:var(--light)}.quiz-card h2{font-size:42px;line-height:1.18;letter-spacing:-.03em;margin-top:22px}
+    .answers{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:27px}.answer{padding:21px 24px;border:2px solid #49656e;border-radius:16px;background:#1d3036;font-size:22px;font-weight:700;color:#e5eff1}.correct{display:inline-block;color:#a7f6d9;font-size:21px;font-weight:800;margin-top:21px}
+    .outro{position:relative;z-index:2;height:100%;display:grid;grid-template-columns:.91fr 1.09fr;align-items:center;padding:78px 88px;gap:35px}.outro-logo{width:380px;height:auto}.outro .rule{width:190px;margin-top:22px}.outro h2{font-size:68px;line-height:1.05;letter-spacing:-.06em}.outro p.last{font-size:23px;color:var(--muted);margin-top:22px}.corner{position:absolute;right:85px;bottom:55px;font-size:18px;letter-spacing:.13em;color:#b0c7cc;text-transform:uppercase}
+    #hook-eyebrow,#hook-title,#hook-rule,#paper-stage,#upload-top,#upload-window,#upload-file,#upload-ready,#tutor-top,#tutor-window,#question,#answer,#quiz-topline,#quiz-wrap,#correct,#outro-mark,#outro-copy{opacity:0}
+  </style>
+</head>
+<body>
+<div id="root" data-composition-id="main" data-start="0" data-duration="20" data-width="1280" data-height="720" data-fps="30">
+  <div id="audio-glow" data-layout-ignore></div>
+  <section id="scene-hook" class="clip scene" data-start="0" data-duration="2.5" data-track-index="0">
+    <div class="grid" data-layout-ignore></div>
+    <div class="hook">
+      <div><p id="hook-eyebrow" class="eyebrow">A better way to study</p><h1 id="hook-title">Your notes have <span class="accent">questions.</span></h1><div id="hook-rule" class="rule"></div></div>
+      <div id="paper-stage" class="paper-stage">
+        <div class="paper back" data-layout-ignore></div><div class="paper mid" data-layout-ignore></div>
+        <div class="paper front"><small>BIOLOGY • LECTURE 04</small><strong>Cell Division Notes</strong><div class="paper-line"></div><div class="paper-line short"></div><div class="paper-line"></div><div class="sticker">?</div></div>
+      </div>
+    </div>
+  </section>
+  <section id="scene-upload" class="clip scene product" data-start="2.5" data-duration="4.5" data-track-index="1">
+    <div id="upload-top" class="scene-top"><div><p class="eyebrow">01 / Bring your material</p><h2>Make your notes searchable.</h2></div><span class="step">LERNA / MATERIALS</span></div>
+    <div id="upload-window" class="window">
+      <aside class="sidebar"><img class="logo-small" src="assets/brand/lerna-full-white.png" alt="Lerna AI"><div class="nav">Study</div><div class="nav active">Materials</div><div class="nav">Quiz</div><p class="sidebar-note">Your learning workspace, in one place.</p></aside>
+      <div class="main"><span class="chip"><span class="dot"></span>Study materials</span><h3>Teach Lerna from your study files</h3><p class="sub">Upload notes, slides, PDFs, documents, and images.</p>
+        <div class="dropzone"><div><strong>Drop files here</strong><p>Bring class notes into the same session as your AI tutor.</p><span id="select-files" class="cta">Select files</span></div><div class="upload-icon">⇧</div></div>
+        <div id="upload-cursor" class="demo-cursor" style="left:395px;top:357px"><svg viewBox="0 0 34 42" aria-hidden="true"><path d="M2 2L2 34L10 28L17 40L23 37L16 25L27 24Z" fill="#f8fafc" stroke="#0c252b" stroke-width="2"/></svg></div>
+        <div id="upload-file" class="file-row"><div><span class="pdf">PDF</span><span class="file-label">Cell Division Notes.pdf</span></div><span id="upload-ready" class="ready">✓ Ready to study</span></div>
+      </div>
+    </div>
+  </section>
+  <section id="scene-tutor" class="clip scene product" data-start="7" data-duration="5.5" data-track-index="2">
+    <div id="tutor-top" class="scene-top"><div><p class="eyebrow">02 / Ask anything</p><h2>Get a clear explanation.</h2></div><span class="step">LERNA / TUTOR</span></div>
+    <div id="tutor-window" class="window"><aside class="sidebar"><img class="logo-small" src="assets/brand/lerna-full-white.png" alt="Lerna AI"><div class="nav active">Study</div><div class="nav">Materials</div><div class="nav">Quiz</div><p class="sidebar-note">Cell Division Notes.pdf<br>Ready to study</p></aside>
+      <div class="main chat-main"><div class="chat-header"><div><h3>Biology study session</h3><p class="sub">Your AI tutor is ready.</p></div><span class="chip"><span class="dot"></span>Active</span></div>
+        <div class="thread"><div id="question" class="bubble user">Explain mitosis simply.</div><div id="answer" class="bubble tutor"><b>Lerna AI</b><br>Mitosis is how one cell makes two matching cells.</div></div>
+        <div class="input"><span>Ask a question about this course…</span><span class="send">↑</span></div>
+      </div>
+    </div>
+  </section>
+  <section id="scene-quiz" class="clip scene product" data-start="12.5" data-duration="4" data-track-index="3">
+    <div id="quiz-topline" class="scene-top"><div><p class="eyebrow">03 / Check your understanding</p><h2>Practice what you learned.</h2></div><span class="step">LERNA / QUIZ</span></div>
+    <div id="quiz-wrap" class="quiz-wrap"><div class="quiz-card"><div class="quiz-top"><span>CELL DIVISION • PRACTICE QUIZ</span><span>QUESTION 01 / 05</span></div><h2>What separates during anaphase?</h2>
+      <div class="answers"><div class="answer">A. Chromosomes replicate</div><div id="choice" class="answer">B. Sister chromatids</div><div class="answer">C. Nuclei dissolve</div><div class="answer">D. Cells divide</div></div>
+      <div id="quiz-cursor" class="demo-cursor" style="left:685px;top:217px"><svg viewBox="0 0 34 42" aria-hidden="true"><path d="M2 2L2 34L10 28L17 40L23 37L16 25L27 24Z" fill="#f8fafc" stroke="#0c252b" stroke-width="2"/></svg></div>
+      <div id="correct" class="correct">✓ Correct. Keep going.</div>
+    </div></div>
+  </section>
+  <section id="scene-outro" class="clip scene" data-start="16.5" data-duration="3.5" data-track-index="4">
+    <div class="grid" data-layout-ignore></div>
+    <div class="outro"><div id="outro-mark"><img class="outro-logo" src="assets/brand/lerna-full-white.png" alt="Lerna AI"><div class="rule"></div></div><div id="outro-copy"><p class="eyebrow">Your personal AI tutor</p><h2>Learn <span class="accent">smarter</span>, not harder.</h2><p class="last">Bring your notes. Keep your momentum.</p></div></div>
+    <div class="corner">Lerna AI · Made for actual studying</div>
+  </section>
+  <audio id="music-bed" src="assets/music/lerna-bed.mp3" data-start="0" data-duration="20" data-track-index="10" data-automation="{&quot;version&quot;:1,&quot;lanes&quot;:[{&quot;target&quot;:&quot;volume&quot;,&quot;points&quot;:[{&quot;t&quot;:0,&quot;v&quot;:0.27},{&quot;t&quot;:17.5,&quot;v&quot;:0.27},{&quot;t&quot;:20,&quot;v&quot;:0}]}]}"></audio>
+  <audio id="sfx-upload" src="assets/sfx/click.ogg" data-start="4.65" data-duration="0.01" data-track-index="11" data-volume="0.64"></audio>
+  <audio id="sfx-file" src="assets/sfx/card-slide.ogg" data-start="5.10" data-duration="0.3" data-track-index="12" data-volume="0.52"></audio>
+  <audio id="sfx-chat" src="assets/sfx/soft-impact.ogg" data-start="8.74" data-duration="0.18" data-track-index="13" data-volume="0.58"></audio>
+  <audio id="sfx-quiz" src="assets/sfx/click.ogg" data-start="14.75" data-duration="0.01" data-track-index="14" data-volume="0.64"></audio>
+  <audio id="sfx-logo" src="assets/sfx/logo-bong.ogg" data-start="17.47" data-duration="0.12" data-track-index="15" data-volume="0.55"></audio>
+</div>
+<script>
+  const tl=gsap.timeline({paused:true});
+  const enter=(sel,t,y=24,d=.55)=>tl.fromTo(sel,{opacity:0,y:y},{opacity:1,y:0,duration:d,ease:"power3.out",immediateRender:false},t);
+  enter("#hook-eyebrow",.08,18,.42);enter("#hook-title",.24,32,.65);enter("#hook-rule",.65,0,.45);
+  tl.fromTo("#paper-stage",{opacity:0,x:80,rotation:5},{opacity:1,x:0,rotation:0,duration:.9,ease:"power3.out"},.2);
+  enter("#upload-top",2.58,25,.5);enter("#upload-window",2.88,42,.63);
+  enter("#upload-cursor",3.96,-35,.34);
+  tl.to("#upload-cursor",{x:-48,y:28,duration:.35,ease:"power2.inOut"},4.26);
+  tl.to("#select-files",{scale:.95,duration:.08,yoyo:true,repeat:1,ease:"power2.in"},4.65);
+  tl.to("#upload-cursor",{opacity:0,duration:.18},4.82);
+  // beat-grid: file card begins near the 4.91s beat, with a soft slide at 5.10s.
+  enter("#upload-file",4.91,22,.42);enter("#upload-ready",5.60,0,.38);
+  enter("#tutor-top",7.06,25,.53);enter("#tutor-window",7.34,40,.64);enter("#question",8.07,20,.44);
+  // beat-locked: tutor answer begins at the 8.74s strong cue.
+  enter("#answer",8.74,25,.52);
+  enter("#quiz-topline",12.56,25,.54);enter("#quiz-wrap",12.86,38,.62);
+  enter("#quiz-cursor",14.13,-42,.4);
+  tl.to("#quiz-cursor",{x:25,y:24,duration:.42,ease:"power2.inOut"},14.25);
+  tl.to("#choice",{scale:.98,duration:.08,yoyo:true,repeat:1,ease:"power2.out"},14.75);
+  tl.to("#choice",{backgroundColor:"#155267",borderColor:"#06b6d4",color:"#ffffff",duration:.22,ease:"power2.out"},14.77);
+  tl.to("#quiz-cursor",{opacity:0,duration:.18},15.08);
+  enter("#correct",15.16,12,.32);
+  enter("#outro-mark",16.78,20,.63);
+  // beat-locked: final tagline starts on the 17.47s strong cue.
+  enter("#outro-copy",17.47,26,.58);
+  const glow=document.getElementById("audio-glow");
+  if(window.AUDIO_DATA&&Array.isArray(window.AUDIO_DATA.frames)){
+    for(let f=0;f<Math.min(600,window.AUDIO_DATA.frames.length);f++){
+      const frame=window.AUDIO_DATA.frames[f];
+      tl.call(()=>{glow.style.opacity=String(.12+Math.min(.09,frame.rms*.10));},[],f/30);
+    }
+  }
+  window.__timelines["main"]=tl;
+</script>
+</body>
+</html>
