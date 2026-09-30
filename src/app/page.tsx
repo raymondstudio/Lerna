@@ -494,7 +494,7 @@ function HomePageContent() {
               width={220}
               height={44}
               style={{ width: "auto", height: "auto" }}
-              className="h-12 max-w-[150px] object-contain"
+              className="h-12 sm:max-w-[150px] max-w-[100px] object-contain"
               priority
             />
           </div>
