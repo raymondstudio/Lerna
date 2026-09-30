@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import nextDynamic from "next/dynamic";
-import { DashboardShell } from "@/components/layout/DashboardShell";
+
 import { requireUser } from "@/lib/auth/require-user";
 import { Loader2 } from "lucide-react";
 
@@ -18,7 +18,7 @@ export default async function ChatPage() {
   await requireUser("/chat");
 
   return (
-    <DashboardShell>
+    
       <Suspense fallback={
         <div className="flex-1 flex items-center justify-center bg-[#0a0a0a]">
           <Loader2 className="w-8 h-8 text-cyan-500 animate-spin" />
@@ -26,6 +26,6 @@ export default async function ChatPage() {
       }>
         <StudyWorkspace />
       </Suspense>
-    </DashboardShell>
+    
   );
 }

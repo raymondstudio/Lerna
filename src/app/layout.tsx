@@ -19,6 +19,7 @@ const bodyFont = Space_Grotesk({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "https://learn.app"),
   title: {
     default: "Lerna AI | Smart Learning & AI Tutoring",
     template: "%s | Lerna AI"
@@ -41,7 +42,7 @@ export const metadata: Metadata = {
     siteName: "Lerna AI",
     images: [
       {
-        url: "public/assets/dashboard-mockup.png",
+        url: "/assets/dashboard-mockup.png",
         width: 1200,
         height: 630,
         alt: "Lerna Dashboard Mockup",
@@ -52,7 +53,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Lerna AI | Smart Learning & AI Tutoring",
     description: "Experience the most intuitive AI tutoring platform built for actual studying.",
-    images: ["/public/assets/dashboard-mockup.png"],
+    images: ["/assets/dashboard-mockup.png"],
     creator: "@RaymondIorliam",
   },
   alternates: {
@@ -68,8 +69,11 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   let initialSession = null;
 
   try {
-    const { data } = await supabase.auth.getSession();
-    initialSession = data.session;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const { data } = await supabase.auth.getSession();
+      initialSession = data.session;
+    }
   } catch (error) {
     console.warn("[layout] failed to restore initial session", {
       error: error instanceof Error ? error.message : String(error),

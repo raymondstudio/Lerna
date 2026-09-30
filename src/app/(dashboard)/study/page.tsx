@@ -21,7 +21,9 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
-import { DashboardShell } from '@/components/layout/DashboardShell';
+import { useCourses } from '@/hooks/use-courses';
+import { useMaterials, useInvalidateMaterials } from '@/hooks/use-materials';
+
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { UPLOADED_MATERIALS_BUCKET, buildUploadPath, isAllowedUploadMimeType, getAcceptedUploadMimeTypes } from '@/lib/uploads/constants';
 import { ChatMessage as ChatMessageComponent } from '@/components/chat/ChatMessage';
@@ -457,9 +459,8 @@ function StudyPageContent() {
   const [phase, setPhase] = useState<Phase>('setup');
   const [activeTab, setActiveTab] = useState<'study' | 'notes'>('study');
 
-  // ── Setup ─────────────────────────────────────────────────────────────────
-  const [courses, setCourses] = useState<Course[]>([]);
-  const [coursesLoading, setCoursesLoading] = useState(true);
+  // ── Setup — courses come from React Query (cached, no re-fetch on navigation) ─
+  const { data: courses = [], isLoading: coursesLoading } = useCourses();
   const [selectedCourseId, setSelectedCourseId] = useState('');
 
   // ── Session ───────────────────────────────────────────────────────────────
@@ -481,8 +482,9 @@ function StudyPageContent() {
   // ── Chat ──────────────────────────────────────────────────────────────────
   const [chatMessages, setChatMessages] = useState<ChatMsg[]>([]);
 
-  // ── Materials ──────────────────────────────────────────────────────────────
-  const [allMaterials, setAllMaterials] = useState<Material[]>([]);
+  // ── Materials — also cached via React Query ─────────────────────────────────
+  const { data: allMaterials = [] } = useMaterials();
+  const invalidateMaterials = useInvalidateMaterials();
   const [isUploading, setIsUploading] = useState(false);
 
   // ── Summary ───────────────────────────────────────────────────────────────
@@ -497,45 +499,18 @@ function StudyPageContent() {
     }
   }, [user, authLoading, router]);
 
-  // ─── Fetch courses & materials ─────────────────────────────────────────────
-  const loadSetupData = useCallback(async () => {
-    try {
-      const [coursesRes, materialsRes] = await Promise.all([
-        fetch('/api/courses'),
-        fetch('/api/materials')
-      ]);
-
-      if (coursesRes.ok) {
-        const data = await coursesRes.ok ? await coursesRes.json() : { courses: [] };
-        const list: Course[] = Array.isArray(data) ? data : data.courses ?? [];
-        setCourses(list);
-        
-        // Select course from query or default
-        if (list.length > 0) {
-          const match = queryCourseId && list.some(c => c.id === queryCourseId);
-          setSelectedCourseId(match ? queryCourseId : list[0].id);
-        }
-      }
-
-      if (materialsRes.ok) {
-        const payload = await materialsRes.json();
-        setAllMaterials(payload.data?.materials ?? []);
-      }
-    } catch (err) {
-      console.error("Failed to load setup details", err);
-    } finally {
-      setCoursesLoading(false);
-    }
-  }, [queryCourseId]);
-
+  // Preselect course from query params when courses load
   useEffect(() => {
-    if (user) {
-      loadSetupData();
+    if (courses.length > 0 && queryCourseId) {
+      const match = courses.some((c: any) => c.id === queryCourseId);
+      setSelectedCourseId(match ? queryCourseId : courses[0].id);
+    } else if (courses.length > 0 && !selectedCourseId) {
+      setSelectedCourseId(courses[0].id);
     }
-  }, [user, loadSetupData]);
+  }, [courses, queryCourseId]);
 
   // Filter materials for selected course
-  const courseMaterials = allMaterials.filter(m => m.course_id === selectedCourseId);
+  const courseMaterials = allMaterials.filter((m: any) => m.course_id === selectedCourseId);
 
   // ─── Restore active study session from DB ──────────────────────────────────
   useEffect(() => {
@@ -786,8 +761,8 @@ function StudyPageContent() {
 
       if (insertError) throw insertError;
 
-      // Add to local state
-      setAllMaterials((prev) => [insertedRow, ...prev]);
+      // Invalidate React Query cache so the materials list refreshes
+      invalidateMaterials();
 
       // Process document in background
       fetch(`/api/materials/${insertedRow.id}/process`, { method: "POST" }).catch(() => {});
@@ -831,7 +806,7 @@ function StudyPageContent() {
   // ─── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <DashboardShell>
+    
       <div className="h-full w-full flex flex-col min-h-0 bg-[#0a0a0a] text-white">
         <AnimatePresence mode="wait">
         {/* ═══════════════════════════════ SETUP PHASE ══════════════════════════ */}
@@ -1238,7 +1213,7 @@ function StudyPageContent() {
         )}
         </AnimatePresence>
       </div>
-    </DashboardShell>
+    
   );
 }
 

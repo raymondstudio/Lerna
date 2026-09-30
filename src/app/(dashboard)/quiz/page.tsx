@@ -20,7 +20,9 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
-import { DashboardShell } from '@/components/layout/DashboardShell';
+import { useCourses } from '@/hooks/use-courses';
+import { useMaterials } from '@/hooks/use-materials';
+import { useInvalidateQuizList } from '@/hooks/use-quiz';
 
 type QuizType = 'mcq' | 'flashcard' | 'short_answer';
 type Phase = 'setup' | 'quiz' | 'results' | 'review';
@@ -364,13 +366,34 @@ function QuizPageContent() {
   const [setupTab, setSetupTab] = useState<'create' | 'history'>('create');
   const [phase, setPhase] = useState<Phase>('setup');
 
-  // Setup state
-  const [courses, setCourses] = useState<Course[]>([]);
-  const [materials, setMaterials] = useState<Material[]>([]);
+  // Setup state — courses & materials come from React Query (cached, instant on re-visit)
+  const { data: courses = [] } = useCourses();
+  const { data: allMaterials = [] } = useMaterials();
   const [selectedCourseId, setSelectedCourseId] = useState<string>('');
   const [selectedMaterialId, setSelectedMaterialId] = useState<string>('');
   const [quizType, setQuizType] = useState<QuizType>('mcq');
   const [questionCount, setQuestionCount] = useState<number>(5);
+
+  // Preselect from query params
+  useEffect(() => {
+    if (courses.length > 0 && queryCourseId) {
+      const match = courses.some((c: any) => c.id === queryCourseId);
+      if (match) setSelectedCourseId(queryCourseId);
+    }
+  }, [courses, queryCourseId]);
+
+  useEffect(() => {
+    if (allMaterials.length > 0 && queryMaterialId) {
+      const mat = allMaterials.find((m: any) => m.id === queryMaterialId);
+      if (mat) {
+        setSelectedMaterialId(mat.id);
+        setSelectedCourseId(mat.course_id ?? '');
+      }
+    }
+  }, [allMaterials, queryMaterialId]);
+
+  // Derive materials list from React Query data
+  const materials: Material[] = allMaterials;
 
   // Active quiz state
   const [questions, setQuestions] = useState<Question[]>([]);
@@ -391,51 +414,6 @@ function QuizPageContent() {
   // Last recorded user answer option/text
   const [lastUserAnswerVal, setLastUserAnswerVal] = useState('');
   const [startTime, setStartTime] = useState<number | null>(null);
-
-  // ─── Fetch courses & materials ─────────────────────────────────────────────
-  const fetchSetupData = useCallback(async () => {
-    try {
-      const [coursesRes, materialsRes] = await Promise.all([
-        fetch('/api/courses'),
-        fetch('/api/materials'),
-      ]);
-
-      if (coursesRes.ok) {
-        const data = await coursesRes.json();
-        const list: Course[] = data.data?.courses ?? data.courses ?? [];
-        setCourses(list);
-
-        // Preselect course from query
-        if (list.length > 0) {
-          const match = queryCourseId && list.some(c => c.id === queryCourseId);
-          setSelectedCourseId(match ? queryCourseId : '');
-        }
-      }
-
-      if (materialsRes.ok) {
-        const payload = await materialsRes.json();
-        const list: Material[] = payload.data?.materials ?? payload.materials ?? [];
-        setMaterials(list);
-
-        // Preselect material from query
-        if (list.length > 0 && queryMaterialId) {
-          const mat = list.find(m => m.id === queryMaterialId);
-          if (mat) {
-            setSelectedMaterialId(mat.id);
-            setSelectedCourseId(mat.course_id);
-          }
-        }
-      }
-    } catch (e) {
-      console.error('Failed to load setup details', e);
-    }
-  }, [queryCourseId, queryMaterialId]);
-
-  useEffect(() => {
-    if (user) {
-      fetchSetupData();
-    }
-  }, [user, fetchSetupData]);
 
   // ─── Fetch Past Quizzes ────────────────────────────────────────────────────
   const fetchPastQuizzes = useCallback(async () => {
@@ -621,7 +599,7 @@ function QuizPageContent() {
     acc >= 80 ? 'text-green-400' : acc >= 50 ? 'text-cyan-400' : 'text-red-400';
 
   return (
-    <DashboardShell>
+    
       <div className="h-full overflow-y-auto bg-[#0a0a0a] font-body text-white">
         {/* Header */}
         <div className="border-b border-white/5 bg-[#141414] shrink-0 sticky top-0 z-10">
@@ -1168,7 +1146,7 @@ function QuizPageContent() {
           </AnimatePresence>
         </div>
       </div>
-    </DashboardShell>
+    
   );
 }
 

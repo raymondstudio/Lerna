@@ -307,7 +307,7 @@ function FAQItem({ question, answer }: { question: string; answer: string }) {
 
 function TestimonialCard({ testimonial }: { testimonial: (typeof testimonials)[number] }) {
   return (
-    <article className="rounded-2xl border border-white/8 bg-[#111827] p-6 transition-colors hover:border-blue-500/20 hover:bg-[#141e35]">
+    <article className="rounded-2xl border border-white/8 bg-[#111827] p-6 transition-colors">
       <div className="mb-5 flex items-start justify-between gap-4">
         <div className="flex min-w-0 items-center gap-3">
           <div
@@ -493,7 +493,8 @@ function HomePageContent() {
               alt="Lerna"
               width={220}
               height={44}
-              className="h-12 w-auto object-contain"
+              style={{ width: "auto", height: "auto" }}
+              className="h-12 max-w-[150px] object-contain"
               priority
             />
           </div>
@@ -575,60 +576,41 @@ function HomePageContent() {
       </nav>
 
       {/* ── Hero Section ────────────────────────────────────────────────── */}
-      <section className="relative mx-auto max-w-7xl px-6 pt-44 pb-24 sm:pt-52 sm:pb-32">
+      <section className="relative mx-auto max-w-7xl px-6 pt-32 pb-24 sm:pt-40 sm:pb-32">
         {/* Background glow */}
         <div className="pointer-events-none absolute top-0 left-1/4 h-[500px] w-[600px] rounded-full bg-blue-600/8 blur-[120px]" />
 
-        <div className="relative z-10 flex flex-col items-center lg:items-start pt-4 sm:pt-8 text-center lg:text-left">
+        <div className="relative z-10 flex flex-col items-start pt-8 sm:pt-12 text-left">
           {/* Top: text */}
-          <div className="max-w-3xl flex flex-col items-center lg:items-start">
-            {/* Trust badge */}
-            <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 mb-8">
-              <div className="flex text-amber-400">
-                {[...Array(5)].map((_, i) => <Star key={i} className="h-3 w-3 fill-current" />)}
-              </div>
-              <span className="text-xs font-medium text-slate-300">Trusted by students worldwide</span>
-            </div>
-
-            <h1 className="font-heading text-5xl sm:text-6xl lg:text-[4.25rem] xl:text-7xl font-normal tracking-tight text-white leading-[1.05] mb-6">
+          <div className="max-w-[42rem] flex flex-col items-start">
+            <h1 className="font-body text-5xl sm:text-6xl lg:text-[5rem] font-medium tracking-tight text-white leading-[1.1] mb-6">
               Learn{" "}
-              <span className="italic text-blue-400">smarter</span>
-              ,<br />
+              <span className="italic text-cyan-400 relative inline-block">
+                smarter,
+                <svg className="absolute left-0 w-full -bottom-1 text-cyan-400" viewBox="0 0 100 20" preserveAspectRatio="none" style={{ height: '10px' }}>
+                  <path d="M0,10 Q10,20 20,10 T40,10 T60,10 T80,10 T100,10" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" />
+                </svg>
+              </span>
+              <br />
               not harder.
             </h1>
 
-            <p className="text-base sm:text-lg text-slate-400 leading-relaxed mb-8 max-w-lg mx-auto lg:mx-0">
+            <p className="text-lg sm:text-xl text-slate-400 leading-relaxed mb-10 max-w-lg">
               Ask questions, upload study materials, build smart revision plans, and keep every learning session organized in one workspace.
             </p>
 
-            <div className="flex flex-col sm:flex-row gap-3 items-center justify-center lg:justify-start w-full sm:w-auto">
+            <div className="flex flex-col sm:flex-row gap-6 items-center justify-start">
               <button
                 onClick={() => setActiveModal("signup")}
-                className="inline-flex items-center justify-center w-full sm:w-auto gap-2 rounded-full bg-white text-[#0B1120] hover:bg-slate-100 px-7 h-12 text-sm font-semibold transition-all hover:scale-[1.02] active:scale-[0.98] shadow-lg shadow-white/10"
+                className="inline-flex items-center justify-center gap-2 rounded-full bg-white text-[#0B1120] hover:bg-slate-200 px-6 h-12 text-sm font-semibold transition-all hover:scale-[1.02] active:scale-[0.98]"
               >
-                Start studying for free <ArrowRight className="h-4 w-4" />
+                Get started <ArrowRight className="h-4 w-4" />
               </button>
-              <Link href="#features" className="w-full sm:w-auto">
-                <button className="inline-flex items-center justify-center w-full sm:w-auto gap-2 rounded-full border border-white/15 bg-white/5 hover:bg-white/10 text-white px-7 h-12 text-sm font-medium transition-all">
-                  Explore features
+              <Link href="#how-it-works">
+                <button className="text-sm font-semibold text-slate-300 hover:text-white transition-colors">
+                  See how it works
                 </button>
               </Link>
-            </div>
-
-            {/* Social proof row */}
-            <div className="mt-8 flex items-center gap-4 flex-wrap justify-center lg:justify-start">
-              <div className="flex -space-x-2">
-                {["SarahL", "AlexM", "DavidK", "MayaT"].map((seed) => (
-                  <div
-                    key={seed}
-                    className="h-8 w-8 rounded-full border-2 border-[#0B1120] bg-slate-700 bg-cover bg-center"
-                    style={{ backgroundImage: `url(https://api.dicebear.com/9.x/notionists/svg?seed=${seed})` }}
-                  />
-                ))}
-              </div>
-              <p className="text-sm text-slate-400">
-                <span className="font-semibold text-white">1,000+</span> students studying smarter
-              </p>
             </div>
           </div>
         </div>
@@ -680,9 +662,9 @@ function HomePageContent() {
             {steps.map((step, idx) => (
               <div
                 key={step.number}
-                className="relative bg-[#111827] border border-white/8 rounded-2xl p-8 sm:p-10 hover:border-blue-500/25 transition-all group"
+                className="relative bg-[#111827] border border-white/8 rounded-2xl p-8 sm:p-10 transition-all"
               >
-                <div className="font-heading text-6xl sm:text-7xl font-normal text-white/8 group-hover:text-blue-500/15 transition-colors mb-6 leading-none select-none">
+                <div className="font-heading text-6xl sm:text-7xl font-normal text-white/8 transition-colors mb-6 leading-none select-none">
                   {step.number}
                 </div>
                 <h3 className="text-xl font-semibold text-white mb-3">{step.title}</h3>
@@ -719,10 +701,10 @@ function HomePageContent() {
               return (
                 <div
                   key={feature.title}
-                  className="relative bg-[#111827] border border-white/8 hover:border-blue-500/25 hover:bg-[#141e35] p-7 rounded-2xl transition-all duration-300 group cursor-default"
+                  className="relative bg-[#111827] border border-white/8 p-7 rounded-2xl transition-all duration-300 cursor-default"
                 >
                   <div className="flex items-start justify-between mb-5">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-500/15 text-blue-400 group-hover:bg-blue-500/25 transition-colors">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-500/15 text-blue-400 transition-colors">
                       <Icon className="h-5 w-5" />
                     </div>
                     {feature.isComingSoon && (
@@ -763,7 +745,7 @@ function HomePageContent() {
                 className={`flex flex-col justify-between rounded-2xl p-8 relative overflow-hidden border transition-all ${
                   plan.name === "Pro"
                     ? "bg-[#0d1e3a] border-blue-500/50 shadow-[0_0_40px_rgba(59,130,246,0.12)]"
-                    : "bg-[#111827] border-white/8 hover:border-blue-500/25"
+                    : "bg-[#111827] border-white/8"
                 }`}
               >
                 {plan.isComingSoon && plan.name !== "Pro" && (
@@ -948,7 +930,7 @@ function HomePageContent() {
 
           <div className="grid gap-6 md:grid-cols-2">
             {/* WhatsApp */}
-            <div className="relative overflow-hidden rounded-2xl border border-emerald-500/20 bg-[#111827] p-8 flex flex-col justify-between hover:border-emerald-500/35 transition-all group">
+            <div className="relative overflow-hidden rounded-2xl border border-emerald-500/20 bg-[#111827] p-8 flex flex-col justify-between transition-all">
               <div className="absolute -right-8 -top-8 h-40 w-40 bg-emerald-500/8 rounded-full blur-3xl pointer-events-none" />
               <div>
                 <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-400 border border-emerald-500/20 mb-6">
@@ -972,7 +954,7 @@ function HomePageContent() {
             </div>
 
             {/* Discord */}
-            <div className="relative overflow-hidden rounded-2xl border border-indigo-500/20 bg-[#111827] p-8 flex flex-col justify-between hover:border-indigo-500/35 transition-all group">
+            <div className="relative overflow-hidden rounded-2xl border border-indigo-500/20 bg-[#111827] p-8 flex flex-col justify-between transition-all">
               <div className="absolute -right-8 -top-8 h-40 w-40 bg-indigo-500/8 rounded-full blur-3xl pointer-events-none" />
               <div>
                 <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-500/15 text-indigo-400 border border-indigo-500/20 mb-6">

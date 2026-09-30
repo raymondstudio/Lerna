@@ -191,7 +191,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
     <div className="flex flex-col h-full bg-[#141414] text-slate-200">
       {/* Sidebar Header */}
       <div className="flex items-center justify-between px-3 py-4 border-b border-white/5">
-        <Link href="/" className="flex items-center gap-2.5 px-2">
+        <Link prefetch={true} href="/" className="flex items-center gap-2.5 px-2">
           <Image
             src="/assets/lerna-full-white.png"
             alt="Lerna"
@@ -235,7 +235,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
             const Icon = item.icon;
             const isActive = pathname === item.href;
             return (
-              <Link
+              <Link prefetch={true}
                 key={item.href}
                 href={item.href}
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${
@@ -309,7 +309,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
 
       {/* Footer */}
       <div className="p-3 border-t border-white/5 mt-auto space-y-1">
-        <Link href="/account" className="block w-full">
+        <Link prefetch={true} href="/account" className="block w-full">
           <Button
             variant="ghost"
             className={`w-full justify-start h-10 ${
