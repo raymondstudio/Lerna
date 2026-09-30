@@ -579,9 +579,9 @@ function HomePageContent() {
         {/* Background glow */}
         <div className="pointer-events-none absolute top-0 left-1/4 h-[500px] w-[600px] rounded-full bg-blue-600/8 blur-[120px]" />
 
-        <div className="relative z-10 grid lg:grid-cols-2 gap-14 lg:gap-20 items-center">
-          {/* Left: text */}
-          <div>
+        <div className="relative z-10 flex flex-col items-center lg:items-start pt-4 sm:pt-8 text-center lg:text-left">
+          {/* Top: text */}
+          <div className="max-w-3xl flex flex-col items-center lg:items-start">
             {/* Trust badge */}
             <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 mb-8">
               <div className="flex text-amber-400">
@@ -597,26 +597,26 @@ function HomePageContent() {
               not harder.
             </h1>
 
-            <p className="text-base sm:text-lg text-slate-400 leading-relaxed mb-8 max-w-lg">
+            <p className="text-base sm:text-lg text-slate-400 leading-relaxed mb-8 max-w-lg mx-auto lg:mx-0">
               Ask questions, upload study materials, build smart revision plans, and keep every learning session organized in one workspace.
             </p>
 
-            <div className="flex flex-col sm:flex-row gap-3 items-start">
+            <div className="flex flex-col sm:flex-row gap-3 items-center justify-center lg:justify-start w-full sm:w-auto">
               <button
                 onClick={() => setActiveModal("signup")}
-                className="inline-flex items-center gap-2 rounded-full bg-white text-[#0B1120] hover:bg-slate-100 px-7 h-12 text-sm font-semibold transition-all hover:scale-[1.02] active:scale-[0.98] shadow-lg shadow-white/10"
+                className="inline-flex items-center justify-center w-full sm:w-auto gap-2 rounded-full bg-white text-[#0B1120] hover:bg-slate-100 px-7 h-12 text-sm font-semibold transition-all hover:scale-[1.02] active:scale-[0.98] shadow-lg shadow-white/10"
               >
                 Start studying for free <ArrowRight className="h-4 w-4" />
               </button>
-              <Link href="#features">
-                <button className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 hover:bg-white/10 text-white px-7 h-12 text-sm font-medium transition-all">
+              <Link href="#features" className="w-full sm:w-auto">
+                <button className="inline-flex items-center justify-center w-full sm:w-auto gap-2 rounded-full border border-white/15 bg-white/5 hover:bg-white/10 text-white px-7 h-12 text-sm font-medium transition-all">
                   Explore features
                 </button>
               </Link>
             </div>
 
             {/* Social proof row */}
-            <div className="mt-8 flex items-center gap-4 flex-wrap">
+            <div className="mt-8 flex items-center gap-4 flex-wrap justify-center lg:justify-start">
               <div className="flex -space-x-2">
                 {["SarahL", "AlexM", "DavidK", "MayaT"].map((seed) => (
                   <div
@@ -631,10 +631,28 @@ function HomePageContent() {
               </p>
             </div>
           </div>
+        </div>
 
-          {/* Right: floating mockup */}
-          <div className="flex justify-center lg:justify-end">
-            <HeroMockupCard />
+        {/* Bottom: Dashboard mockup image */}
+        <div className="relative z-10 mt-20 sm:mt-24 w-full">
+          <div className="rounded-xl sm:rounded-2xl border border-white/10 bg-white/5 p-2 sm:p-4 shadow-2xl backdrop-blur-xl">
+            <div className="rounded-lg sm:rounded-xl overflow-hidden border border-white/5 relative bg-[#0B1120]">
+              <div className="absolute top-0 left-0 w-full h-8 sm:h-12 bg-[#1A2234] border-b border-white/5 flex items-center px-3 sm:px-4 gap-1.5 sm:gap-2 z-10">
+                <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-rose-500/80"></div>
+                <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-amber-500/80"></div>
+                <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-emerald-500/80"></div>
+              </div>
+              <div className="pt-8 sm:pt-12">
+                <Image
+                  src="/dashboard-mockup.png"
+                  alt="Lerna Dashboard Interface"
+                  width={1280}
+                  height={720}
+                  className="w-full h-auto object-cover opacity-90"
+                  priority
+                />
+              </div>
+            </div>
           </div>
         </div>
       </section>
