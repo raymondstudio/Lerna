@@ -1,11 +1,12 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { BookOpen, Plus, GraduationCap, Loader2, X } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
-import { DashboardShell } from '@/components/layout/DashboardShell'
+import { useCourses, useInvalidateCourses } from '@/hooks/use-courses'
+
 import { createSupabaseBrowserClient } from '@/lib/supabase/client'
 import { UPLOADED_MATERIALS_BUCKET, buildUploadPath, getAcceptedUploadMimeTypes, isAllowedUploadMimeType } from '@/lib/uploads/constants'
 
@@ -326,37 +327,12 @@ export default function CoursesPage() {
   const { user, loading: authLoading } = useAuth()
   const router = useRouter()
 
-  const [courses, setCourses] = useState<Course[]>([])
-  const [fetching, setFetching] = useState(true)
+  const { data: courses = [], isLoading: fetching } = useCourses()
+  const invalidateCourses = useInvalidateCourses()
   const [modalOpen, setModalOpen] = useState(false)
 
-  // Redirect if not authenticated
-  useEffect(() => {
-    if (!authLoading && !user) {
-      router.replace('/login')
-    }
-  }, [authLoading, user, router])
-
-  // Fetch courses
-  useEffect(() => {
-    if (!user) return
-    async function loadCourses() {
-      try {
-        const res = await fetch('/api/courses')
-        if (!res.ok) throw new Error('Failed to fetch courses')
-        const data = await res.json()
-        setCourses(Array.isArray(data) ? data : data.courses ?? [])
-      } catch (err) {
-        console.error(err)
-      } finally {
-        setFetching(false)
-      }
-    }
-    loadCourses()
-  }, [user])
-
-  function handleCourseCreated(course: Course) {
-    setCourses((prev) => [course, ...prev])
+  function handleCourseCreated(_course: Course) {
+    invalidateCourses()
   }
 
   // Auth loading guard
@@ -371,7 +347,7 @@ export default function CoursesPage() {
   if (!user) return null
 
   return (
-    <DashboardShell>
+    
       <div className="h-full overflow-y-auto bg-[#0a0a0a]">
         <div className="max-w-6xl mx-auto px-6 py-10">
 
@@ -501,6 +477,6 @@ export default function CoursesPage() {
         onCreated={handleCourseCreated}
       />
       </div>
-    </DashboardShell>
+    
   )
 }

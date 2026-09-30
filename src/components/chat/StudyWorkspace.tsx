@@ -184,6 +184,9 @@ export function StudyWorkspace() {
 
   const currentSessionId = paramSessionId ?? null;
 
+  const hasSessionRef = useRef(false);
+  hasSessionRef.current = sessions.some(s => s.id === currentSessionId);
+
   useEffect(() => {
     if (!ready || !user || !currentSessionId) {
       setLoadingActiveSession(false);
@@ -191,7 +194,12 @@ export function StudyWorkspace() {
     }
 
     const controller = new AbortController();
-    setLoadingActiveSession(true);
+    
+    // Only show loading state if we don't already have this session locally.
+    // We still fetch to ensure we have the latest messages (stale-while-revalidate).
+    if (!hasSessionRef.current) {
+      setLoadingActiveSession(true);
+    }
 
     void (async () => {
       try {

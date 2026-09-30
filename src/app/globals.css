@@ -3,32 +3,35 @@
 @tailwind utilities;
 
 :root {
-  --background: 220 6% 6%; /* deep charcoal */
-  --foreground: 210 10% 94%;
-  --card: 220 6% 8%;
-  --card-foreground: 210 10% 94%;
-  --popover: 220 6% 8%;
-  --popover-foreground: 210 10% 94%;
-  --background: 220 6% 6%; /* deep charcoal */
-  --foreground: 210 10% 94%;
-  --card: 220 6% 8%;
-  --card-foreground: 210 10% 94%;
-  --popover: 220 6% 8%;
-  --popover-foreground: 210 10% 94%;
-  --primary: 183 100% 54%;
-  --primary-foreground: 220 6% 6%;
-  --secondary: 220 8% 10%;
-  --secondary-foreground: 210 10% 94%;
-  --muted: 220 7% 9%;
-  --muted-foreground: 215 10% 60%;
-  --accent: 202 100% 58%;
-  --accent-foreground: 220 6% 6%;
+  /* Navy palette */
+  --background: 220 47% 7%;       /* #0B1120 deep navy */
+  --foreground: 210 40% 96%;
+  --card: 220 40% 9%;
+  --card-foreground: 210 40% 96%;
+  --popover: 220 40% 9%;
+  --popover-foreground: 210 40% 96%;
+  --primary: 220 93% 64%;          /* #4F8EF7 blue accent */
+  --primary-foreground: 220 47% 7%;
+  --secondary: 220 30% 13%;
+  --secondary-foreground: 210 40% 96%;
+  --muted: 220 30% 11%;
+  --muted-foreground: 215 20% 55%;
+  --accent: 220 93% 64%;
+  --accent-foreground: 220 47% 7%;
   --destructive: 0 84.2% 60.2%;
-  --destructive-foreground: 210 10% 94%;
-  --border: 220 6% 12%;
-  --input: 220 6% 12%;
-  --ring: 183 100% 54%;
-  --radius: 1rem;
+  --destructive-foreground: 210 40% 96%;
+  --border: 220 30% 14%;
+  --input: 220 30% 14%;
+  --ring: 220 93% 64%;
+  --radius: 0.75rem;
+
+  /* Custom palette tokens */
+  --navy: 220 47% 7%;
+  --navy-mid: 220 40% 10%;
+  --navy-light: 220 35% 15%;
+  --cream: 48 33% 97%;
+  --cream-dark: 45 20% 92%;
+  --blue-accent: 220 93% 64%;
 }
 
 @layer base {
@@ -38,22 +41,21 @@
   }
 
   body {
-  height: 100%;
-  min-height: 100vh;
-  background: hsl(var(--background));
-  color: hsl(var(--foreground));
-  font-feature-settings: "rlig" 1, "calt" 1;
-  scroll-behavior: smooth;
-}
+    height: 100%;
+    min-height: 100vh;
+    background: hsl(var(--background));
+    color: hsl(var(--foreground));
+    font-feature-settings: "rlig" 1, "calt" 1;
+    scroll-behavior: smooth;
+  }
 
-* {
-  border-color: hsl(var(--border));
-}
-
+  * {
+    border-color: hsl(var(--border));
+  }
 }
 
 ::selection {
-  background: rgba(45, 212, 191, 0.28);
+  background: rgba(79, 142, 247, 0.3);
   color: white;
 }
 
@@ -61,24 +63,42 @@
   .text-balance {
     text-wrap: balance;
   }
+
+  /* Cream panel text colours */
+  .text-navy-900 { color: #0b1120; }
+  .text-navy-700 { color: #1e2d4d; }
+  .bg-cream-panel { background-color: #F7F6F2; }
+  .bg-navy-panel  { background-color: #0B1120; }
 }
 
+/* ── Floating card animation (hero mockup) ─────────────────────────── */
+@keyframes float-card {
+  0%, 100% { transform: translateY(0px) rotate(-1deg); }
+  50%       { transform: translateY(-10px) rotate(-1deg); }
+}
+
+@keyframes float-card-slow {
+  0%, 100% { transform: translateY(0px) rotate(1deg); }
+  50%       { transform: translateY(-6px) rotate(1deg); }
+}
+
+.animate-float {
+  animation: float-card 5s ease-in-out infinite;
+}
+
+.animate-float-slow {
+  animation: float-card-slow 7s ease-in-out infinite;
+}
+
+/* ── Marquee (testimonials) ────────────────────────────────────────── */
 @keyframes marquee-up {
-  from {
-    transform: translateY(0);
-  }
-  to {
-    transform: translateY(-50%);
-  }
+  from { transform: translateY(0); }
+  to   { transform: translateY(-50%); }
 }
 
 @keyframes marquee-down {
-  from {
-    transform: translateY(-50%);
-  }
-  to {
-    transform: translateY(0);
-  }
+  from { transform: translateY(-50%); }
+  to   { transform: translateY(0); }
 }
 
 .animate-marquee-up {
@@ -93,7 +113,17 @@
 
 @media (prefers-reduced-motion: reduce) {
   .animate-marquee-up,
-  .animate-marquee-down {
+  .animate-marquee-down,
+  .animate-float,
+  .animate-float-slow {
     animation-play-state: paused;
   }
+}
+
+/* ── Handwritten annotation style ─────────────────────────────────── */
+.annotation {
+  font-style: italic;
+  font-size: 0.8rem;
+  letter-spacing: 0.01em;
+  line-height: 1.4;
 }

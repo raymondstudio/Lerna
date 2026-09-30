@@ -1,8 +1,9 @@
 import { redirect } from "next/navigation";
+import { cache } from "react";
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
-export async function requireUser(redirectTo: string) {
+export const requireUser = cache(async (redirectTo: string) => {
   const supabase = await createSupabaseServerClient();
   const { data } = await supabase.auth.getUser();
 
@@ -11,4 +12,4 @@ export async function requireUser(redirectTo: string) {
   }
 
   return data.user;
-}
+});

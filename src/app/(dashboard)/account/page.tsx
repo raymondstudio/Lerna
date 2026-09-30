@@ -27,7 +27,7 @@ import {
 } from "lucide-react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
-import { DashboardShell } from "@/components/layout/DashboardShell";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { buildProfileUpdatePayload, stripUndefined } from "@/lib/profile";
@@ -615,7 +615,7 @@ export default function AccountPage() {
   const currentDevice = getDeviceDetails();
 
   return (
-    <DashboardShell>
+    
       <div className="h-full flex flex-col overflow-hidden bg-[#0d0f12]">
         
         {/* Premium Top Sub-Navigation Header */}
@@ -1752,6 +1752,6 @@ export default function AccountPage() {
           </div>
         </div>
       </div>
-    </DashboardShell>
+    
   );
 }

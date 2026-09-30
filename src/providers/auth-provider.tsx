@@ -55,6 +55,18 @@ export function AuthProvider({ children, initialSession }: { children: ReactNode
     let isMounted = true;
 
     void (async () => {
+      const { data: userData, error: userError } = await supabase.auth.getUser();
+
+      if (!isMounted) {
+        return;
+      }
+
+      if (userError || !userData?.user) {
+        setSession(null);
+        setLoading(false);
+        return;
+      }
+
       const { data, error: sessionError } = await supabase.auth.getSession();
 
       if (!isMounted) {
@@ -70,7 +82,7 @@ export function AuthProvider({ children, initialSession }: { children: ReactNode
 
       console.info("[auth:provider] session restored", {
         hasSession: Boolean(data.session),
-        userId: data.session?.user?.id,
+        userId: userData.user.id,
       });
       setSession(data.session ?? null);
       setLoading(false);

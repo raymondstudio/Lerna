@@ -21,7 +21,10 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
-import { DashboardShell } from '@/components/layout/DashboardShell';
+import { useDashboard } from '@/context/dashboard-context';
+import { useCourses } from '@/hooks/use-courses';
+import { useMaterials, useInvalidateMaterials } from '@/hooks/use-materials';
+
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { UPLOADED_MATERIALS_BUCKET, buildUploadPath, isAllowedUploadMimeType, getAcceptedUploadMimeTypes } from '@/lib/uploads/constants';
 import { ChatMessage as ChatMessageComponent } from '@/components/chat/ChatMessage';
@@ -454,18 +457,20 @@ function StudyPageContent() {
   const queryCourseId = searchParams.get('courseId');
 
   // ── Phase ─────────────────────────────────────────────────────────────────
-  const [phase, setPhase] = useState<Phase>('setup');
+  const { sessions, upsertSession } = useDashboard();
+  const cachedSession = querySessionId ? sessions.find(s => s.id === querySessionId) : null;
+  const initialPhase = cachedSession && cachedSession.status !== 'completed' ? 'active' : 'setup';
+  const [phase, setPhase] = useState<Phase>(initialPhase);
   const [activeTab, setActiveTab] = useState<'study' | 'notes'>('study');
 
-  // ── Setup ─────────────────────────────────────────────────────────────────
-  const [courses, setCourses] = useState<Course[]>([]);
-  const [coursesLoading, setCoursesLoading] = useState(true);
+  // ── Setup — courses come from React Query (cached, no re-fetch on navigation) ─
+  const { data: courses = [], isLoading: coursesLoading } = useCourses();
   const [selectedCourseId, setSelectedCourseId] = useState('');
 
   // ── Session ───────────────────────────────────────────────────────────────
-  const [sessionId, setSessionId] = useState<string | null>(null);
-  const [sessionStart, setSessionStart] = useState<Date | null>(null);
-  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [sessionId, setSessionId] = useState<string | null>(cachedSession?.id || null);
+  const [sessionStart, setSessionStart] = useState<Date | null>(cachedSession ? new Date(cachedSession.createdAt) : null);
+  const [elapsedSeconds, setElapsedSeconds] = useState(cachedSession?.durationSeconds || 0);
 
   // ── Pomodoro ──────────────────────────────────────────────────────────────
   const [pomMode, setPomMode] = useState<PomodoroMode>('work');
@@ -474,15 +479,23 @@ function StudyPageContent() {
   const pomIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // ── Topics & Notes ────────────────────────────────────────────────────────
-  const [topics, setTopics] = useState<string[]>([]);
-  const [notes, setNotes] = useState('');
+  const [topics, setTopics] = useState<string[]>(cachedSession?.topicsCovered || []);
+  const [notes, setNotes] = useState(cachedSession?.notes || '');
   const [notesSaved, setNotesSaved] = useState(true);
 
   // ── Chat ──────────────────────────────────────────────────────────────────
-  const [chatMessages, setChatMessages] = useState<ChatMsg[]>([]);
+  const [chatMessages, setChatMessages] = useState<ChatMsg[]>(
+    cachedSession ? cachedSession.messages.map((m: any) => ({
+      id: m.id,
+      role: m.role as 'user' | 'assistant',
+      content: m.content,
+      sources: m.sources
+    })) : []
+  );
 
-  // ── Materials ──────────────────────────────────────────────────────────────
-  const [allMaterials, setAllMaterials] = useState<Material[]>([]);
+  // ── Materials — also cached via React Query ─────────────────────────────────
+  const { data: allMaterials = [] } = useMaterials();
+  const invalidateMaterials = useInvalidateMaterials();
   const [isUploading, setIsUploading] = useState(false);
 
   // ── Summary ───────────────────────────────────────────────────────────────
@@ -497,50 +510,55 @@ function StudyPageContent() {
     }
   }, [user, authLoading, router]);
 
-  // ─── Fetch courses & materials ─────────────────────────────────────────────
-  const loadSetupData = useCallback(async () => {
-    try {
-      const [coursesRes, materialsRes] = await Promise.all([
-        fetch('/api/courses'),
-        fetch('/api/materials')
-      ]);
-
-      if (coursesRes.ok) {
-        const data = await coursesRes.ok ? await coursesRes.json() : { courses: [] };
-        const list: Course[] = Array.isArray(data) ? data : data.courses ?? [];
-        setCourses(list);
-        
-        // Select course from query or default
-        if (list.length > 0) {
-          const match = queryCourseId && list.some(c => c.id === queryCourseId);
-          setSelectedCourseId(match ? queryCourseId : list[0].id);
-        }
-      }
-
-      if (materialsRes.ok) {
-        const payload = await materialsRes.json();
-        setAllMaterials(payload.data?.materials ?? []);
-      }
-    } catch (err) {
-      console.error("Failed to load setup details", err);
-    } finally {
-      setCoursesLoading(false);
-    }
-  }, [queryCourseId]);
-
+  // Preselect course from query params when courses load
   useEffect(() => {
-    if (user) {
-      loadSetupData();
+    if (courses.length > 0 && queryCourseId) {
+      const match = courses.some((c: any) => c.id === queryCourseId);
+      setSelectedCourseId(match ? queryCourseId : courses[0].id);
+    } else if (courses.length > 0 && !selectedCourseId) {
+      setSelectedCourseId(cachedSession?.courseId || courses[0].id);
     }
-  }, [user, loadSetupData]);
+  }, [courses, queryCourseId, cachedSession]);
 
   // Filter materials for selected course
-  const courseMaterials = allMaterials.filter(m => m.course_id === selectedCourseId);
+  const courseMaterials = allMaterials.filter((m: any) => m.course_id === selectedCourseId);
+
+  const lastFetchedSessionIdRef = useRef<string | null>(null);
 
   // ─── Restore active study session from DB ──────────────────────────────────
   useEffect(() => {
-    if (!user || !querySessionId) return;
+    if (!user || !querySessionId) {
+      if (!querySessionId) setPhase('setup');
+      lastFetchedSessionIdRef.current = null;
+      return;
+    }
 
+    // Only restore/fetch once per querySessionId change
+    if (lastFetchedSessionIdRef.current === querySessionId) {
+      return;
+    }
+    lastFetchedSessionIdRef.current = querySessionId;
+
+    const sessionToRestore = cachedSession;
+
+    // Synchronously restore from cache if available to prevent flashing
+    if (sessionToRestore && sessionToRestore.status !== 'completed') {
+      setSessionId(sessionToRestore.id);
+      setSelectedCourseId(sessionToRestore.courseId || '');
+      setSessionStart(new Date(sessionToRestore.createdAt));
+      setElapsedSeconds(sessionToRestore.durationSeconds || 0);
+      setTopics(sessionToRestore.topicsCovered || []);
+      setNotes(sessionToRestore.notes || '');
+      setChatMessages(sessionToRestore.messages.map((m: any) => ({
+        id: m.id,
+        role: m.role as 'user' | 'assistant',
+        content: m.content,
+        sources: m.sources
+      })));
+      setPhase('active');
+    }
+
+    // Always fetch in background to sync latest
     async function restore() {
       try {
         const res = await fetch(`/api/study-sessions/${querySessionId}`);
@@ -548,27 +566,34 @@ function StudyPageContent() {
           const payload = await res.json();
           const session = payload.data?.session;
           if (session && session.status !== 'completed') {
-            setSessionId(session.id);
-            setSelectedCourseId(session.courseId || '');
-            setSessionStart(new Date(session.createdAt));
-            setElapsedSeconds(session.durationSeconds || 0);
-            setTopics(session.topicsCovered || []);
-            setNotes(session.notes || '');
-            setChatMessages(session.messages.map((m: any) => ({
-              id: m.id,
-              role: m.role,
-              content: m.content,
-              sources: m.sources
-            })));
-            setPhase('active');
+            upsertSession(session);
+            
+            // If it wasn't cached before, update local state now
+            if (!sessionToRestore) {
+              setSessionId(session.id);
+              setSelectedCourseId(session.courseId || '');
+              setSessionStart(new Date(session.createdAt));
+              setElapsedSeconds(session.durationSeconds || 0);
+              setTopics(session.topicsCovered || []);
+              setNotes(session.notes || '');
+              setChatMessages(session.messages.map((m: any) => ({
+                id: m.id,
+                role: m.role,
+                content: m.content,
+                sources: m.sources
+              })));
+              setPhase('active');
+            }
           }
         }
       } catch (e) {
         console.error("Failed to restore session state", e);
       }
     }
+    
     restore();
-  }, [querySessionId, user]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [querySessionId, user, upsertSession]);
 
   // ─── Debounced notes auto-save ─────────────────────────────────────────────
   const [debouncedNotes, setDebouncedNotes] = useState(notes);
@@ -786,8 +811,8 @@ function StudyPageContent() {
 
       if (insertError) throw insertError;
 
-      // Add to local state
-      setAllMaterials((prev) => [insertedRow, ...prev]);
+      // Invalidate React Query cache so the materials list refreshes
+      invalidateMaterials();
 
       // Process document in background
       fetch(`/api/materials/${insertedRow.id}/process`, { method: "POST" }).catch(() => {});
@@ -831,7 +856,7 @@ function StudyPageContent() {
   // ─── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <DashboardShell>
+    
       <div className="h-full w-full flex flex-col min-h-0 bg-[#0a0a0a] text-white">
         <AnimatePresence mode="wait">
         {/* ═══════════════════════════════ SETUP PHASE ══════════════════════════ */}
@@ -1238,7 +1263,7 @@ function StudyPageContent() {
         )}
         </AnimatePresence>
       </div>
-    </DashboardShell>
+    
   );
 }
 
