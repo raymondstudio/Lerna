@@ -21,6 +21,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
+import { useDashboard } from '@/context/dashboard-context';
 import { useCourses } from '@/hooks/use-courses';
 import { useMaterials, useInvalidateMaterials } from '@/hooks/use-materials';
 
@@ -456,7 +457,10 @@ function StudyPageContent() {
   const queryCourseId = searchParams.get('courseId');
 
   // ── Phase ─────────────────────────────────────────────────────────────────
-  const [phase, setPhase] = useState<Phase>('setup');
+  const { sessions, upsertSession } = useDashboard();
+  const cachedSession = querySessionId ? sessions.find(s => s.id === querySessionId) : null;
+  const initialPhase = cachedSession && cachedSession.status !== 'completed' ? 'active' : 'setup';
+  const [phase, setPhase] = useState<Phase>(initialPhase);
   const [activeTab, setActiveTab] = useState<'study' | 'notes'>('study');
 
   // ── Setup — courses come from React Query (cached, no re-fetch on navigation) ─
@@ -464,9 +468,9 @@ function StudyPageContent() {
   const [selectedCourseId, setSelectedCourseId] = useState('');
 
   // ── Session ───────────────────────────────────────────────────────────────
-  const [sessionId, setSessionId] = useState<string | null>(null);
-  const [sessionStart, setSessionStart] = useState<Date | null>(null);
-  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [sessionId, setSessionId] = useState<string | null>(cachedSession?.id || null);
+  const [sessionStart, setSessionStart] = useState<Date | null>(cachedSession ? new Date(cachedSession.createdAt) : null);
+  const [elapsedSeconds, setElapsedSeconds] = useState(cachedSession?.durationSeconds || 0);
 
   // ── Pomodoro ──────────────────────────────────────────────────────────────
   const [pomMode, setPomMode] = useState<PomodoroMode>('work');
@@ -475,12 +479,19 @@ function StudyPageContent() {
   const pomIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // ── Topics & Notes ────────────────────────────────────────────────────────
-  const [topics, setTopics] = useState<string[]>([]);
-  const [notes, setNotes] = useState('');
+  const [topics, setTopics] = useState<string[]>(cachedSession?.topicsCovered || []);
+  const [notes, setNotes] = useState(cachedSession?.notes || '');
   const [notesSaved, setNotesSaved] = useState(true);
 
   // ── Chat ──────────────────────────────────────────────────────────────────
-  const [chatMessages, setChatMessages] = useState<ChatMsg[]>([]);
+  const [chatMessages, setChatMessages] = useState<ChatMsg[]>(
+    cachedSession ? cachedSession.messages.map((m: any) => ({
+      id: m.id,
+      role: m.role as 'user' | 'assistant',
+      content: m.content,
+      sources: m.sources
+    })) : []
+  );
 
   // ── Materials — also cached via React Query ─────────────────────────────────
   const { data: allMaterials = [] } = useMaterials();
@@ -505,17 +516,49 @@ function StudyPageContent() {
       const match = courses.some((c: any) => c.id === queryCourseId);
       setSelectedCourseId(match ? queryCourseId : courses[0].id);
     } else if (courses.length > 0 && !selectedCourseId) {
-      setSelectedCourseId(courses[0].id);
+      setSelectedCourseId(cachedSession?.courseId || courses[0].id);
     }
-  }, [courses, queryCourseId]);
+  }, [courses, queryCourseId, cachedSession]);
 
   // Filter materials for selected course
   const courseMaterials = allMaterials.filter((m: any) => m.course_id === selectedCourseId);
 
+  const lastFetchedSessionIdRef = useRef<string | null>(null);
+
   // ─── Restore active study session from DB ──────────────────────────────────
   useEffect(() => {
-    if (!user || !querySessionId) return;
+    if (!user || !querySessionId) {
+      if (!querySessionId) setPhase('setup');
+      lastFetchedSessionIdRef.current = null;
+      return;
+    }
 
+    // Only restore/fetch once per querySessionId change
+    if (lastFetchedSessionIdRef.current === querySessionId) {
+      return;
+    }
+    lastFetchedSessionIdRef.current = querySessionId;
+
+    const sessionToRestore = cachedSession;
+
+    // Synchronously restore from cache if available to prevent flashing
+    if (sessionToRestore && sessionToRestore.status !== 'completed') {
+      setSessionId(sessionToRestore.id);
+      setSelectedCourseId(sessionToRestore.courseId || '');
+      setSessionStart(new Date(sessionToRestore.createdAt));
+      setElapsedSeconds(sessionToRestore.durationSeconds || 0);
+      setTopics(sessionToRestore.topicsCovered || []);
+      setNotes(sessionToRestore.notes || '');
+      setChatMessages(sessionToRestore.messages.map((m: any) => ({
+        id: m.id,
+        role: m.role as 'user' | 'assistant',
+        content: m.content,
+        sources: m.sources
+      })));
+      setPhase('active');
+    }
+
+    // Always fetch in background to sync latest
     async function restore() {
       try {
         const res = await fetch(`/api/study-sessions/${querySessionId}`);
@@ -523,27 +566,34 @@ function StudyPageContent() {
           const payload = await res.json();
           const session = payload.data?.session;
           if (session && session.status !== 'completed') {
-            setSessionId(session.id);
-            setSelectedCourseId(session.courseId || '');
-            setSessionStart(new Date(session.createdAt));
-            setElapsedSeconds(session.durationSeconds || 0);
-            setTopics(session.topicsCovered || []);
-            setNotes(session.notes || '');
-            setChatMessages(session.messages.map((m: any) => ({
-              id: m.id,
-              role: m.role,
-              content: m.content,
-              sources: m.sources
-            })));
-            setPhase('active');
+            upsertSession(session);
+            
+            // If it wasn't cached before, update local state now
+            if (!sessionToRestore) {
+              setSessionId(session.id);
+              setSelectedCourseId(session.courseId || '');
+              setSessionStart(new Date(session.createdAt));
+              setElapsedSeconds(session.durationSeconds || 0);
+              setTopics(session.topicsCovered || []);
+              setNotes(session.notes || '');
+              setChatMessages(session.messages.map((m: any) => ({
+                id: m.id,
+                role: m.role,
+                content: m.content,
+                sources: m.sources
+              })));
+              setPhase('active');
+            }
           }
         }
       } catch (e) {
         console.error("Failed to restore session state", e);
       }
     }
+    
     restore();
-  }, [querySessionId, user]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [querySessionId, user, upsertSession]);
 
   // ─── Debounced notes auto-save ─────────────────────────────────────────────
   const [debouncedNotes, setDebouncedNotes] = useState(notes);
