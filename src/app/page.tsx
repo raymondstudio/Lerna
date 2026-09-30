@@ -4,16 +4,14 @@ import Link from "next/link";
 import Image from "next/image";
 import { useState, useEffect, Suspense, type ReactNode } from "react";
 import { useSearchParams } from "next/navigation";
-import dynamic from "next/dynamic";
-const RobotCanvas = dynamic(() => import("@/components/3d/RobotCanvas").then(mod => mod.RobotCanvas), { ssr: false });
-import { 
-  ArrowRight, 
-  BookOpen, 
-  Brain, 
-  CheckCircle2, 
-  FileText, 
-  Mic, 
-  ShieldCheck, 
+import {
+  ArrowRight,
+  BookOpen,
+  Brain,
+  CheckCircle2,
+  FileText,
+  Mic,
+  ShieldCheck,
   UploadCloud,
   Menu,
   X,
@@ -25,7 +23,11 @@ import {
   Sparkles,
   Star,
   ChevronDown,
-  Users
+  Users,
+  ThumbsUp,
+  MessageSquare,
+  Zap,
+  Target,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
@@ -34,6 +36,7 @@ import { SignupForm } from "@/components/auth/signup-form";
 import { ForgotPasswordModal } from "@/components/auth/forgot-password-modal";
 import { ResetPasswordModal } from "@/components/auth/reset-password-modal";
 
+// ── Static motion shims (no framer dependency) ─────────────────────────────
 type StaticMotionProps = React.HTMLAttributes<HTMLDivElement> & {
   initial?: unknown;
   animate?: unknown;
@@ -78,53 +81,53 @@ function AnimatePresence({ children }: { children: ReactNode; initial?: boolean 
   return <>{children}</>;
 }
 
-// 9 benefits-focused features
+// ── Data ───────────────────────────────────────────────────────────────────
 const features = [
-  { 
-    icon: Brain, 
-    title: "AI Tutor", 
-    description: "Get clear, step-by-step explanations tailored to your subject, speed, and learning style." 
+  {
+    icon: Brain,
+    title: "AI Tutor",
+    description: "Get clear, step-by-step explanations tailored to your subject, speed, and learning style.",
   },
-  { 
-    icon: UploadCloud, 
-    title: "Upload Lecture Notes", 
-    description: "Convert dense lecture slides, recordings, and outlines into structured lessons instantly." 
+  {
+    icon: UploadCloud,
+    title: "Upload Lecture Notes",
+    description: "Convert dense lecture slides, recordings, and outlines into structured lessons instantly.",
   },
-  { 
-    icon: FileText, 
-    title: "AI Document Analysis", 
-    description: "Parse, extract, and synthesize complex PDFs, articles, and book chapters without cognitive overload." 
+  {
+    icon: FileText,
+    title: "AI Document Analysis",
+    description: "Parse, extract, and synthesize complex PDFs, articles, and book chapters without cognitive overload.",
   },
-  { 
-    icon: Calendar, 
-    title: "Personalized Study Plans", 
-    description: "Set study targets and generate structured timelines to map out exams, courses, and tasks." 
+  {
+    icon: Calendar,
+    title: "Personalized Study Plans",
+    description: "Set study targets and generate structured timelines to map out exams, courses, and tasks.",
   },
-  { 
-    icon: Layers, 
-    title: "Flashcards", 
-    description: "Auto-generate interactive revision decks and review concepts with spaced repetition." 
+  {
+    icon: Layers,
+    title: "Flashcards",
+    description: "Auto-generate interactive revision decks and review concepts with spaced repetition.",
   },
-  { 
-    icon: HelpCircle, 
-    title: "Quiz Generator", 
-    description: "Challenge your comprehension with custom multiple-choice, short-answer, and mock exams." 
+  {
+    icon: HelpCircle,
+    title: "Quiz Generator",
+    description: "Challenge your comprehension with custom multiple-choice, short-answer, and mock exams.",
   },
-  { 
-    icon: PenTool, 
-    title: "Essay Practice", 
-    description: "Draft essays with instant styling feedback, thesis checks, and structural revisions." 
+  {
+    icon: PenTool,
+    title: "Essay Practice",
+    description: "Draft essays with instant styling feedback, thesis checks, and structural revisions.",
   },
-  { 
-    icon: History, 
-    title: "Persistent Study Sessions", 
-    description: "Never lose your spot. Your conversations, document history, and notes stay synced and open." 
+  {
+    icon: History,
+    title: "Persistent Study Sessions",
+    description: "Never lose your spot. Your conversations, document history, and notes stay synced and open.",
   },
-  { 
-    icon: Mic, 
-    title: "Voice Learning", 
+  {
+    icon: Mic,
+    title: "Voice Learning",
     description: "Engage in natural, audio-based study dialogues. Talk to your tutor and listen on the go.",
-    isComingSoon: true 
+    isComingSoon: true,
   },
 ];
 
@@ -132,18 +135,21 @@ const steps = [
   {
     number: "01",
     title: "Upload study materials",
-    description: "Drag and drop your lecture slides, class notes, research PDFs, or outlines into your personal workspace."
+    description:
+      "Drag and drop your lecture slides, class notes, research PDFs, or outlines into your personal workspace.",
   },
   {
     number: "02",
     title: "Ask questions & interact",
-    description: "Let your AI tutor guide you through difficult concepts, explain diagrams, or break down formulas step-by-step."
+    description:
+      "Let your AI tutor guide you through difficult concepts, explain diagrams, or break down formulas step-by-step.",
   },
   {
     number: "03",
     title: "Master your courses",
-    description: "Generate customized practice exams, revision flashcards, and personalized study schedules to master any exam."
-  }
+    description:
+      "Generate customized practice exams, revision flashcards, and personalized study schedules to master any exam.",
+  },
 ];
 
 const pricingPlans = [
@@ -155,10 +161,10 @@ const pricingPlans = [
       "Unlimited sign up",
       "Limited AI usage",
       "Upload documents",
-      "Persistent chat history"
+      "Persistent chat history",
     ],
     buttonText: "Get Started for Free",
-    isComingSoon: false
+    isComingSoon: false,
   },
   {
     name: "Pro",
@@ -170,10 +176,10 @@ const pricingPlans = [
       "More document uploads",
       "Voice tutoring",
       "Priority processing",
-      "Larger AI quota"
+      "Larger AI quota",
     ],
     buttonText: "Coming Soon",
-    isComingSoon: true
+    isComingSoon: true,
   },
   {
     name: "Premium",
@@ -184,143 +190,144 @@ const pricingPlans = [
       "Highest AI quota",
       "Priority realtime sync",
       "Advanced analytics",
-      "Premium support"
+      "Premium support",
     ],
     buttonText: "Coming Soon",
-    isComingSoon: true
-  }
+    isComingSoon: true,
+  },
 ];
 
 const testimonials = [
   {
-    quote: "Lerna completely changed how I study for midterms. I uploaded 50 pages of biology slides and it explained the Krebs cycle better than my textbook.",
+    quote:
+      "Lerna completely changed how I study for midterms. I uploaded 50 pages of biology slides and it explained the Krebs cycle better than my textbook.",
     name: "Sarah L.",
     role: "Pre-Med Student",
     avatar: "https://api.dicebear.com/9.x/notionists/svg?seed=SarahL&backgroundColor=b5ead7&skinColor=brown",
-    rating: 5
+    rating: 5,
   },
   {
-    quote: "The interactive quiz generator is incredible. Instead of passively reading, I can test myself on the exact material our instructor covered in class.",
+    quote:
+      "The interactive quiz generator is incredible. Instead of passively reading, I can test myself on the exact material our instructor covered in class.",
     name: "Alex M.",
     role: "Computer Science Junior",
     avatar: "https://api.dicebear.com/9.x/notionists/svg?seed=AlexM&backgroundColor=ffd6a5&skinColor=darkBrown",
-    rating: 5
+    rating: 5,
   },
   {
-    quote: "Having my study sessions persist across devices means I can start on my laptop and continue reading on my phone on the train. A lifesaver.",
+    quote:
+      "Having my study sessions persist across devices means I can start on my laptop and continue reading on my phone on the train. A lifesaver.",
     name: "David K.",
     role: "Law Student",
     avatar: "https://api.dicebear.com/9.x/notionists/svg?seed=DavidK&backgroundColor=c1e1c1&skinColor=brown",
-    rating: 5
+    rating: 5,
   },
   {
-    quote: "I used to reread the same lecture notes without knowing what I actually remembered. Lerna turns them into focused questions that make revision much more active.",
+    quote:
+      "I used to reread the same lecture notes without knowing what I actually remembered. Lerna turns them into focused questions that make revision much more active.",
     name: "Maya T.",
     role: "Psychology Student",
     avatar: "https://api.dicebear.com/9.x/notionists/svg?seed=MayaT&backgroundColor=fde2e4&skinColor=brown",
-    rating: 5
+    rating: 5,
   },
   {
-    quote: "The study plans gave me structure when I was juggling three deadlines. I can see what to review next instead of wasting time deciding where to begin.",
+    quote:
+      "The study plans gave me structure when I was juggling three deadlines. I can see what to review next instead of wasting time deciding where to begin.",
     name: "Jordan P.",
     role: "Engineering Student",
     avatar: "https://api.dicebear.com/9.x/notionists/svg?seed=JordanP&backgroundColor=d4e6f1&skinColor=darkBrown",
-    rating: 5
+    rating: 5,
   },
   {
-    quote: "Being able to ask follow-up questions about my own uploaded materials is the difference. It feels like having a patient study partner available whenever I need one.",
+    quote:
+      "Being able to ask follow-up questions about my own uploaded materials is the difference. It feels like having a patient study partner available whenever I need one.",
     name: "Nia O.",
     role: "Graduate Student",
     avatar: "https://api.dicebear.com/9.x/notionists/svg?seed=NiaO&backgroundColor=e8d5b7&skinColor=darkBrown",
-    rating: 5
-  }
+    rating: 5,
+  },
 ];
 
 const faqs = [
   {
     question: "Is it free?",
-    answer: "Yes! Lerna AI offers a robust Free plan that lets you sign up, upload study materials, chat with your AI tutor, and access persistent session history."
+    answer:
+      "Yes! Lerna AI offers a robust Free plan that lets you sign up, upload study materials, chat with your AI tutor, and access persistent session history.",
   },
   {
     question: "What file types are supported?",
-    answer: "We support PDF documents, Word files (.docx), and raw text files. We parse and index your course material so you can query it immediately."
+    answer:
+      "We support PDF documents, Word files (.docx), and raw text files. We parse and index your course material so you can query it immediately.",
   },
   {
     question: "Can it remember my learning progress?",
-    answer: "Absolutely. Every study session you start is fully persistent. You can close the tab or switch from desktop to mobile and resume tutoring from the exact same point."
+    answer:
+      "Absolutely. Every study session you start is fully persistent. You can close the tab or switch from desktop to mobile and resume tutoring from the exact same point.",
   },
   {
     question: "Can it generate quizzes?",
-    answer: "Yes, you can generate customized quizzes with multiple-choice or short-answer formats directly from your uploaded lectures or chat context."
+    answer:
+      "Yes, you can generate customized quizzes with multiple-choice or short-answer formats directly from your uploaded lectures or chat context.",
   },
   {
     question: "Is my data secure?",
-    answer: "We take your privacy seriously. Your uploaded materials and chat logs are fully encrypted in transit and at rest, and we never share your data or use it to train public models."
-  }
+    answer:
+      "We take your privacy seriously. Your uploaded materials and chat logs are fully encrypted in transit and at rest, and we never share your data or use it to train public models.",
+  },
 ];
+
+// ── Sub-components ─────────────────────────────────────────────────────────
 
 function FAQItem({ question, answer }: { question: string; answer: string }) {
   const [isOpen, setIsOpen] = useState(false);
-
   return (
-    <div className="border-b border-white/5 last:border-b-0 first:py-0 last:py-0 py-4 sm:py-6">
+    <div className="border-b border-white/8 last:border-b-0 py-5 sm:py-6">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex w-full items-center justify-between text-left focus:outline-none group py-2"
+        className="flex w-full items-center justify-between text-left focus:outline-none group"
       >
-        <span className="text-base sm:text-lg font-medium text-slate-200 group-hover:text-cyan-400 transition-colors">
+        <span className="text-base sm:text-lg font-medium text-white group-hover:text-blue-400 transition-colors pr-4">
           {question}
         </span>
-        <motion.div
-          animate={{ rotate: isOpen ? 180 : 0 }}
-          transition={{ duration: 0.2 }}
-          className="text-slate-400 group-hover:text-white transition-colors ml-4 shrink-0"
+        <div
+          className="text-slate-400 group-hover:text-white transition-all ml-4 shrink-0"
+          style={{ transform: isOpen ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s" }}
         >
           <ChevronDown className="h-5 w-5" />
-        </motion.div>
+        </div>
       </button>
-      <AnimatePresence initial={false}>
-        {isOpen && (
-          <motion.div
-            initial={{ height: 0, opacity: 0, marginTop: 0 }}
-            animate={{ height: "auto", opacity: 1, marginTop: 12 }}
-            exit={{ height: 0, opacity: 0, marginTop: 0 }}
-            transition={{ duration: 0.25, ease: "easeInOut" }}
-            className="overflow-hidden"
-          >
-            <p className="text-sm sm:text-base text-slate-400 leading-relaxed pb-2">
-              {answer}
-            </p>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {isOpen && (
+        <p className="mt-4 text-sm sm:text-base text-slate-400 leading-relaxed">
+          {answer}
+        </p>
+      )}
     </div>
   );
 }
 
-function TestimonialCard({ testimonial }: { testimonial: typeof testimonials[number] }) {
+function TestimonialCard({ testimonial }: { testimonial: (typeof testimonials)[number] }) {
   return (
-    <article className="rounded-3xl border border-white/5 bg-white/[0.01] p-6 sm:p-8 transition-colors hover:border-cyan-500/20 hover:bg-white/[0.025]">
-      <div className="mb-6 flex items-start justify-between gap-4">
+    <article className="rounded-2xl border border-white/8 bg-[#111827] p-6 transition-colors hover:border-blue-500/20 hover:bg-[#141e35]">
+      <div className="mb-5 flex items-start justify-between gap-4">
         <div className="flex min-w-0 items-center gap-3">
           <div
             role="img"
             aria-label={`${testimonial.name} avatar`}
-            className="h-11 w-11 shrink-0 overflow-hidden rounded-full border border-white/10 bg-white/5 bg-cover bg-center"
+            className="h-10 w-10 shrink-0 overflow-hidden rounded-full border border-white/10 bg-white/5 bg-cover bg-center"
             style={{ backgroundImage: `url(${testimonial.avatar})` }}
           />
           <div className="min-w-0">
             <h4 className="truncate text-sm font-semibold text-white">{testimonial.name}</h4>
-            <p className="mt-1 truncate text-xs text-slate-500">{testimonial.role}</p>
+            <p className="mt-0.5 truncate text-xs text-slate-500">{testimonial.role}</p>
           </div>
         </div>
-        <div className="flex shrink-0 gap-0.5 text-cyan-400" aria-label={`${testimonial.rating} out of 5 stars`}>
+        <div className="flex shrink-0 gap-0.5 text-blue-400" aria-label={`${testimonial.rating} out of 5 stars`}>
           {[...Array(testimonial.rating)].map((_, index) => (
-            <Star key={index} className="h-4 w-4 fill-current" />
+            <Star key={index} className="h-3.5 w-3.5 fill-current" />
           ))}
         </div>
       </div>
-      <p className="text-base leading-relaxed text-slate-300 italic">&quot;{testimonial.quote}&quot;</p>
+      <p className="text-sm leading-relaxed text-slate-300 italic">&ldquo;{testimonial.quote}&rdquo;</p>
     </article>
   );
 }
@@ -333,18 +340,17 @@ function TestimonialMarqueeColumn({
   reverse?: boolean;
 }) {
   const marqueeItems = [...items, ...items];
-
   return (
     <div className="min-w-0 flex-1 overflow-hidden">
       <div className={`flex flex-col ${reverse ? "animate-marquee-down" : "animate-marquee-up"}`}>
-        <div className="flex shrink-0 flex-col gap-6 pb-6">
+        <div className="flex shrink-0 flex-col gap-5 pb-5">
           {marqueeItems.map((testimonial, index) => (
             <TestimonialCard key={`${testimonial.name}-${index}`} testimonial={testimonial} />
           ))}
         </div>
-        <div className="flex shrink-0 flex-col gap-6 pb-6" aria-hidden="true">
+        <div className="flex shrink-0 flex-col gap-5 pb-5" aria-hidden="true">
           {marqueeItems.map((testimonial, index) => (
-            <TestimonialCard key={`${testimonial.name}-duplicate-${index}`} testimonial={testimonial} />
+            <TestimonialCard key={`${testimonial.name}-dup-${index}`} testimonial={testimonial} />
           ))}
         </div>
       </div>
@@ -352,70 +358,98 @@ function TestimonialMarqueeColumn({
   );
 }
 
-function DemoChat() {
-  const starters = [
-    "Explain quantum computing in simple terms",
-    "What is the difference between active and passive transport?",
-    "Give me a quick analogy for recursive programming",
-  ];
-
+// ── Hero UI Mockup Card ────────────────────────────────────────────────────
+function HeroMockupCard() {
   return (
-    <div className="w-full max-w-3xl mx-auto rounded-3xl border border-white/10 bg-[#141414]/40 backdrop-blur-md p-6 sm:p-8 text-left shadow-[0_0_50px_rgba(6,182,212,0.05)] mb-24">
-      <div className="flex items-center gap-3 mb-6">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-cyan-500/10 text-cyan-400">
-          <Brain className="h-4 w-4" />
+    <div className="relative w-full max-w-sm mx-auto lg:mx-0 select-none">
+      {/* Main chat card */}
+      <div className="animate-float relative z-10 rounded-2xl border border-white/10 bg-[#111827] shadow-2xl shadow-black/60 p-5">
+        {/* Header */}
+        <div className="flex items-center gap-3 mb-4 pb-4 border-b border-white/8">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-500/20 text-blue-400">
+            <Brain className="h-4 w-4" />
+          </div>
+          <div>
+            <p className="text-xs font-semibold text-white">Lerna AI Tutor</p>
+            <p className="text-[10px] text-emerald-400 flex items-center gap-1">
+              <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400"></span> Active session
+            </p>
+          </div>
+          <div className="ml-auto flex gap-1">
+            <div className="h-2 w-2 rounded-full bg-slate-600"></div>
+            <div className="h-2 w-2 rounded-full bg-slate-600"></div>
+            <div className="h-2 w-2 rounded-full bg-slate-600"></div>
+          </div>
+        </div>
+        {/* Messages */}
+        <div className="space-y-3 mb-4">
+          <div className="flex gap-2 items-start">
+            <div className="h-6 w-6 rounded-full bg-slate-700 shrink-0 mt-0.5 flex items-center justify-center">
+              <span className="text-[9px] text-slate-300">U</span>
+            </div>
+            <div className="bg-[#1e2d4d] rounded-xl rounded-tl-sm px-3 py-2 max-w-[85%]">
+              <p className="text-[11px] text-slate-200">Explain the Krebs cycle in simple terms.</p>
+            </div>
+          </div>
+          <div className="flex gap-2 items-start">
+            <div className="h-6 w-6 rounded-lg bg-blue-500/20 shrink-0 mt-0.5 flex items-center justify-center">
+              <Brain className="h-3 w-3 text-blue-400" />
+            </div>
+            <div className="bg-[#162032] border border-blue-500/10 rounded-xl rounded-tl-sm px-3 py-2 max-w-[85%]">
+              <p className="text-[11px] text-slate-200 leading-relaxed">
+                The Krebs cycle is your cell&apos;s &ldquo;energy factory&rdquo;. It takes acetyl-CoA and spins it through 8 steps, releasing CO₂ and capturing energy as NADH...
+              </p>
+            </div>
+          </div>
+        </div>
+        {/* Input */}
+        <div className="flex gap-2 items-center">
+          <div className="flex-1 rounded-lg bg-white/5 border border-white/8 px-3 py-2">
+            <p className="text-[10px] text-slate-500">Ask a follow-up question...</p>
+          </div>
+          <button className="h-7 w-7 rounded-lg bg-blue-500 flex items-center justify-center shrink-0">
+            <ArrowRight className="h-3.5 w-3.5 text-white" />
+          </button>
+        </div>
+      </div>
+
+      {/* Floating badge — top right */}
+      <div className="animate-float-slow absolute -top-4 -right-4 z-20 rounded-xl bg-white px-3 py-2 shadow-xl shadow-black/30 flex items-center gap-2">
+        <div className="flex text-amber-400">
+          {[...Array(5)].map((_, i) => <Star key={i} className="h-3 w-3 fill-current" />)}
+        </div>
+        <p className="text-[10px] font-semibold text-slate-800">4.9 / 5</p>
+      </div>
+
+      {/* Floating doc badge — bottom left */}
+      <div className="animate-float absolute -bottom-5 -left-4 z-20 rounded-xl bg-[#111827] border border-blue-500/20 px-3 py-2 shadow-xl shadow-black/40 flex items-center gap-2.5">
+        <div className="h-7 w-7 rounded-lg bg-blue-500/20 flex items-center justify-center shrink-0">
+          <FileText className="h-3.5 w-3.5 text-blue-400" />
         </div>
         <div>
-          <h3 className="text-base font-semibold text-white">Interactive AI Tutor Demo</h3>
-          <p className="text-xs text-slate-500 mt-0.5">Test Lerna's capabilities immediately below.</p>
+          <p className="text-[10px] font-semibold text-white">lecture_notes.pdf</p>
+          <p className="text-[9px] text-slate-500">Indexed · 42 pages</p>
         </div>
-      </div>
-
-      {/* Messages area */}
-      <div className="space-y-4 mb-6 max-h-[300px] overflow-y-auto pr-1">
-        <p className="text-sm text-slate-400 leading-relaxed italic">
-          Ask any study question below, or select a starter topic to preview tutoring capabilities instantly.
-        </p>
-      </div>
-
-      {/* Starters */}
-      <div className="flex flex-wrap gap-2 mb-6">
-        {starters.map((starter) => (
-          <button
-            key={starter}
-            type="button"
-            disabled
-            className="text-xs text-slate-400 border border-white/10 bg-white/[0.02] rounded-full px-3.5 py-1.5 opacity-70 cursor-not-allowed"
-          >
-            {starter}
-          </button>
-        ))}
-      </div>
-
-      {/* Input row */}
-      <div className="flex gap-2">
-        <input
-          type="text"
-          placeholder="Ask a study question... (e.g. How does DNA replicate?)"
-          disabled
-          className="flex-1 bg-black/40 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-cyan-500/50 transition-colors"
-        />
-        <button
-          type="button"
-          disabled
-          className="h-11 px-5 rounded-2xl bg-cyan-500 text-slate-950 font-semibold text-sm opacity-30 cursor-not-allowed flex items-center justify-center gap-1.5"
-        >
-          Ask
-        </button>
       </div>
     </div>
   );
 }
 
+
+// ── Main Page ──────────────────────────────────────────────────────────────
 function HomePageContent() {
   const [activeModal, setActiveModal] = useState<"login" | "signup" | "forgot" | "reset" | null>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
   const searchParams = useSearchParams();
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 20);
+    };
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   useEffect(() => {
     const auth = searchParams.get("auth");
@@ -425,438 +459,543 @@ function HomePageContent() {
   }, [searchParams]);
 
   return (
-    <main className="min-h-screen bg-[#0a0a0a] text-slate-200 selection:bg-cyan-500/30 font-body overflow-x-hidden">
-      {/* Structured Data JSON-LD */}
+    <main className="min-h-screen bg-[#0B1120] text-slate-200 overflow-x-hidden font-body">
+      {/* Structured Data */}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
           __html: JSON.stringify({
             "@context": "https://schema.org",
             "@type": "SoftwareApplication",
-            "name": "Lerna AI",
-            "applicationCategory": "EducationalApplication",
-            "operatingSystem": "Web",
-            "offers": {
-              "@type": "Offer",
-              "price": "0",
-              "priceCurrency": "USD"
-            },
-            "description": "Experience the most intuitive AI tutoring platform built for actual studying. Ask questions, upload PDFs, and build smart revision plans.",
+            name: "Lerna AI",
+            applicationCategory: "EducationalApplication",
+            operatingSystem: "Web",
+            offers: { "@type": "Offer", price: "0", priceCurrency: "NGN" },
+            description:
+              "The most intuitive AI tutoring platform built for actual studying. Ask questions, upload PDFs, and build smart revision plans.",
           }),
         }}
       />
-      
-      {/* Floating Navigation */}
+
+      {/* ── Navigation ──────────────────────────────────────────────────── */}
       <nav
-        className="absolute md:fixed top-6 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-7xl z-50 rounded-2xl border border-white/10 bg-[#0a0a0a]/50 backdrop-blur-xl mix-blend-plus-lighter shadow-2xl"
+        className={`fixed z-50 transition-all duration-300 left-1/2 -translate-x-1/2 ${
+          isScrolled
+            ? "top-0 w-full bg-[#0B1120]/80 backdrop-blur-xl border-b border-white/10 shadow-xl"
+            : "top-5 w-[calc(100%-2rem)] max-w-6xl bg-transparent"
+        }`}
       >
-        <div className="flex items-center justify-between px-4 sm:px-4 py-2">
-          <div className="flex items-center gap-3">
+        <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-4 sm:px-5 py-2.5">
+          {/* Logo */}
+          <div className="flex items-center">
             <Image
               src="/assets/lerna-full-white.png"
               alt="Lerna"
-                width={260}
-                height={50}
-              className="h-16 w-auto object-contain"
+              width={220}
+              height={44}
+              className="h-12 w-auto object-contain"
               priority
             />
           </div>
-          
-          <div className="hidden md:flex items-center gap-8">
-            <Link href="#how-it-works" className="text-slate-300 hover:text-white text-sm font-medium transition-colors">How it works</Link>
-            <Link href="#features" className="text-slate-300 hover:text-white text-sm font-medium transition-colors">Features</Link>
-            <Link href="#pricing" className="text-slate-300 hover:text-white text-sm font-medium transition-colors">Pricing</Link>
-            <Link href="#faq" className="text-slate-300 hover:text-white text-sm font-medium transition-colors">FAQ</Link>
+
+          {/* Desktop nav links */}
+          <div className="hidden md:flex items-center gap-7">
+            <Link href="#how-it-works" className="text-slate-400 hover:text-white text-sm font-medium transition-colors">
+              How it works
+            </Link>
+            <Link href="#features" className="text-slate-400 hover:text-white text-sm font-medium transition-colors">
+              Features
+            </Link>
+            <Link href="#pricing" className="text-slate-400 hover:text-white text-sm font-medium transition-colors">
+              Pricing
+            </Link>
+            <Link href="#faq" className="text-slate-400 hover:text-white text-sm font-medium transition-colors">
+              FAQ
+            </Link>
           </div>
-          
-          <div className="hidden md:flex items-center gap-4">
-            <Button onClick={() => setActiveModal("signup")} className="bg-white text-black hover:bg-slate-200 rounded-full px-6 h-10 text-sm font-semibold transition-all">
+
+          {/* Desktop CTA */}
+          <div className="hidden md:flex items-center gap-3">
+            <button
+              onClick={() => setActiveModal("login")}
+              className="text-sm text-slate-400 hover:text-white font-medium transition-colors"
+            >
+              Sign in
+            </button>
+            <button
+              onClick={() => setActiveModal("signup")}
+              className="rounded-full bg-white text-[#0B1120] hover:bg-slate-100 px-5 h-9 text-sm font-semibold transition-all hover:scale-[1.02] active:scale-[0.98]"
+            >
               Get started
-            </Button>
+            </button>
           </div>
-          
-          {/* Mobile Hamburger menu toggle */}
-          <button 
+
+          {/* Mobile hamburger */}
+          <button
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
             className="flex md:hidden items-center justify-center p-2 text-slate-400 hover:text-white transition-colors"
           >
-            {isMobileMenuOpen ? (
-              <X className="h-6 w-6" />
-            ) : (
-              <Menu className="h-6 w-6" />
-            )}
+            {isMobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>
         </div>
-        
-        {/* Mobile Dropdown Panel */}
+
+        {/* Mobile menu */}
         <AnimatePresence>
           {isMobileMenuOpen && (
-            <div
-              className="md:hidden absolute top-[calc(100%+0.5rem)] left-0 right-0 rounded-2xl border border-white/10 bg-[#0a0a0a] backdrop-blur-2xl p-6 shadow-2xl flex flex-col gap-6 z-40 overflow-hidden"
-            >
-              <div className="flex flex-col gap-4">
-                <Link 
-                  href="#how-it-works" 
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className="text-slate-300 hover:text-white font-medium transition-colors text-base py-2 border-b border-white/5"
-                >
-                  How it works
-                </Link>
-                <Link 
-                  href="#features" 
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className="text-slate-300 hover:text-white font-medium transition-colors text-base py-2 border-b border-white/5"
-                >
-                  Features
-                </Link>
-                <Link 
-                  href="#pricing" 
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className="text-slate-300 hover:text-white font-medium transition-colors text-base py-2 border-b border-white/5"
-                >
-                  Pricing
-                </Link>
-                <Link 
-                  href="#faq" 
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className="text-slate-300 hover:text-white font-medium transition-colors text-base py-2"
-                >
-                  FAQ
-                </Link>
-              </div>
+            <div className="md:hidden absolute top-[calc(100%+0.5rem)] left-0 right-0 rounded-2xl border border-white/10 bg-[#0B1120] backdrop-blur-2xl p-6 shadow-2xl flex flex-col gap-5 z-40">
               <div className="flex flex-col gap-3">
-                <button onClick={() => { setIsMobileMenuOpen(false); setActiveModal("login"); }} className="w-full text-center text-slate-300 hover:text-white font-semibold py-3 border border-white/10 rounded-full hover:bg-white/5 transition-all text-base">Sign in</button>
-                <Button onClick={() => { setIsMobileMenuOpen(false); setActiveModal("signup"); }} className="w-full bg-white text-black hover:bg-slate-200 rounded-full py-6 font-semibold text-base justify-center transition-all">Get started <ArrowRight className="ml-2 h-4 w-4" /></Button>
+                {["How it works", "Features", "Pricing", "FAQ"].map((label) => (
+                  <Link
+                    key={label}
+                    href={`#${label.toLowerCase().replace(/\s+/g, "-")}`}
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="text-slate-300 hover:text-white font-medium transition-colors text-base py-2 border-b border-white/5"
+                  >
+                    {label}
+                  </Link>
+                ))}
+              </div>
+              <div className="flex flex-col gap-3 pt-2">
+                <button
+                  onClick={() => { setIsMobileMenuOpen(false); setActiveModal("login"); }}
+                  className="w-full text-center text-slate-300 hover:text-white font-semibold py-3 border border-white/10 rounded-full hover:bg-white/5 transition-all"
+                >
+                  Sign in
+                </button>
+                <button
+                  onClick={() => { setIsMobileMenuOpen(false); setActiveModal("signup"); }}
+                  className="w-full bg-white text-[#0B1120] hover:bg-slate-100 rounded-full py-3 font-semibold text-base transition-all flex items-center justify-center gap-2"
+                >
+                  Get started <ArrowRight className="h-4 w-4" />
+                </button>
               </div>
             </div>
           )}
         </AnimatePresence>
       </nav>
 
-      {/* Hero Section */}
-      <section className="relative mx-auto max-w-7xl px-6 pt-48 pb-20 text-center">
-        
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, ease: "easeOut" }}
-          className="relative z-10"
-        >
+      {/* ── Hero Section ────────────────────────────────────────────────── */}
+      <section className="relative mx-auto max-w-7xl px-6 pt-44 pb-24 sm:pt-52 sm:pb-32">
+        {/* Background glow */}
+        <div className="pointer-events-none absolute top-0 left-1/4 h-[500px] w-[600px] rounded-full bg-blue-600/8 blur-[120px]" />
 
-          <h1 className="font-heading text-4xl sm:text-6xl lg:text-7xl font-bold tracking-tight text-white mb-6 text-balance max-w-5xl mx-auto leading-[1.1]">
-            Learn <span className="bg-gradient-to-r from-cyan-400 to-teal-400 bg-clip-text text-transparent">smarter</span>, not harder.
-          </h1>
-          <p className="mx-auto max-w-3xl text-sm sm:text-xl text-slate-400 mb-10 text-balance leading-relaxed">
-            Ask questions, upload study material, build smart revision plans, and keep every learning session organized in one workspace. No fluff, just results.
-          </p>
-        </motion.div>
-        
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.2, ease: "easeOut" }}
-          className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-20 relative z-10 max-w-xs mx-auto sm:max-w-none"
-        >
-          <Button onClick={() => setActiveModal("signup")} className="bg-white text-black hover:bg-slate-200 rounded-full px-6 sm:px-10 h-12 sm:h-14 text-base sm:text-lg font-medium w-full sm:w-auto shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all">
-            Start studying <ArrowRight className="ml-2 h-5 w-5" />
-          </Button>
-          <Link href="#features" className="w-full sm:w-auto">
-            <Button variant="outline" className="border-white/10 bg-[#141414]/60 hover:bg-[#1f1f1f]/80 text-white rounded-full px-6 sm:px-10 h-12 sm:h-14 text-base sm:text-lg font-medium w-full transition-all">
-              Explore features
-            </Button>
-          </Link>
-        </motion.div>
-        
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.8, delay: 0.4, ease: "easeOut" }}
-          className="relative z-10"
-        >
-          <DemoChat />
-        </motion.div>
-        
+        <div className="relative z-10 grid lg:grid-cols-2 gap-14 lg:gap-20 items-center">
+          {/* Left: text */}
+          <div>
+            {/* Trust badge */}
+            <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 mb-8">
+              <div className="flex text-amber-400">
+                {[...Array(5)].map((_, i) => <Star key={i} className="h-3 w-3 fill-current" />)}
+              </div>
+              <span className="text-xs font-medium text-slate-300">Trusted by students worldwide</span>
+            </div>
+
+            <h1 className="font-heading text-5xl sm:text-6xl lg:text-[4.25rem] xl:text-7xl font-normal tracking-tight text-white leading-[1.05] mb-6">
+              Learn{" "}
+              <span className="italic text-blue-400">smarter</span>
+              ,<br />
+              not harder.
+            </h1>
+
+            <p className="text-base sm:text-lg text-slate-400 leading-relaxed mb-8 max-w-lg">
+              Ask questions, upload study materials, build smart revision plans, and keep every learning session organized in one workspace.
+            </p>
+
+            <div className="flex flex-col sm:flex-row gap-3 items-start">
+              <button
+                onClick={() => setActiveModal("signup")}
+                className="inline-flex items-center gap-2 rounded-full bg-white text-[#0B1120] hover:bg-slate-100 px-7 h-12 text-sm font-semibold transition-all hover:scale-[1.02] active:scale-[0.98] shadow-lg shadow-white/10"
+              >
+                Start studying for free <ArrowRight className="h-4 w-4" />
+              </button>
+              <Link href="#features">
+                <button className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 hover:bg-white/10 text-white px-7 h-12 text-sm font-medium transition-all">
+                  Explore features
+                </button>
+              </Link>
+            </div>
+
+            {/* Social proof row */}
+            <div className="mt-8 flex items-center gap-4 flex-wrap">
+              <div className="flex -space-x-2">
+                {["SarahL", "AlexM", "DavidK", "MayaT"].map((seed) => (
+                  <div
+                    key={seed}
+                    className="h-8 w-8 rounded-full border-2 border-[#0B1120] bg-slate-700 bg-cover bg-center"
+                    style={{ backgroundImage: `url(https://api.dicebear.com/9.x/notionists/svg?seed=${seed})` }}
+                  />
+                ))}
+              </div>
+              <p className="text-sm text-slate-400">
+                <span className="font-semibold text-white">1,000+</span> students studying smarter
+              </p>
+            </div>
+          </div>
+
+          {/* Right: floating mockup */}
+          <div className="flex justify-center lg:justify-end">
+            <HeroMockupCard />
+          </div>
+        </div>
       </section>
-      {/* How It Works Section */}
-      <section id="how-it-works" className="border-t py-24 sm:py-32 relative overflow-hidden">
+
+
+
+
+      {/* ── How It Works ────────────────────────────────────────────────── */}
+      <section id="how-it-works" className="py-28 sm:py-36 relative overflow-hidden">
+        <div className="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-[400px] w-[600px] rounded-full bg-blue-700/5 blur-[100px]" />
         <div className="mx-auto max-w-7xl px-6 relative z-10">
-          <div className="text-center max-w-3xl mx-auto mb-16 sm:mb-24">
-            <h2 className="font-heading text-4xl sm:text-5xl font-semibold tracking-tight text-white mb-6">
-              Three simple steps to smarter learning
+          <div className="max-w-2xl mb-16 sm:mb-20">
+            <span className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-400 mb-4 block">
+              Getting started
+            </span>
+            <h2 className="font-heading text-4xl sm:text-5xl lg:text-[3rem] font-normal tracking-tight text-white leading-[1.1] mb-5">
+              Three steps to smarter learning
             </h2>
-            <p className="text-lg sm:text-xl text-slate-400">
-              No complicated configuration. Upload your materials and start learning in seconds.
+            <p className="text-slate-400 text-lg leading-relaxed">
+              No complicated setup. Upload your materials and start learning in seconds.
             </p>
           </div>
 
-          <div className="grid gap-12 lg:grid-cols-3 relative">
+          <div className="grid gap-8 lg:grid-cols-3">
             {steps.map((step, idx) => (
-              <motion.div
+              <div
                 key={step.number}
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, margin: "-50px" }}
-                transition={{ duration: 0.6, delay: idx * 0.15 }}
-                className="relative bg-white/[0.01] border border-white/5 rounded-3xl p-8 sm:p-10 flex flex-col justify-between hover:border-cyan-500/20 transition-all group"
+                className="relative bg-[#111827] border border-white/8 rounded-2xl p-8 sm:p-10 hover:border-blue-500/25 transition-all group"
               >
-                <div>
-                  <div className="font-heading text-5xl sm:text-6xl font-bold bg-gradient-to-r from-cyan-400 to-teal-400 bg-clip-text text-transparent opacity-80 group-hover:opacity-100 transition-opacity mb-6">
-                    {step.number}
-                  </div>
-                  <h3 className="text-2xl font-semibold text-white mb-4">{step.title}</h3>
-                  <p className="text-slate-400 text-base sm:text-lg leading-relaxed">{step.description}</p>
+                <div className="font-heading text-6xl sm:text-7xl font-normal text-white/8 group-hover:text-blue-500/15 transition-colors mb-6 leading-none select-none">
+                  {step.number}
                 </div>
-                {/* Connecting arrow/line on desktop */}
+                <h3 className="text-xl font-semibold text-white mb-3">{step.title}</h3>
+                <p className="text-slate-400 text-base leading-relaxed">{step.description}</p>
                 {idx < 2 && (
-                  <div className="hidden lg:block absolute top-1/2 -right-6 translate-x-1/2 -translate-y-1/2 z-20 text-cyan-500/30">
-                    <ArrowRight className="h-6 w-6" />
+                  <div className="hidden lg:flex absolute top-10 -right-4 z-20 h-8 w-8 items-center justify-center rounded-full bg-[#1e2d4d] border border-white/10">
+                    <ArrowRight className="h-3.5 w-3.5 text-blue-400" />
                   </div>
                 )}
-              </motion.div>
+              </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Features Section */}
-      <section id="features" className="mx-auto max-w-7xl px-6 py-24 sm:py-32 overflow-hidden">
-        <div className="text-center max-w-3xl mx-auto mb-16 sm:mb-24">
-          <h2 className="font-heading text-4xl sm:text-5xl font-semibold tracking-tight text-white mb-6">
-            Everything you need in a personal AI tutor
-          </h2>
-          <p className="text-lg sm:text-xl text-slate-400">
-            A comprehensive study suite built to help you review, test, and master your coursework.
-          </p>
-        </div>
+      {/* ── Features Section ────────────────────────────────────────────── */}
+      <section id="features" className="py-28 sm:py-36 border-t border-white/5 relative">
+        <div className="mx-auto max-w-7xl px-6">
+          <div className="max-w-2xl mb-16 sm:mb-20">
+            <span className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-400 mb-4 block">
+              Features
+            </span>
+            <h2 className="font-heading text-4xl sm:text-5xl lg:text-[3rem] font-normal tracking-tight text-white leading-[1.1] mb-5">
+              Everything you need in a personal AI tutor
+            </h2>
+            <p className="text-slate-400 text-lg leading-relaxed">
+              A comprehensive study suite built to help you review, test, and master your coursework.
+            </p>
+          </div>
 
-        <div className="grid gap-6 sm:gap-8 md:grid-cols-2 lg:grid-cols-3">
-          {features.map((feature, i) => {
-            const Icon = feature.icon;
-            return (
-              <motion.div 
-                key={feature.title} 
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, margin: "-50px" }}
-                transition={{ duration: 0.5, delay: i * 0.08 }}
-                whileHover={{ y: -6 }}
-                className="relative bg-white/[0.01] border border-white/5 hover:border-cyan-500/30 hover:bg-white/[0.03] p-8 rounded-3xl transition-all duration-300 group cursor-default"
-              >
-                <div className="flex items-start justify-between mb-6">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-cyan-500/10 text-cyan-400 group-hover:scale-110 transition-transform duration-300">
-                    <Icon className="h-6 w-6" />
+          <div className="grid gap-5 sm:gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {features.map((feature) => {
+              const Icon = feature.icon;
+              return (
+                <div
+                  key={feature.title}
+                  className="relative bg-[#111827] border border-white/8 hover:border-blue-500/25 hover:bg-[#141e35] p-7 rounded-2xl transition-all duration-300 group cursor-default"
+                >
+                  <div className="flex items-start justify-between mb-5">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-500/15 text-blue-400 group-hover:bg-blue-500/25 transition-colors">
+                      <Icon className="h-5 w-5" />
+                    </div>
+                    {feature.isComingSoon && (
+                      <span className="text-[10px] uppercase tracking-wider bg-blue-500/15 text-blue-300 font-bold px-2.5 py-1 rounded-full">
+                        Coming Soon
+                      </span>
+                    )}
                   </div>
-                  {feature.isComingSoon && (
-                    <span className="text-[10px] uppercase tracking-wider bg-cyan-500/20 text-cyan-300 font-bold px-2.5 py-1 rounded-full">
-                      Coming Soon
-                    </span>
-                  )}
+                  <h3 className="text-base font-semibold text-white mb-2">{feature.title}</h3>
+                  <p className="text-slate-400 text-sm leading-relaxed">{feature.description}</p>
                 </div>
-                <h3 className="text-xl sm:text-2xl font-semibold text-white mb-3">{feature.title}</h3>
-                <p className="text-slate-400 text-sm sm:text-base leading-relaxed">{feature.description}</p>
-              </motion.div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
       </section>
 
-      {/* Pricing Section */}
-      <section id="pricing" className="py-24 sm:py-32 relative overflow-hidden">
+      {/* ── Pricing Section ─────────────────────────────────────────────── */}
+      <section id="pricing" className="py-28 sm:py-36 border-t border-white/5 relative">
+        <div className="pointer-events-none absolute top-0 right-1/4 h-72 w-72 rounded-full bg-blue-700/6 blur-[80px]" />
         <div className="mx-auto max-w-7xl px-6 relative z-10">
-          <div className="text-center max-w-3xl mx-auto mb-16 sm:mb-24">
-            <h2 className="font-heading text-4xl sm:text-5xl font-semibold tracking-tight text-white mb-6">
+          <div className="max-w-2xl mb-16 sm:mb-20">
+            <span className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-400 mb-4 block">
+              Pricing
+            </span>
+            <h2 className="font-heading text-4xl sm:text-5xl lg:text-[3rem] font-normal tracking-tight text-white leading-[1.1] mb-5">
               Simple, transparent pricing
             </h2>
-            <p className="text-lg sm:text-xl text-slate-400">
+            <p className="text-slate-400 text-lg leading-relaxed">
               Start studying for free. Lock in advanced capabilities as they launch.
             </p>
           </div>
 
-          <div className="grid gap-8 max-w-4xl mx-auto md:grid-cols-2 items-stretch">
-            {pricingPlans.map((plan, index) => (
-              <motion.div
+          <div className="grid gap-6 md:grid-cols-3">
+            {pricingPlans.map((plan) => (
+              <div
                 key={plan.name}
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.6, delay: index * 0.15 }}
-                className={`flex flex-col justify-between bg-white/[0.01] border rounded-3xl p-8 sm:p-10 relative overflow-hidden ${
-                  plan.isComingSoon 
-                    ? "border-cyan-500/20" 
-                    : "border-white/5"
+                className={`flex flex-col justify-between rounded-2xl p-8 relative overflow-hidden border transition-all ${
+                  plan.name === "Pro"
+                    ? "bg-[#0d1e3a] border-blue-500/50 shadow-[0_0_40px_rgba(59,130,246,0.12)]"
+                    : "bg-[#111827] border-white/8 hover:border-blue-500/25"
                 }`}
               >
-                {plan.isComingSoon && (
-                  <div className="absolute top-0 right-0 bg-cyan-500 text-black text-xs font-bold uppercase tracking-widest px-4 py-1.5 rounded-bl-2xl">
-                    Coming Soon
+                {plan.isComingSoon && plan.name !== "Pro" && (
+                  <div className="absolute top-0 right-0 bg-blue-500/15 text-blue-300 text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 rounded-bl-xl">
+                    Soon
+                  </div>
+                )}
+                {plan.name === "Pro" && (
+                  <div className="absolute top-0 right-0 bg-blue-600 text-white text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 rounded-bl-xl">
+                    Popular
                   </div>
                 )}
                 <div>
-                  <h3 className="text-2xl font-semibold text-white mb-2">{plan.name}</h3>
+                  <h3 className="text-lg font-semibold text-white mb-1">
+                    {plan.name}
+                  </h3>
                   <p className="text-sm text-slate-400 mb-6">{plan.description}</p>
-                  <div className="flex items-baseline gap-1 mb-8">
-                    <span className="text-5xl font-bold text-white tracking-tight">{plan.price}</span>
-                    {plan.period && <span className="text-slate-400 text-lg">{plan.period}</span>}
+                  <div className="flex items-baseline gap-1 mb-7">
+                    <span className="text-4xl font-bold tracking-tight text-white">
+                      {plan.price}
+                    </span>
+                    {plan.period && (
+                      <span className="text-sm text-slate-400">{plan.period}</span>
+                    )}
                   </div>
-                  
-                  <ul className="space-y-4 mb-8">
+                  <ul className="space-y-3 mb-8">
                     {plan.features.map((feature) => (
-                      <li key={feature} className="flex items-start gap-3 text-slate-300 text-sm sm:text-base">
-                        <CheckCircle2 className="h-5 w-5 text-cyan-400 shrink-0 mt-0.5" />
-                        <span>{feature}</span>
+                      <li key={feature} className="flex items-start gap-2.5 text-sm">
+                        <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5 text-blue-400" />
+                        <span className="text-slate-300">{feature}</span>
                       </li>
                     ))}
                   </ul>
                 </div>
-
-                <Button
+                <button
                   disabled={plan.isComingSoon}
                   onClick={() => !plan.isComingSoon && setActiveModal("signup")}
-                  className={`w-full h-12 rounded-xl text-base font-semibold transition-all mt-4 ${
+                  className={`w-full h-11 rounded-xl text-sm font-semibold transition-all ${
                     plan.isComingSoon
                       ? "bg-white/5 border border-white/10 text-slate-500 cursor-not-allowed"
-                      : "bg-cyan-500 text-slate-950 hover:bg-cyan-400 shadow-[0_0_20px_rgba(6,182,212,0.25)]"
+                      : "bg-blue-600 text-white hover:bg-blue-500 shadow-lg shadow-blue-500/20"
                   }`}
                 >
                   {plan.buttonText}
-                </Button>
-              </motion.div>
+                </button>
+
+              </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Testimonials Section */}
-      <section id="testimonials" className="mx-auto max-w-7xl px-6 py-24 sm:py-32">
-        <div className="text-center max-w-3xl mx-auto mb-16 sm:mb-24">
-          <h2 className="font-heading text-4xl sm:text-5xl font-semibold tracking-tight text-white mb-6">
-            Real study wins from Lerna students
-          </h2>
-          <p className="text-lg sm:text-xl text-slate-400">
-            See how students are using Lerna AI to turn scattered materials into confident progress.
-          </p>
-        </div>
-
-        <div
-          className="relative overflow-hidden"
-          style={{
-            maskImage: "linear-gradient(to bottom, transparent, black 10%, black 90%, transparent)",
-            WebkitMaskImage: "linear-gradient(to bottom, transparent, black 10%, black 90%, transparent)",
-          }}
-        >
-          <div className="grid gap-6 md:hidden">
-            {testimonials.map((testimonial) => (
-              <TestimonialCard key={testimonial.name} testimonial={testimonial} />
-            ))}
-          </div>
-
-          <div className="hidden h-[640px] gap-6 md:flex">
-            <TestimonialMarqueeColumn items={testimonials.filter((_, index) => index % 3 === 0)} />
-            <TestimonialMarqueeColumn items={testimonials.filter((_, index) => index % 3 === 1)} reverse />
-            <div className="hidden min-w-0 flex-1 lg:block">
-              <TestimonialMarqueeColumn items={testimonials.filter((_, index) => index % 3 === 2)} />
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Community Section */}
-      <section id="community" className="mx-auto max-w-5xl px-6 py-24 sm:py-32 relative z-10 border-t border-white/5">
-        <div className="text-center max-w-3xl mx-auto mb-16">
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.5 }}
-            className="inline-flex items-center gap-2 rounded-full border border-cyan-500/20 bg-cyan-500/5 px-4 py-1.5 text-xs sm:text-sm font-medium text-cyan-300 mb-6 hover:bg-cyan-500/10 transition-colors"
-          >
-            <Users className="h-3.5 w-3.5 text-cyan-400" />
-            <span>Lerna Community</span>
-          </motion.div>
-          <h2 className="font-heading text-4xl sm:text-5xl font-semibold tracking-tight text-white mb-6">
-            Join the Community of Students worldwide
-          </h2>
-          <p className="text-lg text-slate-400">
-            Connect, collaborate, and share knowledge with thousands of students using Lerna AI globally.
-          </p>
-        </div>
-
-        <div className="grid gap-6 md:grid-cols-2">
-          {/* WhatsApp Card */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6 }}
-            className="relative overflow-hidden rounded-3xl border border-emerald-500/20 bg-emerald-950/5 backdrop-blur-md p-8 flex flex-col justify-between hover:border-emerald-500/40 hover:bg-emerald-950/10 transition-all group"
-          >
-            <div className="absolute -right-10 -top-10 h-32 w-32 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none group-hover:scale-125 transition-transform duration-500"></div>
-            <div>
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 mb-6">
-                <svg className="h-6 w-6 fill-current" viewBox="0 0 24 24">
-                  <path d="M12.012 2C6.48 2 2 6.48 2 12.012c0 1.764.456 3.48 1.332 5.004L2 22l5.148-1.344c1.488.816 3.168 1.248 4.86 1.248 5.532 0 10.012-4.48 10.012-10.012A9.97 9.97 0 0012.012 2zm5.796 14.196c-.24.672-1.2 1.224-1.656 1.284-.444.06-1.008.084-2.82-.672-2.316-.96-3.804-3.324-3.924-3.48-.108-.156-.936-1.248-.936-2.376 0-1.128.588-1.68.804-1.908.216-.228.468-.288.624-.288.156 0 .312.008.444.012.144.004.336-.056.528.408.192.48.66 1.608.72 1.728.06.12.096.264.012.432-.084.168-.18.276-.3.42-.12.144-.252.3-.36.408-.12.12-.24.252-.108.48.132.228.588.972 1.26 1.572.864.768 1.596 1.008 1.824 1.116.228.108.36.096.492-.06.132-.156.576-.672.732-.9.156-.228.312-.192.528-.108.216.084 1.38.648 1.62.768.24.12.408.18.468.288.06.108.06.624-.18 1.296z" />
-                </svg>
-              </div>
-              <h3 className="text-xl font-semibold text-white mb-2">WhatsApp Study Group</h3>
-              <p className="text-sm text-slate-400 leading-relaxed mb-8">
-                Join our official WhatsApp group to get instant support, participate in daily study challenges, and receive platform updates directly.
-              </p>
-            </div>
-            <Link
-              href="https://chat.whatsapp.com/GAnA2Edibt8Dcn54nuVHtI?s=cl&p=a&ilr=0"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-semibold px-6 h-11 text-xs transition-all shadow-[0_0_20px_rgba(16,185,129,0.15)] group-hover:scale-[1.01] active:scale-[0.99] w-fit"
-            >
-              Join WhatsApp Group <ArrowRight className="h-4 w-4" />
-            </Link>
-          </motion.div>
-
-          {/* Discord Card */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6, delay: 0.15 }}
-            className="relative overflow-hidden rounded-3xl border border-indigo-500/20 bg-indigo-950/5 backdrop-blur-md p-8 flex flex-col justify-between hover:border-indigo-500/40 hover:bg-indigo-950/10 transition-all group"
-          >
-            <div className="absolute -right-10 -top-10 h-32 w-32 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none group-hover:scale-125 transition-transform duration-500"></div>
-            <div>
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 mb-6">
-                <svg className="h-5 w-5 fill-current" viewBox="0 0 127.14 96.36">
-                  <path d="M107.7,8.07A105.15,105.15,0,0,0,77.26,0a77.19,77.19,0,0,0-3.3,6.83A96.67,96.67,0,0,0,52.22,6.83,77.19,77.19,0,0,0,48.92,0,105.15,105.15,0,0,0,18.48,8.07C2.71,31.58-1.54,54.65.37,77.53A105.73,105.73,0,0,0,32,96.36a77.7,77.7,0,0,0,6.63-10.85,68.43,68.43,0,0,1-10.4-5c.87-.64,1.71-1.32,2.5-2a75.48,75.48,0,0,0,72.7,0c.79.7,1.63,1.38,2.5,2a75.48,75.48,0,0,0,31.63-18.83C129.87,49.25,124.9,26.43,107.7,8.07ZM42.45,65.69C36.18,65.69,31,60,31,53S36.18,40.36,42.45,40.36,53.88,46,53.88,53,48.72,65.69,42.45,65.69Zm42.24,0C78.41,65.69,73.24,60,73.24,53S78.41,40.36,84.69,40.36,96.12,46,96.12,53,91,65.69,84.69,65.69Z" />
-                </svg>
-              </div>
-              <h3 className="text-xl font-semibold text-white mb-2">Discord Server</h3>
-              <p className="text-sm text-slate-400 leading-relaxed mb-8">
-                Join our Discord community to participate in voice channels, team up for study groups, share resources, and voice feedback directly to developers.
-              </p>
-            </div>
-            <Link
-              href="https://discord.gg/YneZvF38w"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-500 hover:bg-indigo-400 text-white font-semibold px-6 h-11 text-xs transition-all shadow-[0_0_20px_rgba(99,102,241,0.15)] group-hover:scale-[1.01] active:scale-[0.99] w-fit"
-            >
-              Join Discord Server <ArrowRight className="h-4 w-4" />
-            </Link>
-          </motion.div>
-        </div>
-      </section>
-
-      {/* FAQ Section */}
-      <section id="faq" className="py-24 sm:py-32 relative overflow-hidden">
-        <div className="mx-auto max-w-4xl px-6 relative z-10">
-          <div className="text-center max-w-3xl mx-auto mb-16 sm:mb-24">
-            <h2 className="font-heading text-4xl sm:text-5xl font-semibold tracking-tight text-white mb-6">
-              Frequently asked questions
+      {/* ── Testimonials Section ─────────────────────────────────────────── */}
+      <section id="testimonials" className="py-28 sm:py-36 border-t border-white/5">
+        <div className="mx-auto max-w-7xl px-6">
+          <div className="max-w-2xl mb-16 sm:mb-20">
+            <span className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-400 mb-4 block">
+              Student stories
+            </span>
+            <h2 className="font-heading text-4xl sm:text-5xl lg:text-[3rem] font-normal tracking-tight text-white leading-[1.1] mb-5">
+              Real study wins from Lerna students
             </h2>
-            <p className="text-lg sm:text-xl text-slate-400">
-              Have questions? Find quick answers about Lerna AI's features, pricing, and security.
+            <p className="text-slate-400 text-lg leading-relaxed">
+              See how students are using Lerna AI to turn scattered materials into confident progress.
             </p>
           </div>
 
-          <div className="bg-white/[0.01] border border-white/5 rounded-3xl p-6 sm:p-10 max-w-3xl mx-auto">
+          <div
+            className="relative overflow-hidden"
+            style={{
+              maskImage: "linear-gradient(to bottom, transparent, black 8%, black 92%, transparent)",
+              WebkitMaskImage: "linear-gradient(to bottom, transparent, black 8%, black 92%, transparent)",
+            }}
+          >
+            <div className="grid gap-5 md:hidden">
+              {testimonials.map((t) => (
+                <TestimonialCard key={t.name} testimonial={t} />
+              ))}
+            </div>
+            <div className="hidden h-[620px] gap-5 md:flex">
+              <TestimonialMarqueeColumn items={testimonials.filter((_, i) => i % 3 === 0)} />
+              <TestimonialMarqueeColumn items={testimonials.filter((_, i) => i % 3 === 1)} reverse />
+              <div className="hidden min-w-0 flex-1 lg:block">
+                <TestimonialMarqueeColumn items={testimonials.filter((_, i) => i % 3 === 2)} />
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Comparison Section ───────────────────────────────────────────── */}
+      <section id="compare" className="py-28 sm:py-36 border-t border-white/5 relative overflow-hidden">
+        <div className="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-[400px] w-[600px] rounded-full bg-blue-700/5 blur-[100px]" />
+        <div className="mx-auto max-w-5xl px-6 relative z-10">
+          <div className="text-center mb-16 sm:mb-20">
+            <span className="inline-flex items-center justify-center rounded-full bg-[#1e2d4d] border border-blue-500/20 text-blue-300 text-xs font-semibold px-4 py-1.5 mb-6 tracking-wide">
+              Capabilities
+            </span>
+            <h2 className="font-heading text-4xl sm:text-5xl lg:text-[3rem] font-normal tracking-tight text-white leading-[1.1] mb-5">
+              More than just answers. <br className="hidden sm:block" />
+              <span className="italic text-blue-400">Built to learn.</span>
+            </h2>
+          </div>
+
+          <div className="overflow-x-auto pb-8">
+            <div className="min-w-[700px] rounded-2xl border border-white/8 bg-[#111827]/50 backdrop-blur-sm overflow-hidden">
+              {/* Header Row */}
+              <div className="grid grid-cols-4 bg-white/5 border-b border-white/8 p-4 sm:p-6 items-center">
+                <div className="col-span-1"></div>
+                <div className="text-center font-heading text-xl sm:text-2xl text-blue-400 font-semibold tracking-wide">
+                  Lerna AI
+                </div>
+                <div className="text-center font-heading text-lg sm:text-xl text-slate-400 tracking-wide">
+                  ChatGPT
+                </div>
+                <div className="text-center font-heading text-lg sm:text-xl text-slate-400 tracking-wide">
+                  NotebookLM
+                </div>
+              </div>
+
+              {/* Feature Rows */}
+              {[
+                { title: "Interactive AI Tutor with saved learning progress", lerna: true, gpt: false, notebook: false },
+                { title: "Audio & voice learning based on your sources", lerna: true, gpt: false, notebook: true },
+                { title: "Auto-generates flashcards & mock exams", lerna: true, gpt: "partial", notebook: "partial" },
+                { title: "Personalized exam study schedules & timelines", lerna: true, gpt: false, notebook: false },
+                { title: "Essay drafting with instant structural feedback", lerna: true, gpt: "partial", notebook: false },
+                { title: "Sustained session history & progress tracking", lerna: true, gpt: true, notebook: false },
+                { title: "Chat with multiple complex PDFs concurrently", lerna: true, gpt: true, notebook: true },
+                { title: "Dedicated workspaces for course materials", lerna: true, gpt: false, notebook: true },
+              ].map((row, idx) => (
+                <div key={idx} className="grid grid-cols-4 border-b border-white/5 last:border-0 p-4 sm:p-6 items-center hover:bg-white/[0.02] transition-colors">
+                  <div className="col-span-1 text-sm sm:text-base text-slate-300 pr-4 font-medium">
+                    {row.title}
+                  </div>
+                  <div className="flex justify-center">
+                    {row.lerna ? (
+                      <span className="font-heading italic text-blue-400 text-2xl font-normal tracking-wide">Yes</span>
+                    ) : (
+                      <span className="text-slate-600">-</span>
+                    )}
+                  </div>
+                  <div className="flex justify-center">
+                    {row.gpt === true || row.gpt === "partial" ? (
+                      <div className="flex h-5 w-5 items-center justify-center rounded-full bg-slate-500 text-slate-900">
+                        <CheckCircle2 className="h-3 w-3" />
+                      </div>
+                    ) : (
+                      <span className="text-slate-600 font-medium">-</span>
+                    )}
+                  </div>
+                  <div className="flex justify-center">
+                    {row.notebook === true || row.notebook === "partial" ? (
+                      <div className="flex h-5 w-5 items-center justify-center rounded-full bg-slate-500 text-slate-900">
+                        <CheckCircle2 className="h-3 w-3" />
+                      </div>
+                    ) : (
+                      <span className="text-slate-600 font-medium">-</span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Community Section ───────────────────────────────────────────── */}
+      <section id="community" className="py-28 sm:py-36 border-t border-white/5">
+        <div className="mx-auto max-w-7xl px-6">
+          <div className="max-w-2xl mb-16 sm:mb-20">
+            <span className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-400 mb-4 block">
+              Community
+            </span>
+            <h2 className="font-heading text-4xl sm:text-5xl lg:text-[3rem] font-normal tracking-tight text-white leading-[1.1] mb-5">
+              Join the community of students worldwide
+            </h2>
+            <p className="text-slate-400 text-lg leading-relaxed">
+              Connect, collaborate, and share knowledge with thousands of students using Lerna AI globally.
+            </p>
+          </div>
+
+          <div className="grid gap-6 md:grid-cols-2">
+            {/* WhatsApp */}
+            <div className="relative overflow-hidden rounded-2xl border border-emerald-500/20 bg-[#111827] p-8 flex flex-col justify-between hover:border-emerald-500/35 transition-all group">
+              <div className="absolute -right-8 -top-8 h-40 w-40 bg-emerald-500/8 rounded-full blur-3xl pointer-events-none" />
+              <div>
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-400 border border-emerald-500/20 mb-6">
+                  <svg className="h-5 w-5 fill-current" viewBox="0 0 24 24">
+                    <path d="M12.012 2C6.48 2 2 6.48 2 12.012c0 1.764.456 3.48 1.332 5.004L2 22l5.148-1.344c1.488.816 3.168 1.248 4.86 1.248 5.532 0 10.012-4.48 10.012-10.012A9.97 9.97 0 0012.012 2zm5.796 14.196c-.24.672-1.2 1.224-1.656 1.284-.444.06-1.008.084-2.82-.672-2.316-.96-3.804-3.324-3.924-3.48-.108-.156-.936-1.248-.936-2.376 0-1.128.588-1.68.804-1.908.216-.228.468-.288.624-.288.156 0 .312.008.444.012.144.004.336-.056.528.408.192.48.66 1.608.72 1.728.06.12.096.264.012.432-.084.168-.18.276-.3.42-.12.144-.252.3-.36.408-.12.12-.24.252-.108.48.132.228.588.972 1.26 1.572.864.768 1.596 1.008 1.824 1.116.228.108.36.096.492-.06.132-.156.576-.672.732-.9.156-.228.312-.192.528-.108.216.084 1.38.648 1.62.768.24.12.408.18.468.288.06.108.06.624-.18 1.296z" />
+                  </svg>
+                </div>
+                <h3 className="text-lg font-semibold text-white mb-2">WhatsApp Study Group</h3>
+                <p className="text-sm text-slate-400 leading-relaxed mb-7">
+                  Join our official WhatsApp group to get instant support, participate in daily study challenges, and receive platform updates directly.
+                </p>
+              </div>
+              <Link
+                href="https://chat.whatsapp.com/GAnA2Edibt8Dcn54nuVHtI?s=cl&p=a&ilr=0"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-semibold px-5 h-10 text-sm transition-all w-fit"
+              >
+                Join WhatsApp Group <ArrowRight className="h-4 w-4" />
+              </Link>
+            </div>
+
+            {/* Discord */}
+            <div className="relative overflow-hidden rounded-2xl border border-indigo-500/20 bg-[#111827] p-8 flex flex-col justify-between hover:border-indigo-500/35 transition-all group">
+              <div className="absolute -right-8 -top-8 h-40 w-40 bg-indigo-500/8 rounded-full blur-3xl pointer-events-none" />
+              <div>
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-500/15 text-indigo-400 border border-indigo-500/20 mb-6">
+                  <svg className="h-5 w-5 fill-current" viewBox="0 0 127.14 96.36">
+                    <path d="M107.7,8.07A105.15,105.15,0,0,0,77.26,0a77.19,77.19,0,0,0-3.3,6.83A96.67,96.67,0,0,0,52.22,6.83,77.19,77.19,0,0,0,48.92,0,105.15,105.15,0,0,0,18.48,8.07C2.71,31.58-1.54,54.65.37,77.53A105.73,105.73,0,0,0,32,96.36a77.7,77.7,0,0,0,6.63-10.85,68.43,68.43,0,0,1-10.4-5c.87-.64,1.71-1.32,2.5-2a75.48,75.48,0,0,0,72.7,0c.79.7,1.63,1.38,2.5,2a75.48,75.48,0,0,0,31.63-18.83C129.87,49.25,124.9,26.43,107.7,8.07ZM42.45,65.69C36.18,65.69,31,60,31,53S36.18,40.36,42.45,40.36,53.88,46,53.88,53,48.72,65.69,42.45,65.69Zm42.24,0C78.41,65.69,73.24,60,73.24,53S78.41,40.36,84.69,40.36,96.12,46,96.12,53,91,65.69,84.69,65.69Z" />
+                  </svg>
+                </div>
+                <h3 className="text-lg font-semibold text-white mb-2">Discord Server</h3>
+                <p className="text-sm text-slate-400 leading-relaxed mb-7">
+                  Join our Discord community to participate in voice channels, team up for study groups, share resources, and voice feedback directly to developers.
+                </p>
+              </div>
+              <Link
+                href="https://discord.gg/YneZvF38w"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 rounded-xl bg-indigo-500 hover:bg-indigo-400 text-white font-semibold px-5 h-10 text-sm transition-all w-fit"
+              >
+                Join Discord Server <ArrowRight className="h-4 w-4" />
+              </Link>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── FAQ Section ─────────────────────────────────────────────────── */}
+      <section id="faq" className="py-28 sm:py-36 border-t border-white/5">
+        <div className="mx-auto max-w-3xl px-6">
+          <div className="mb-14">
+            <span className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-400 mb-4 block">
+              FAQ
+            </span>
+            <h2 className="font-heading text-4xl sm:text-5xl font-normal tracking-tight text-white leading-[1.1] mb-5">
+              Frequently asked questions
+            </h2>
+            <p className="text-slate-400 text-lg leading-relaxed">
+              Have questions? Find quick answers about Lerna AI&apos;s features, pricing, and security.
+            </p>
+          </div>
+
+          <div className="bg-[#111827] border border-white/8 rounded-2xl px-6 sm:px-8 py-2">
             {faqs.map((faq) => (
               <FAQItem key={faq.question} question={faq.question} answer={faq.answer} />
             ))}
@@ -864,148 +1003,98 @@ function HomePageContent() {
         </div>
       </section>
 
-      {/* WhatsApp CTA Section */}
-      <section className="mx-auto max-w-4xl px-6 py-20 text-center relative z-10">
-        <motion.div 
-          initial={{ opacity: 0, scale: 0.95 }}
-          whileInView={{ opacity: 1, scale: 1 }}
-          viewport={{ once: true, margin: "-50px" }}
-          transition={{ duration: 0.6 }}
-          className="relative overflow-hidden rounded-3xl border border-emerald-500/20 bg-emerald-950/10 backdrop-blur-md p-8 sm:p-12 shadow-[0_0_50px_rgba(16,185,129,0.03)]"
-        >
-          <div className="absolute top-0 right-0 h-40 w-40 bg-emerald-500/5 rounded-full blur-3xl pointer-events-none"></div>
-          <div className="absolute bottom-0 left-0 h-40 w-40 bg-emerald-500/5 rounded-full blur-3xl pointer-events-none"></div>
-          
-          <div className="flex flex-col items-center justify-center text-center gap-6 relative z-10">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-              <svg className="h-7 w-7 fill-current" viewBox="0 0 24 24">
-                <path d="M12.012 2C6.48 2 2 6.48 2 12.012c0 1.764.456 3.48 1.332 5.004L2 22l5.148-1.344c1.488.816 3.168 1.248 4.86 1.248 5.532 0 10.012-4.48 10.012-10.012A9.97 9.97 0 0012.012 2zm5.796 14.196c-.24.672-1.2 1.224-1.656 1.284-.444.06-1.008.084-2.82-.672-2.316-.96-3.804-3.324-3.924-3.48-.108-.156-.936-1.248-.936-2.376 0-1.128.588-1.68.804-1.908.216-.228.468-.288.624-.288.156 0 .312.008.444.012.144.004.336-.056.528.408.192.48.66 1.608.72 1.728.06.12.096.264.012.432-.084.168-.18.276-.3.42-.12.144-.252.3-.36.408-.12.12-.24.252-.108.48.132.228.588.972 1.26 1.572.864.768 1.596 1.008 1.824 1.116.228.108.36.096.492-.06.132-.156.576-.672.732-.9.156-.228.312-.192.528-.108.216.084 1.38.648 1.62.768.24.12.408.18.468.288.06.108.06.624-.18 1.296z" />
-              </svg>
-            </div>
-            
-            <div className="max-w-md">
-              <h3 className="text-xl sm:text-2xl font-semibold text-white">Prefer WhatsApp?</h3>
-              <p className="text-sm text-slate-400 mt-2 leading-relaxed">
-                Chat with Lerna AI directly on WhatsApp. Continue your learning sessions on the go.
-              </p>
-            </div>
-
-            <Link
-              href={process.env.NEXT_PUBLIC_WHATSAPP_URL || "https://wa.me/15551234567"}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center justify-center gap-2 rounded-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-semibold px-8 h-12 text-sm transition-all shadow-[0_0_25px_rgba(16,185,129,0.2)] hover:scale-[1.02] active:scale-[0.98]"
-            >
-              Start WhatsApp Chat
-            </Link>
-          </div>
-        </motion.div>
-      </section>
-
-      {/* CTA & Footer Section */}
+      {/* ── Footer CTA + Footer ─────────────────────────────────────────── */}
       <footer>
-        <div className="relative overflow-hidden border-y border-cyan-500/10 bg-cyan-500/[0.03] px-6 py-16 sm:py-20">
-          <div className="absolute -top-24 left-1/2 h-48 w-96 -translate-x-1/2 rounded-full bg-cyan-500/10 blur-3xl pointer-events-none" />
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="relative z-10 mx-auto flex max-w-3xl flex-col items-center text-center"
-          >
-            <span className="mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-cyan-400">
+        {/* CTA band */}
+        <div className="relative overflow-hidden border-t border-white/8 bg-[#0d1424] px-6 py-20 sm:py-24 text-center">
+          <div className="pointer-events-none absolute top-0 left-1/2 -translate-x-1/2 h-64 w-[500px] rounded-full bg-blue-600/10 blur-[80px]" />
+          <div className="relative z-10 mx-auto max-w-2xl flex flex-col items-center">
+            <span className="mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-blue-400">
               Your next breakthrough starts here
             </span>
-            <h2 className="font-heading text-3xl font-semibold tracking-tight text-white sm:text-5xl">
+            <h2 className="font-heading text-4xl sm:text-5xl font-normal tracking-tight text-white leading-[1.1] mb-5">
               Make every study session count.
             </h2>
-            <p className="mt-4 max-w-2xl text-base leading-relaxed text-slate-400 sm:text-lg">
+            <p className="text-slate-400 text-base sm:text-lg leading-relaxed max-w-lg mb-8">
               Bring your notes, questions, and goals into one focused workspace built to help you learn with confidence.
             </p>
             <button
               onClick={() => setActiveModal("signup")}
-              className="mt-8 inline-flex h-12 items-center justify-center gap-2 rounded-full bg-cyan-500 px-7 text-sm font-semibold text-slate-950 shadow-[0_0_25px_rgba(6,182,212,0.25)] transition-all hover:scale-[1.02] hover:bg-cyan-400"
+              className="inline-flex items-center gap-2 rounded-full bg-white text-[#0B1120] hover:bg-slate-100 px-8 h-12 text-sm font-semibold transition-all hover:scale-[1.02] active:scale-[0.98] shadow-xl shadow-white/10"
             >
-              Get started for free
-              <ArrowRight className="h-4 w-4" />
+              Get started for free <ArrowRight className="h-4 w-4" />
             </button>
-          </motion.div>
+          </div>
         </div>
 
-        <div className="pt-20 pb-8 md:px-6 px-4">
-          <div className="container mx-auto space-y-12">
-            {/* Main Links Grid */}
-            <div className="grid gap-8 grid-cols-2 md:grid-cols-4 lg:grid-cols-5 items-start">
-              {/* Brand Column */}
-              <div className="flex flex-col space-y-4 col-span-2">
-                <div className="flex items-center gap-3">
-                  <Image
-                    src="/assets/lerna-full-white.png"
-                    alt="Lerna"
-                    width={260}
-                    height={100}
-                    className="h-16 w-auto object-contain"
-                  />
-                </div>
-                <p className="text-slate-400 text-sm max-w-xs leading-relaxed">
-                  Experience the most intuitive AI tutoring platform built for actual studying. Ask questions, upload PDFs, and master courses.
+        {/* Footer links */}
+        <div className="border-t border-white/5 bg-[#0B1120] px-6 py-14">
+          <div className="mx-auto max-w-7xl">
+            <div className="grid gap-10 grid-cols-2 md:grid-cols-5 items-start">
+              {/* Brand */}
+              <div className="col-span-2 flex flex-col gap-4">
+                <Image
+                  src="/assets/lerna-full-white.png"
+                  alt="Lerna"
+                  width={200}
+                  height={40}
+                  className="h-10 w-auto object-contain"
+                />
+                <p className="text-slate-500 text-sm max-w-xs leading-relaxed">
+                  The most intuitive AI tutoring platform built for actual studying. Ask questions, upload PDFs, and master courses.
                 </p>
               </div>
 
-              {/* Links Column 1: Product */}
-              <div className="flex flex-col space-y-4">
-                <h4 className="text-white text-sm font-semibold uppercase tracking-wider">Product</h4>
-                <ul className="flex flex-col space-y-3 text-sm">
-                  <li><Link href="#how-it-works" className="text-slate-400 hover:text-white transition-colors">How it works</Link></li>
-                  <li><Link href="#features" className="text-slate-400 hover:text-white transition-colors">Features</Link></li>
-                  <li><Link href="#pricing" className="text-slate-400 hover:text-white transition-colors">Pricing</Link></li>
+              {/* Product */}
+              <div className="flex flex-col gap-4">
+                <h4 className="text-white text-xs font-semibold uppercase tracking-wider">Product</h4>
+                <ul className="flex flex-col gap-3 text-sm">
+                  <li><Link href="#how-it-works" className="text-slate-500 hover:text-white transition-colors">How it works</Link></li>
+                  <li><Link href="#features" className="text-slate-500 hover:text-white transition-colors">Features</Link></li>
+                  <li><Link href="#pricing" className="text-slate-500 hover:text-white transition-colors">Pricing</Link></li>
                 </ul>
               </div>
 
-              {/* Links Column 2: Legal */}
-              <div className="flex flex-col space-y-4">
-                <h4 className="text-white text-sm font-semibold uppercase tracking-wider">Legal</h4>
-                <ul className="flex flex-col space-y-3 text-sm">
-                  <li><Link href="/privacy-policy" className="text-slate-400 hover:text-white transition-colors">Privacy Policy</Link></li>
-                  <li><Link href="#" className="text-slate-400 hover:text-white transition-colors">Terms of Service</Link></li>
+              {/* Legal */}
+              <div className="flex flex-col gap-4">
+                <h4 className="text-white text-xs font-semibold uppercase tracking-wider">Legal</h4>
+                <ul className="flex flex-col gap-3 text-sm">
+                  <li><Link href="/privacy-policy" className="text-slate-500 hover:text-white transition-colors">Privacy Policy</Link></li>
+                  <li><Link href="#" className="text-slate-500 hover:text-white transition-colors">Terms of Service</Link></li>
                 </ul>
               </div>
 
-              {/* Links Column 3: Contact & Social */}
-              <div className="flex flex-col space-y-4">
-                <h4 className="text-white text-sm font-semibold uppercase tracking-wider">Connect</h4>
-                <ul className="flex flex-col space-y-3 text-sm">
-                  <li><Link href="mailto:support@uselerna.app" className="text-slate-400 hover:text-white transition-colors">Contact Support</Link></li>
-                  <li><Link href="https://github.com" target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-white transition-colors">GitHub</Link></li>
+              {/* Connect */}
+              <div className="flex flex-col gap-4">
+                <h4 className="text-white text-xs font-semibold uppercase tracking-wider">Connect</h4>
+                <ul className="flex flex-col gap-3 text-sm">
+                  <li><Link href="mailto:support@uselerna.app" className="text-slate-500 hover:text-white transition-colors">Support</Link></li>
+                  <li><Link href="https://github.com" target="_blank" rel="noopener noreferrer" className="text-slate-500 hover:text-white transition-colors">GitHub</Link></li>
                 </ul>
               </div>
             </div>
-            
-            <div className="h-[1px] w-full bg-white/10 mt-12 mb-8"></div>
-            
-            <div className="flex flex-col md:flex-row justify-between items-center text-sm gap-4 text-slate-500 font-medium pb-4">
-              <p className="text-center md:text-left">Copyright &copy; {new Date().getFullYear()} Lerna AI. All rights reserved.</p>
-              <div className="flex items-center gap-6">
-                <span className="text-slate-600">Built for student excellence</span>
-              </div>
+
+            <div className="h-px w-full bg-white/5 mt-12 mb-6" />
+
+            <div className="flex flex-col md:flex-row justify-between items-center text-xs gap-3 text-slate-600">
+              <p>Copyright &copy; {new Date().getFullYear()} Lerna AI. All rights reserved.</p>
+              <span>Built for student excellence</span>
             </div>
           </div>
         </div>
       </footer>
 
-      {/* Auth Modals */}
+      {/* ── Auth Modals ──────────────────────────────────────────────────── */}
       <Modal isOpen={activeModal === "login"} onClose={() => setActiveModal(null)}>
-        <LoginForm 
-          onSwitchToSignup={() => setActiveModal("signup")} 
+        <LoginForm
+          onSwitchToSignup={() => setActiveModal("signup")}
           onSwitchToForgot={() => setActiveModal("forgot")}
-          redirectTo="/chat" 
+          redirectTo="/chat"
         />
       </Modal>
 
       <Modal isOpen={activeModal === "signup"} onClose={() => setActiveModal(null)}>
-        <SignupForm 
-          onSwitchToLogin={() => setActiveModal("login")} 
-          redirectTo="/chat" 
-        />
+        <SignupForm onSwitchToLogin={() => setActiveModal("login")} redirectTo="/chat" />
       </Modal>
 
       <Modal isOpen={activeModal === "forgot"} onClose={() => setActiveModal(null)}>
@@ -1018,9 +1107,7 @@ function HomePageContent() {
       <Modal isOpen={activeModal === "reset"} onClose={() => setActiveModal(null)}>
         <ResetPasswordModal
           onClose={() => setActiveModal(null)}
-          onSuccess={() => {
-            setActiveModal("login");
-          }}
+          onSuccess={() => setActiveModal("login")}
         />
       </Modal>
     </main>
@@ -1029,11 +1116,13 @@ function HomePageContent() {
 
 export default function HomePage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
-        <div className="h-8 w-8 rounded-full border-4 border-cyan-500 border-t-transparent"></div>
-      </div>
-    }>
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-[#0B1120] flex items-center justify-center">
+          <div className="h-8 w-8 rounded-full border-2 border-blue-500 border-t-transparent animate-spin" />
+        </div>
+      }
+    >
       <HomePageContent />
     </Suspense>
   );

@@ -1,17 +1,19 @@
 import type { Metadata } from "next";
-import { Manrope, Space_Grotesk } from "next/font/google";
+import { Instrument_Serif, Inter, Space_Grotesk } from "next/font/google";
 import { Providers } from "@/components/providers";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import "highlight.js/styles/github-dark.css";
 import "katex/dist/katex.min.css";
 import "./globals.css";
 
-const headingFont = Space_Grotesk({
+const headingFont = Instrument_Serif({
   subsets: ["latin"],
+  weight: ["400"],
+  style: ["normal", "italic"],
   variable: "--font-heading",
 });
 
-const bodyFont = Manrope({
+const bodyFont = Space_Grotesk({
   subsets: ["latin"],
   variable: "--font-body",
 });
