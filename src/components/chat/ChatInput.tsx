@@ -276,8 +276,8 @@ export function ChatInput({
         </div>
       )}
 
-      <div className="flex min-w-0 w-full items-end gap-1 rounded-[1.5rem] border border-white/10 bg-[#141414] p-2 shadow-lg transition-colors focus-within:border-cyan-500/40 focus-within:ring-1 focus-within:ring-cyan-500/20 sm:gap-2">
-        <div className="mb-0.5 flex items-center">
+      <div className="flex min-w-0 w-full items-end gap-1 rounded-[1.5rem] border border-white/10 bg-[#141414] p-1.5 shadow-lg transition-colors focus-within:border-cyan-500/40 focus-within:ring-1 focus-within:ring-cyan-500/20 sm:gap-2">
+        <div className="flex items-center">
           <input
             type="file"
             ref={fileInputRef}
@@ -293,7 +293,7 @@ export function ChatInput({
             onClick={() => fileInputRef.current?.click()}
             aria-label="Upload attachment"
             disabled={disabled || isUploading}
-            className={`h-11 w-11 shrink-0 rounded-full sm:h-10 sm:w-10 ${
+            className={`h-10 w-10 shrink-0 rounded-full sm:h-9 sm:w-9 ${
               isUploading ? "text-cyan-400" : "text-slate-400 hover:bg-white/10 hover:text-white"
             }`}
           >
@@ -322,7 +322,7 @@ export function ChatInput({
           onBlur={handleBlur}
           disabled={disabled}
           rows={1}
-          className="my-auto min-h-11 min-w-0 flex-1 resize-none overflow-y-auto bg-transparent px-1 py-2.5 text-base leading-6 text-slate-200 placeholder:text-slate-500 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 sm:px-2"
+          className="my-auto min-h-5 min-w-0 flex-1 resize-none overflow-y-auto bg-transparent px-1 py-1.5 text-sm leading-5 text-slate-200 placeholder:text-slate-500 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 sm:px-2"
         />
 
         <Button
@@ -331,7 +331,7 @@ export function ChatInput({
           disabled={disabled || !text.trim()}
           size="icon"
           aria-label="Send message"
-          className={`mb-0.5 h-11 w-11 shrink-0 rounded-full sm:h-10 sm:w-10 ${
+          className={`h-10 w-10 shrink-0 rounded-full sm:h-9 sm:w-9 ${
             text.trim() ? "bg-white text-black hover:bg-slate-200" : "bg-white/10 text-white/30"
           }`}
         >
