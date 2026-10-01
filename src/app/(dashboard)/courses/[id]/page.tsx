@@ -18,7 +18,7 @@ import {
   MessageSquare
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
-import { DashboardShell } from '@/components/layout/DashboardShell';
+
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { UPLOADED_MATERIALS_BUCKET, buildUploadPath, isAllowedUploadMimeType, getAcceptedUploadMimeTypes } from '@/lib/uploads/constants';
 
@@ -272,7 +272,7 @@ export default function CourseDetailsPage({ params }: PageProps) {
 
   if (loading || authLoading) {
     return (
-      <DashboardShell>
+      
         <div className="h-full overflow-y-auto bg-[#0a0a0a] text-white font-body px-6 py-8 animate-pulse">
           <div className="max-w-4xl mx-auto space-y-8">
             <div className="h-4 bg-white/5 rounded w-16" />
@@ -288,14 +288,14 @@ export default function CourseDetailsPage({ params }: PageProps) {
             </div>
           </div>
         </div>
-      </DashboardShell>
+      
     );
   }
 
   if (!course) return null;
 
   return (
-    <DashboardShell>
+    <>
       <div className="h-full overflow-y-auto bg-[#0a0a0a] text-white font-body px-6 py-8">
         <div className="max-w-4xl mx-auto space-y-8">
           
@@ -579,6 +579,6 @@ export default function CourseDetailsPage({ params }: PageProps) {
           </div>
         </div>
       )}
-    </DashboardShell>
+    </>
   );
 }

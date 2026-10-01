@@ -1,0 +1,90 @@
+--- src/app/page.tsx
++++ src/app/page.tsx
+@@ -581,64 +581,42 @@
+-        <div className="relative z-10 flex flex-col items-center lg:items-start pt-4 sm:pt-8 text-center lg:text-left">
+-          {/* Top: text */}
+-          <div className="max-w-3xl flex flex-col items-center lg:items-start">
+-            {/* Trust badge */}
+-            <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 mb-8">
+-              <div className="flex text-amber-400">
+-                {[...Array(5)].map((_, i) => <Star key={i} className="h-3 w-3 fill-current" />)}
+-              </div>
+-              <span className="text-xs font-medium text-slate-300">Trusted by students worldwide</span>
+-            </div>
+-
+-            <h1 className="font-heading text-5xl sm:text-6xl lg:text-[4.25rem] xl:text-7xl font-normal tracking-tight text-white leading-[1.05] mb-6">
+-              Learn{" "}
+-              <span className="italic text-blue-400">smarter</span>
+-              ,<br />
+-              not harder.
+-            </h1>
+-
+-            <p className="text-base sm:text-lg text-slate-400 leading-relaxed mb-8 max-w-lg mx-auto lg:mx-0">
+-              Ask questions, upload study materials, build smart revision plans, and keep every learning session organized in one workspace.
+-            </p>
+-
+-            <div className="flex flex-col sm:flex-row gap-3 items-center justify-center lg:justify-start w-full sm:w-auto">
+-              <button
+-                onClick={() => setActiveModal("signup")}
+-                className="inline-flex items-center justify-center w-full sm:w-auto gap-2 rounded-full bg-white text-[#0B1120] hover:bg-slate-100 px-7 h-12 text-sm font-semibold transition-all hover:scale-[1.02] active:scale-[0.98] shadow-lg shadow-white/10"
+-              >
+-                Start studying for free <ArrowRight className="h-4 w-4" />
+-              </button>
+-              <Link href="#features" className="w-full sm:w-auto">
+-                <button className="inline-flex items-center justify-center w-full sm:w-auto gap-2 rounded-full border border-white/15 bg-white/5 hover:bg-white/10 text-white px-7 h-12 text-sm font-medium transition-all">
+-                  Explore features
+-                </button>
+-              </Link>
+-            </div>
+-
+-            {/* Social proof row */}
+-            <div className="mt-8 flex items-center gap-4 flex-wrap justify-center lg:justify-start">
+-              <div className="flex -space-x-2">
+-                {["SarahL", "AlexM", "DavidK", "MayaT"].map((seed) => (
+-                  <div
+-                    key={seed}
+-                    className="h-8 w-8 rounded-full border-2 border-[#0B1120] bg-slate-700 bg-cover bg-center"
+-                    style={{ backgroundImage: `url(https://api.dicebear.com/9.x/notionists/svg?seed=${seed})` }}
+-                  />
+-                ))}
+-              </div>
+-              <p className="text-sm text-slate-400">
+-                <span className="font-semibold text-white">1,000+</span> students studying smarter
+-              </p>
+-            </div>
+-          </div>
+-        </div>
++        <div className="relative z-10 flex flex-col items-start pt-16 sm:pt-24 text-left">
++          {/* Top: text */}
++          <div className="max-w-[42rem] flex flex-col items-start">
++            <h1 className="font-body text-5xl sm:text-6xl lg:text-[5rem] font-medium tracking-tight text-white leading-[1.1] mb-6">
++              Learn{" "}
++              <span className="italic text-[#E1C16E] relative inline-block">
++                smarter,
++                <svg className="absolute left-0 w-full -bottom-2 text-[#E1C16E]" viewBox="0 0 100 20" preserveAspectRatio="none" style={{ height: '12px' }}>
++                  <path d="M0,10 Q10,20 20,10 T40,10 T60,10 T80,10 T100,10" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" />
++                </svg>
++              </span>
++              <br />
++              not harder.
++            </h1>
++
++            <p className="text-lg sm:text-xl text-slate-400 leading-relaxed mb-10 max-w-lg">
++              Ask questions, upload study materials, build smart revision plans, and keep every learning session organized in one workspace.
++            </p>
++
++            <div className="flex flex-col sm:flex-row gap-8 items-center justify-start">
++              <button
++                onClick={() => setActiveModal("signup")}
++                className="inline-flex items-center justify-center gap-2 rounded-md bg-white text-[#0B1120] hover:bg-slate-200 px-8 h-14 text-sm font-bold uppercase tracking-widest transition-colors"
++              >
++                Get started <ArrowRight className="h-4 w-4" />
++              </button>
++              <Link href="#how-it-works">
++                <button className="text-sm font-bold uppercase tracking-[0.2em] text-slate-300 hover:text-white transition-colors">
++                  See how it works
++                </button>
++              </Link>
++            </div>
++          </div>
++        </div>

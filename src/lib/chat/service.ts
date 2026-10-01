@@ -65,58 +65,82 @@ export async function getAIResponse(
   userId?: string,
   documentIds?: string[]
 ): Promise<ChatMessage> {
-  // Keep recent context compact for predictable latency and token usage.
   const recentMessages = messages.slice(-8);
   const transcript = recentMessages
     .map((m) => `${m.role === "user" ? "Student" : "Tutor"}: ${m.content}`)
     .join("\n\n");
 
-  let contextText = "";
-  let sources: ChatSource[] = [];
+  const lastUserMessage = [...recentMessages].reverse().find((m) => m.role === "user");
 
-  if (sessionId && userId) {
-    const lastUserMessage = [...recentMessages].reverse().find((m) => m.role === "user");
-    if (lastUserMessage) {
+  let searchPromise = Promise.resolve({ contextText: "", sources: [] as ChatSource[] });
+  
+  if (sessionId && userId && lastUserMessage) {
+    searchPromise = (async () => {
+      let searchQuery = lastUserMessage.content;
+      
+      // Query Reformulation if there is conversation history
+      if (recentMessages.length > 1) {
+        const reformulationPrompt = `Given the following conversation history and the latest student message, formulate a single, standalone search query that captures all the necessary context to search a vector database for relevant study materials. If the latest message is already a standalone question, just return it. Return ONLY the search query, with no conversational filler.
+        
+Conversation:
+${transcript}
+
+Standalone Query:`;
+        try {
+          const reformulateResult = await generateText(reformulationPrompt, { userId, requestType: "chat" });
+          const text = reformulateResult?.text?.toString().trim();
+          if (text) searchQuery = text;
+        } catch (e) {
+          console.warn("[chat] Query reformulation failed, using fallback");
+        }
+      }
+
       try {
         const ragResult = await retrieveMaterialContext({
           userId,
           sessionId,
-          query: lastUserMessage.content,
+          query: searchQuery,
           documentIds,
         });
+        
         if (ragResult.chunks.length > 0) {
-          contextText = "\n\n=== RELEVANT CONTEXT FROM UPLOADED DOCUMENTS ===\n" + formatRagContext(ragResult.chunks);
-          sources = ragResult.sources;
+          return {
+            contextText: "\n\n=== RELEVANT CONTEXT FROM UPLOADED DOCUMENTS ===\n" + formatRagContext(ragResult.chunks),
+            sources: ragResult.sources,
+          };
         }
       } catch (e) {
         console.error("[chat] RAG retrieval error:", e);
       }
-    }
+      return { contextText: "", sources: [] };
+    })();
   }
-  let profileContext = "";
+
+  let profilePromise = Promise.resolve("");
   if (userId) {
-    try {
-      const { createSupabaseServerClient } = await import("@/lib/supabase/server");
-      const supabase = await createSupabaseServerClient();
-      const [profileResult, subscriptionResult, roleResult] = await Promise.all([
-        supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", userId)
-        .single(),
-        supabase.from("subscriptions").select("plan, status, billing_cycle, subscription_status").eq("user_id", userId).single(),
-        supabase.from("user_roles").select("role").eq("user_id", userId).maybeSingle(),
-      ]);
+    profilePromise = (async () => {
+      try {
+        const { createSupabaseServerClient } = await import("@/lib/supabase/server");
+        const supabase = await createSupabaseServerClient();
+        const [profileResult, subscriptionResult, roleResult] = await Promise.all([
+          supabase.from("profiles").select("*").eq("id", userId).single(),
+          supabase.from("subscriptions").select("plan, status, billing_cycle, subscription_status").eq("user_id", userId).single(),
+          supabase.from("user_roles").select("role").eq("user_id", userId).maybeSingle(),
+        ]);
 
-      const profile = normalizeProfile(profileResult.data, subscriptionResult.data, roleResult.data);
-
-      if (profile) profileContext = buildAIProfileContext(profile);
-    } catch (err) {
-      console.error("[chat] Failed to fetch profile context for prompt personalization:", err);
-    }
+        const profile = normalizeProfile(profileResult.data, subscriptionResult.data, roleResult.data);
+        return profile ? buildAIProfileContext(profile) : "";
+      } catch (err) {
+        console.error("[chat] Failed to fetch profile context:", err);
+        return "";
+      }
+    })();
   }
 
-  const prompt = `Conversation transcript:\n${transcript}${profileContext}${contextText}`;
+  // Await RAG and Profile concurrently to drastically reduce latency
+  const [searchResult, profileContext] = await Promise.all([searchPromise, profilePromise]);
+
+  const prompt = `Conversation transcript:\n${transcript}${profileContext}${searchResult.contextText}`;
 
   const { text: aiText, usage } = await callGeminiAPI(prompt, userId);
 
@@ -125,7 +149,7 @@ export async function getAIResponse(
     role: "assistant",
     content: aiText,
     timestamp: Date.now(),
-    sources,
+    sources: searchResult.sources,
     usage,
   };
 }
