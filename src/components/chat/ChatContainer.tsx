@@ -159,28 +159,6 @@ export function ChatContainer() {
             <ChatMessageComponent key={msg.id} message={msg} />
           ))}
 
-          {/* Empty state: show hint only if we're still at welcome message */}
-          {messages.length === 1 && !loading ? (
-            <div className="mt-6 rounded-[1.75rem] border border-dashed border-slate-400/25 bg-slate-400/5 p-4 text-sm text-slate-400">
-              <p className="mb-2 font-medium text-slate-200">Ready to help.</p>
-              <p className="mb-4 leading-7 text-slate-400">
-                Try a starter prompt or ask your own question. The tutor will answer with structured, step-by-step guidance.
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {starterPrompts.map((prompt) => (
-                  <button
-                    key={prompt}
-                    type="button"
-                    onClick={() => handleSend(prompt)}
-                    className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-xs font-medium text-slate-200 transition-colors hover:bg-white/[0.08]"
-                  >
-                    {prompt}
-                  </button>
-                ))}
-              </div>
-            </div>
-          ) : null}
-
           {/* Typing Indicator */}
           {loading ? (
             <div className="flex justify-start">
@@ -201,7 +179,22 @@ export function ChatContainer() {
       </div>
 
       {/* Input Area */}
-      <div className="w-full pb-1">
+      <div className="w-full flex flex-col pb-1">
+        {messages.length === 1 && !loading && (
+          <div className="mb-3 flex w-full snap-x snap-mandatory gap-2 overflow-x-auto overscroll-x-contain pb-2 md:mb-4 md:flex-wrap md:justify-center md:overflow-visible md:pb-0 [&::-webkit-scrollbar]:hidden">
+            {starterPrompts.map((prompt) => (
+              <button
+                key={prompt}
+                type="button"
+                onClick={() => handleSend(prompt)}
+                disabled={loading}
+                className="min-h-11 shrink-0 snap-start whitespace-nowrap rounded-full border border-white/10 bg-[#141414] px-4 py-2 text-sm text-slate-300 transition-colors hover:border-white/20 hover:bg-[#202020] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 disabled:pointer-events-none disabled:opacity-50"
+              >
+                {prompt}
+              </button>
+            ))}
+          </div>
+        )}
         <ChatInput onSend={handleSend} disabled={loading} />
       </div>
     </div>

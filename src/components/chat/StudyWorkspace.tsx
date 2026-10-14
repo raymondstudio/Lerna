@@ -467,20 +467,6 @@ export function StudyWorkspace() {
             </h1>
 
             {composer}
-
-            <div className="mt-4 flex w-full snap-x snap-mandatory gap-2 overflow-x-auto overscroll-x-contain pb-2 md:mt-5 md:flex-wrap md:justify-center md:overflow-visible md:pb-0">
-              {starterPrompts.map((prompt) => (
-                <button
-                  key={prompt}
-                  type="button"
-                  onClick={() => handleSend(prompt)}
-                  disabled={sending || loadingSessions || authLoading || !ready}
-                  className="min-h-11 shrink-0 snap-start whitespace-nowrap rounded-full border border-white/10 bg-[#141414] px-4 py-2 text-sm text-slate-300 transition-colors hover:border-white/20 hover:bg-[#202020] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 disabled:pointer-events-none disabled:opacity-50"
-                >
-                  {prompt}
-                </button>
-              ))}
-            </div>
             <div className="h-[clamp(1rem,7dvh,4rem)] shrink-0 md:hidden" aria-hidden="true" />
           </div>
         </div>
