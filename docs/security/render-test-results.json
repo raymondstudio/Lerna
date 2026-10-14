@@ -1,0 +1,6 @@
+{
+  "renderer": "installed react-markdown defaults; full component/browser not tested",
+  "scriptElement": false,
+  "javascriptHref": false,
+  "goodHttpsLink": true
+}

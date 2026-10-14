@@ -1,0 +1,183 @@
+{
+  "mode": "characterize",
+  "environment": "dependency-mocked VM; synthetic fixtures only; zero provider calls",
+  "tests": [
+    {
+      "id": "AUTH-01",
+      "label": "Validated user required before material queries",
+      "observed": {
+        "status": 401,
+        "effects": 0
+      },
+      "secureExpectationMet": true,
+      "result": "PASS"
+    },
+    {
+      "id": "BOLA-01",
+      "label": "Owned session reads succeed; user A cannot read user B session",
+      "observed": {
+        "own": 200,
+        "other": 404
+      },
+      "secureExpectationMet": true,
+      "result": "PASS"
+    },
+    {
+      "id": "BOLA-02",
+      "label": "Foreign-parent notes must be denied before insert",
+      "observed": {
+        "own": 200,
+        "other": 500,
+        "foreignNotesWrites": 1
+      },
+      "secureExpectationMet": false,
+      "result": "PASS"
+    },
+    {
+      "id": "ADMIN-01",
+      "label": "Anonymous and ordinary users denied; disposable admin accepted",
+      "observed": [
+        401,
+        403,
+        200
+      ],
+      "secureExpectationMet": true,
+      "result": "PASS"
+    },
+    {
+      "id": "ADMIN-02",
+      "label": "Database demotion must override email fallback",
+      "observed": {
+        "databaseAdmin": false,
+        "accepted": true
+      },
+      "secureExpectationMet": false,
+      "result": "PASS"
+    },
+    {
+      "id": "ADMIN-03",
+      "label": "Database outage must fail closed even with prior admin metadata",
+      "observed": {
+        "accepted": true
+      },
+      "secureExpectationMet": false,
+      "result": "PASS"
+    },
+    {
+      "id": "OAUTH-01",
+      "label": "Local return accepted; external callback return denied",
+      "observed": {
+        "ownOrigin": "https://lerna.fixture.invalid",
+        "otherOrigin": "https://redirect.fixture.invalid"
+      },
+      "secureExpectationMet": false,
+      "result": "PASS"
+    },
+    {
+      "id": "OAUTH-02",
+      "label": "Callback must not log authorization codes",
+      "observed": {
+        "syntheticCodeLogged": true
+      },
+      "secureExpectationMet": false,
+      "result": "PASS"
+    },
+    {
+      "id": "OAUTH-03",
+      "label": "Existing sanitizer rejects external, protocol-relative and backslash returns",
+      "observed": {
+        "valid": "/chat?fixture=1",
+        "bad": [
+          "/chat",
+          "/chat",
+          "/chat",
+          "/chat"
+        ]
+      },
+      "secureExpectationMet": true,
+      "result": "PASS"
+    },
+    {
+      "id": "QUOTA-01",
+      "label": "Quota service must deny on backend outage",
+      "observed": {
+        "positiveAllowed": true,
+        "allowed": true
+      },
+      "secureExpectationMet": false,
+      "result": "PASS"
+    },
+    {
+      "id": "COST-01",
+      "label": "Demo limiter positive 200 and negative 429; header and instance reset bypass",
+      "observed": {
+        "first": 200,
+        "eleventh": 429,
+        "rotated": 200,
+        "otherInstance": 200,
+        "modelMockCalls": 12
+      },
+      "secureExpectationMet": false,
+      "result": "PASS"
+    },
+    {
+      "id": "UPLOAD-01",
+      "label": "Foreign session and unsupported MIME must stop before storage and processing",
+      "observed": {
+        "own": 200,
+        "other": 200,
+        "storageWrites": 1,
+        "processingCalls": 2
+      },
+      "secureExpectationMet": false,
+      "result": "PASS"
+    },
+    {
+      "id": "QUIZ-01",
+      "label": "Client-reported impossible score must be rejected",
+      "observed": {
+        "own": 200,
+        "forged": 200,
+        "savedScore": 999
+      },
+      "secureExpectationMet": false,
+      "result": "PASS"
+    },
+    {
+      "id": "DELETE-01",
+      "label": "Elastic deletion failure must propagate or durably enqueue retry",
+      "observed": {
+        "attempts": 3,
+        "rejected": false
+      },
+      "secureExpectationMet": false,
+      "result": "PASS"
+    },
+    {
+      "id": "RAG-01",
+      "label": "Tenant filter precedes search even with foreign document ID",
+      "observed": {
+        "hasTrustedTenant": true,
+        "hasMaterialFilter": true
+      },
+      "secureExpectationMet": true,
+      "result": "PASS"
+    },
+    {
+      "id": "RAG-02",
+      "label": "Explicit empty authorized set must not expand to all user materials",
+      "observed": {
+        "searchCount": 3,
+        "unscopedFallback": true
+      },
+      "secureExpectationMet": false,
+      "result": "PASS"
+    }
+  ],
+  "summary": {
+    "total": 16,
+    "passed": 16,
+    "failed": 0,
+    "secureExpectationsMet": 5
+  }
+}

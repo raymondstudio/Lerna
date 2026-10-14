@@ -1,0 +1,28 @@
+{
+  "isolation": "local parser modules; OCR mocked to throw; no network",
+  "tests": [
+    {
+      "name": "TXT positive",
+      "bytes": 20,
+      "segments": 1,
+      "accepted": true
+    },
+    {
+      "name": "Tiny PPTX positive",
+      "bytes": 413,
+      "segments": 1,
+      "accepted": true
+    },
+    {
+      "name": "MIME spoof text accepted",
+      "bytes": 34,
+      "segments": 1,
+      "accepted": true
+    },
+    {
+      "name": "Unsupported format negative",
+      "bytes": 7,
+      "accepted": false
+    }
+  ]
+}
