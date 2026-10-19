@@ -1,25 +1,29 @@
 import type { Metadata } from "next";
-import { Instrument_Serif, Inter, Space_Grotesk } from "next/font/google";
+import localFont from "next/font/local";
 import { Providers } from "@/components/providers";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import "highlight.js/styles/github-dark.css";
 import "katex/dist/katex.min.css";
 import "./globals.css";
 
-const headingFont = Instrument_Serif({
-  subsets: ["latin"],
-  weight: ["400"],
-  style: ["normal", "italic"],
+const headingFont = localFont({
+  src: [
+    { path: "./fonts/InstrumentSerif-Regular.ttf", weight: "400", style: "normal" },
+    { path: "./fonts/InstrumentSerif-Italic.ttf", weight: "400", style: "italic" },
+  ],
+  display: "swap",
   variable: "--font-heading",
 });
 
-const bodyFont = Space_Grotesk({
-  subsets: ["latin"],
+const bodyFont = localFont({
+  src: "./fonts/space-grotesk-latin-wght-normal.woff2",
+  weight: "300 700",
+  display: "swap",
   variable: "--font-body",
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "https://learn.app"),
+  metadataBase: new URL("https://www.uselerna.app"),
   title: {
     default: "Lerna AI | Smart Learning & AI Tutoring",
     template: "%s | Lerna AI"
@@ -36,13 +40,13 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     locale: "en_US",
-    url: "https://learn.app",
-    title: "Lerna AI | Learn smarter, not harder",
+    url: "https://www.uselerna.app",
+    title: "Lerna AI | Understand your materials. Keep what you learn.",
     description: "Experience the most intuitive AI tutoring platform built for actual studying. Upload your lecture materials and get instant, structured guidance.",
     siteName: "Lerna AI",
     images: [
       {
-        url: "/assets/dashboard-mockup.png",
+        url: "/dashboard-mockup.png",
         width: 1200,
         height: 630,
         alt: "Lerna Dashboard Mockup",
@@ -53,11 +57,11 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Lerna AI | Smart Learning & AI Tutoring",
     description: "Experience the most intuitive AI tutoring platform built for actual studying.",
-    images: ["/assets/dashboard-mockup.png"],
+    images: ["/dashboard-mockup.png"],
     creator: "@RaymondIorliam",
   },
   alternates: {
-    canonical: "https://learn.app",
+    canonical: "https://www.uselerna.app",
   },
   verification: {
     google: "fxKf0VEAWV9KMXuOj1YU-itMeDVSiFQyFJjq6gzozVw",
