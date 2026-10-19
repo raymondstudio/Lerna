@@ -42,5 +42,13 @@ next-env.d.ts
 .todo
 .env
 .env2
+.env.*
+!.env.example
+.playwright/
+playwright-report/
+test-results/
+supabase/.temp/
+supabase/.branches/
+.stabilization-local/
 prd
 prd2
