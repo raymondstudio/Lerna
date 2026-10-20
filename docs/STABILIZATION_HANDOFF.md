@@ -14,6 +14,7 @@ occurred. The original main checkout remains untouched.
 | `16c94e6` | M0.2a dependencies/check configuration and bundled fonts; security specialist reviewed source | Source checkpoint only; clean install and real provider gate open |
 | `644a80b` | M6a landing/source metadata authored in isolated design worktree, reviewed by lead; five-width static fixture | Hydrated local browser passed in the integrated follow-up; auth entry and performance comparison remain open |
 | `c1300ed` | Integrated source candidate; targeted independent reviews and corrections; 82 Node/117 Vitest, lint, typecheck and production build pass | Overall milestone acceptance, full integrated re-audit and real provider/browser gates remain open |
+| `fb0f192` | Documentation/evidence checkpoint and independent review log | Full M8 acceptance remains open |
 
 The [workboard](STABILIZATION_WORKBOARD.md) is the authoritative list as more
 reviewed commits land. Integrated security, persistence, authentication,
