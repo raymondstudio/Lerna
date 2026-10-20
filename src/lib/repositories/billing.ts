@@ -7,7 +7,7 @@ export interface TransactionInput {
   currency?: string;
   status: "pending" | "processing" | "successful" | "failed" | "refunded" | "cancelled";
   payment_method?: string;
-  metadata?: any;
+  metadata?: Record<string, unknown>;
 }
 
 export interface InvoiceInput {
@@ -55,9 +55,9 @@ export async function updateTransaction(reference: string, updates: Partial<Tran
   return data;
 }
 
-export async function completeTransaction(reference: string, metadata?: any) {
+export async function completeTransaction(reference: string, metadata?: Record<string, unknown>) {
   const supabase = await createSupabaseServerClient();
-  const updates: any = { status: "successful", updated_at: new Date().toISOString() };
+  const updates: Record<string, unknown> = { status: "successful", updated_at: new Date().toISOString() };
   if (metadata) {
     updates.metadata = metadata;
   }
@@ -85,7 +85,7 @@ export async function completeTransaction(reference: string, metadata?: any) {
 
 export async function failTransaction(reference: string, errorMsg?: string) {
   const supabase = await createSupabaseServerClient();
-  const updates: any = { status: "failed", updated_at: new Date().toISOString() };
+  const updates: Record<string, unknown> = { status: "failed", updated_at: new Date().toISOString() };
   if (errorMsg) {
     updates.metadata = { error: errorMsg };
   }
@@ -179,64 +179,7 @@ export async function getSubscriptionHistory(userId: string) {
   return data || [];
 }
 
-// 3. Coupons repository methods
-export async function validateCoupon(code: string) {
-  const supabase = await createSupabaseServerClient();
-  const { data, error } = await supabase
-    .from("coupon_codes")
-    .select("*")
-    .eq("code", code.toUpperCase().trim())
-    .eq("is_active", true)
-    .single();
-
-  if (error || !data) {
-    return { valid: false, reason: "Coupon not found or inactive" };
-  }
-
-  // Check expiration
-  if (data.expires_at && new Date(data.expires_at) < new Date()) {
-    return { valid: false, reason: "Coupon has expired" };
-  }
-
-  // Check redemptions
-  if (data.max_redemptions && data.redemption_count >= data.max_redemptions) {
-    return { valid: false, reason: "Coupon redemption limit reached" };
-  }
-
-  return { valid: true, coupon: data };
-}
-
-export async function redeemCoupon(userId: string, code: string) {
-  const supabase = await createSupabaseServerClient();
-  const validation = await validateCoupon(code);
-  
-  if (!validation.valid || !validation.coupon) {
-    throw new Error(validation.reason || "Invalid coupon");
-  }
-
-  const coupon = validation.coupon;
-
-  // Increment redemption count
-  const { data, error } = await supabase
-    .from("coupon_codes")
-    .update({ redemption_count: coupon.redemption_count + 1 })
-    .eq("code", coupon.code)
-    .select()
-    .single();
-
-  if (error) throw error;
-
-  // Log audit event
-  await supabase.from("audit_logs").insert({
-    user_id: userId,
-    action: "coupon_redeemed",
-    details: { code: coupon.code, discount_type: coupon.discount_type, discount_value: coupon.discount_value }
-  });
-
-  return data;
-}
-
-// 4. Usage repository methods
+// 3. Usage repository methods
 export async function getUsage(userId: string, dateStr?: string) {
   const supabase = await createSupabaseServerClient();
   const targetDate = dateStr || new Date().toISOString().slice(0, 10);
@@ -283,8 +226,8 @@ export async function updateUsage(
   return true;
 }
 
-// 5. Immutable usage ledger (usage_events)
-export async function recordUsageLedgerEvent(userId: string, resourceType: string, amount: number, metadata?: any) {
+// 4. Immutable usage ledger (usage_events)
+export async function recordUsageLedgerEvent(userId: string, resourceType: string, amount: number, metadata?: Record<string, unknown>) {
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase
     .from("usage_events")
@@ -333,8 +276,8 @@ export async function recordUsageLedgerEvent(userId: string, resourceType: strin
   return data;
 }
 
-// 6. Webhooks repository methods
-export async function createWebhookEvent(provider: string, eventId: string, eventType: string, payload: any) {
+// 5. Webhooks repository methods
+export async function createWebhookEvent(provider: string, eventId: string, eventType: string, payload: Record<string, unknown>) {
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase
     .from("billing_webhook_events")

@@ -80,14 +80,16 @@ export function StudyWorkspace() {
   const [error, setError] = useState<string | null>(null);
   const [chatReference, setChatReference] = useState<ChatReferenceSelection | null>(null);
   const [isUploading, setIsUploading] = useState(false);
-  const [loadingActiveSession, setLoadingActiveSession] = useState(false);
+  const currentSessionId = paramSessionId ?? null;
+  const [settledSessionId, setSettledSessionId] = useState<string | null>(null);
+  const loadingActiveSession = Boolean(ready && user && currentSessionId && !sessions.some(session => session.id === currentSessionId) && settledSessionId !== currentSessionId);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const transcriptRef = useRef<HTMLDivElement>(null);
   const [isNearBottom, setIsNearBottom] = useState(true);
 
-  const [activeSessionMaterials, setActiveSessionMaterials] = useState<UploadedMaterialRecord[]>([]);
-  const [, setLoadingMaterials] = useState(false);
+  const [materialSnapshot, setMaterialSnapshot] = useState<{ sessionId: string; materials: UploadedMaterialRecord[] } | null>(null);
+  const activeSessionMaterials = materialSnapshot?.sessionId === activeSessionId ? materialSnapshot.materials : [];
 
   const initialSyncRef = useRef(false);
 
@@ -122,7 +124,7 @@ export function StudyWorkspace() {
       });
       const payload = await response.json();
       if (response.ok && payload.success && payload.data?.materials) {
-        setActiveSessionMaterials(payload.data.materials);
+        setMaterialSnapshot({ sessionId, materials: payload.data.materials });
       }
     } catch (err) {
       console.error("Failed to refresh materials for session", err);
@@ -136,7 +138,7 @@ export function StudyWorkspace() {
         method: "DELETE",
       });
       if (response.ok) {
-        setActiveSessionMaterials((prev) => prev.filter((m) => m.id !== materialId));
+        setMaterialSnapshot(previous => previous?.sessionId === activeSessionId ? { ...previous, materials: previous.materials.filter(material => material.id !== materialId) } : previous);
       } else {
         const payload = await response.json();
         throw new Error(payload.error?.message || "Failed to delete document");
@@ -149,15 +151,12 @@ export function StudyWorkspace() {
 
   // Load materials when activeSessionId changes
   useEffect(() => {
-    // Clear previous materials immediately to avoid displaying stale data
-    setActiveSessionMaterials([]);
-
     if (!ready || !user || !activeSessionId) {
       return;
     }
 
     let cancelled = false;
-    setLoadingMaterials(true);
+
 
     void (async () => {
       try {
@@ -168,12 +167,10 @@ export function StudyWorkspace() {
         const payload = await response.json();
         if (cancelled) return;
         if (response.ok && payload.success && payload.data?.materials) {
-          setActiveSessionMaterials(payload.data.materials);
+          setMaterialSnapshot({ sessionId: activeSessionId, materials: payload.data.materials });
         }
       } catch (err) {
         console.error("Failed to load materials for session", err);
-      } finally {
-        if (!cancelled) setLoadingMaterials(false);
       }
     })();
 
@@ -182,25 +179,13 @@ export function StudyWorkspace() {
     };
   }, [ready, user, activeSessionId]);
 
-  const currentSessionId = paramSessionId ?? null;
-
-  const hasSessionRef = useRef(false);
-  hasSessionRef.current = sessions.some(s => s.id === currentSessionId);
-
   useEffect(() => {
     if (!ready || !user || !currentSessionId) {
-      setLoadingActiveSession(false);
       return;
     }
 
     const controller = new AbortController();
     
-    // Only show loading state if we don't already have this session locally.
-    // We still fetch to ensure we have the latest messages (stale-while-revalidate).
-    if (!hasSessionRef.current) {
-      setLoadingActiveSession(true);
-    }
-
     void (async () => {
       try {
         const response = await fetch(`/api/study-sessions/${encodeURIComponent(currentSessionId)}`, {
@@ -210,13 +195,13 @@ export function StudyWorkspace() {
         if (!response.ok || !payload.success || !payload.data?.session) {
           throw new Error(payload.error?.message || "Unable to load this conversation.");
         }
-        upsertSession(payload.data.session);
+        if (!controller.signal.aborted) upsertSession(payload.data.session);
       } catch (loadError) {
         if (controller.signal.aborted) return;
         setError(loadError instanceof Error ? loadError.message : "Unable to load this conversation.");
         router.replace("/chat");
       } finally {
-        if (!controller.signal.aborted) setLoadingActiveSession(false);
+        if (!controller.signal.aborted) setSettledSessionId(currentSessionId);
       }
     })();
 

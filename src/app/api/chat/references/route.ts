@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 
 import type { ChatReference } from "@/lib/chat/references";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { AuthApiError, requireActiveUserApi } from "@/lib/auth/require-active-user-api";
 
 type CourseRow = {
   id: string;
@@ -21,20 +21,20 @@ const MAX_RESULTS_PER_KIND = MAX_REFERENCE_RESULTS / 2;
 
 export async function GET(request: NextRequest) {
   const requestId = crypto.randomUUID();
-  const supabase = await createSupabaseServerClient();
-  const { data: userData } = await supabase.auth.getUser();
-  const user = userData.user;
-
-  if (!user) {
+  let context: Awaited<ReturnType<typeof requireActiveUserApi>>;
+  try { context = await requireActiveUserApi(); }
+  catch (error) {
+    const failure = error instanceof AuthApiError ? error : new AuthApiError("Account verification is temporarily unavailable.", 503, "AUTH_UNAVAILABLE");
     return NextResponse.json(
       {
         success: false,
         requestId,
-        error: { code: "UNAUTHORIZED", message: "You must be signed in to search learning materials." },
+        error: { code: failure.code, message: failure.message },
       },
-      { status: 401 },
+      { status: failure.status, headers: { "Cache-Control": "private, no-store" } },
     );
   }
+  const { supabase, user } = context;
 
   const rawQuery = request.nextUrl.searchParams.get("query")?.trim().slice(0, 100) ?? "";
   const searchQuery = rawQuery.replace(/[^\p{L}\p{N}\s._-]/gu, " ").replace(/\s+/g, " ").trim();
@@ -65,8 +65,8 @@ export async function GET(request: NextRequest) {
     if (coursesError || materialsError) {
       console.error("[api:chat-references] lookup failed", {
         requestId,
-        coursesError,
-        materialsError,
+        courseCode: coursesError?.code,
+        materialCode: materialsError?.code,
       });
       return NextResponse.json(
         {
@@ -90,7 +90,7 @@ export async function GET(request: NextRequest) {
         .in("id", courseIds);
 
       if (linkedCoursesError) {
-        console.warn("[api:chat-references] course metadata lookup failed", { requestId, linkedCoursesError });
+        console.warn("[api:chat-references] course metadata lookup failed", { requestId, code: linkedCoursesError.code });
       } else {
         for (const course of linkedCourses ?? []) {
           courseCodes.set(course.id, course.code);
@@ -119,8 +119,8 @@ export async function GET(request: NextRequest) {
       requestId,
       data: { references },
     });
-  } catch (error) {
-    console.error("[api:chat-references] unexpected error", { requestId, error });
+  } catch {
+    console.error("[api:chat-references] unexpected error", { requestId });
     return NextResponse.json(
       {
         success: false,

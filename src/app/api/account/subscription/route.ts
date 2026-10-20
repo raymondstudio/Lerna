@@ -1,20 +1,15 @@
 import { NextResponse } from "next/server";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { authorizeActiveUserApi } from "@/lib/auth/require-active-user-api";
 import { getUserSubscription, getPlanLimits } from "@/lib/services/business";
 import { PLAN_FEATURES } from "@/lib/services/features";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
+  const auth = await authorizeActiveUserApi();
+  if (!auth.ok) return auth.response;
   try {
-    const supabase = await createSupabaseServerClient();
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user) {
-      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
-    }
-
-    const subscription = await getUserSubscription(user.id);
+    const subscription = await getUserSubscription(auth.user.id);
     const limits = getPlanLimits(subscription.plan);
     const features = PLAN_FEATURES[subscription.plan.toLowerCase()] || PLAN_FEATURES.free;
 
@@ -24,8 +19,8 @@ export async function GET() {
       limits,
       features,
     });
-  } catch (err) {
-    console.error("[api:account:subscription] Error:", err);
-    return NextResponse.json({ success: false, error: String(err) }, { status: 500 });
+  } catch {
+    console.error("[api:account:subscription] fetch failed");
+    return NextResponse.json({ success: false, error: "Subscription could not be loaded." }, { status: 503 });
   }
 }

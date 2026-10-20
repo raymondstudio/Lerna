@@ -1,11 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { 
   Building, 
   Check, 
   Trash2, 
-  TrendingUp, 
   MapPin, 
   Globe, 
   AlertTriangle, 
@@ -13,53 +12,17 @@ import {
   GraduationCap, 
   Loader2 
 } from "lucide-react";
+import { useAdminData } from "./use-admin-data";
 import { Button } from "@/components/ui/button";
 
+type Institution = { id: string; name: string; institution_type: string; state: string | null; country: string | null };
+type InstitutionAnalytics = { byUniversity: Array<{ name: string; user_count: number }>; bySecondary: Array<{ name: string; user_count: number }>; byState: Array<{ state: string; user_count: number }>; byCountry: Array<{ country: string; user_count: number }> };
 export function InstitutionsTab() {
-  const [analytics, setAnalytics] = useState<any>(null);
-  const [pendingReviews, setPendingReviews] = useState<any[]>([]);
-  const [loadingAnalytics, setLoadingAnalytics] = useState(true);
-  const [loadingReviews, setLoadingReviews] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { data: analytics, loading: loadingAnalytics, error: analyticsError, reload: fetchAnalytics } = useAdminData<InstitutionAnalytics>('/api/admin/institutions/analytics');
+  const { data: reviews, setData: setPendingReviews, loading: loadingReviews, error: reviewsError } = useAdminData<Institution[]>('/api/admin/institutions/verify');
+  const pendingReviews = reviews ?? [];
+  const error = analyticsError || reviewsError;
   const [actioningId, setActioningId] = useState<string | null>(null);
-
-  const fetchAnalytics = async () => {
-    try {
-      setLoadingAnalytics(true);
-      const res = await fetch("/api/admin/institutions/analytics");
-      const json = await res.json();
-      if (json.success && json.data) {
-        setAnalytics(json.data);
-      } else {
-        setError(json.error || "Failed to load institution analytics");
-      }
-    } catch (err: any) {
-      console.error("[institutions-tab] failed to fetch analytics:", err);
-      setError(err.message || String(err));
-    } finally {
-      setLoadingAnalytics(false);
-    }
-  };
-
-  const fetchReviews = async () => {
-    try {
-      setLoadingReviews(true);
-      const res = await fetch("/api/admin/institutions/verify");
-      const json = await res.json();
-      if (json.success && json.data) {
-        setPendingReviews(json.data);
-      }
-    } catch (err: any) {
-      console.error("[institutions-tab] failed to fetch pending reviews:", err);
-    } finally {
-      setLoadingReviews(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchAnalytics();
-    fetchReviews();
-  }, []);
 
   const handleApprove = async (id: string) => {
     try {
@@ -72,7 +35,7 @@ export function InstitutionsTab() {
       const json = await res.json();
       if (json.success) {
         // Refresh local listings
-        setPendingReviews(prev => prev.filter(r => r.id !== id));
+        setPendingReviews(prev => (prev ?? []).filter(r => r.id !== id));
         void fetchAnalytics();
       } else {
         alert(json.error || "Failed to verify school");
@@ -93,7 +56,7 @@ export function InstitutionsTab() {
       });
       const json = await res.json();
       if (json.success) {
-        setPendingReviews(prev => prev.filter(r => r.id !== id));
+        setPendingReviews(prev => (prev ?? []).filter(r => r.id !== id));
         void fetchAnalytics();
       } else {
         alert(json.error || "Failed to reject school");
@@ -138,7 +101,7 @@ export function InstitutionsTab() {
               {analytics?.byUniversity?.[0]?.name || "N/A"}
             </div>
             <span className="text-[10px] text-cyan-400 font-bold block mt-0.5">
-              {analytics?.byUniversity?.[0]?.user_count || 0} active users
+              {analytics?.byUniversity?.[0]?.user_count ?? "N/A"} active users
             </span>
           </div>
           <GraduationCap className="h-6 w-6 text-cyan-400 shrink-0" />
@@ -151,7 +114,7 @@ export function InstitutionsTab() {
               {analytics?.bySecondary?.[0]?.name || "N/A"}
             </div>
             <span className="text-[10px] text-cyan-400 font-bold block mt-0.5">
-              {analytics?.bySecondary?.[0]?.user_count || 0} active users
+              {analytics?.bySecondary?.[0]?.user_count ?? "N/A"} active users
             </span>
           </div>
           <School className="h-6 w-6 text-cyan-400 shrink-0" />
@@ -164,7 +127,7 @@ export function InstitutionsTab() {
               {analytics?.byState?.[0]?.state || "N/A"}
             </div>
             <span className="text-[10px] text-cyan-400 font-bold block mt-0.5">
-              {analytics?.byState?.[0]?.user_count || 0} active users
+              {analytics?.byState?.[0]?.user_count ?? "N/A"} active users
             </span>
           </div>
           <MapPin className="h-6 w-6 text-cyan-400 shrink-0" />
@@ -174,7 +137,7 @@ export function InstitutionsTab() {
           <div>
             <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest block">Pending Reviews</span>
             <div className="text-md font-bold text-white mt-1.5">
-              {pendingReviews.length} custom schools
+              {reviewsError ? "N/A" : pendingReviews.length} custom schools
             </div>
             <span className="text-[10px] text-amber-400 font-bold block mt-0.5">
               Awaiting verification
@@ -202,7 +165,7 @@ export function InstitutionsTab() {
               {analytics?.byUniversity?.length === 0 ? (
                 <p className="text-xs text-slate-500 italic py-6 text-center">No university users registered.</p>
               ) : (
-                analytics?.byUniversity?.map((item: any, idx: number) => (
+                analytics?.byUniversity?.map((item, idx) => (
                   <div key={item.name} className="flex items-center justify-between p-3 rounded-xl bg-[#0a0a0a]/50 border border-white/5 hover:bg-[#0a0a0a]/80 transition-colors">
                     <div className="flex items-center gap-3">
                       <span className="text-xs font-mono font-bold text-slate-500 w-5">#{idx + 1}</span>
@@ -229,7 +192,7 @@ export function InstitutionsTab() {
               {analytics?.bySecondary?.length === 0 ? (
                 <p className="text-xs text-slate-500 italic py-6 text-center">No secondary school users registered.</p>
               ) : (
-                analytics?.bySecondary?.map((item: any, idx: number) => (
+                analytics?.bySecondary?.map((item, idx) => (
                   <div key={item.name} className="flex items-center justify-between p-3 rounded-xl bg-[#0a0a0a]/50 border border-white/5 hover:bg-[#0a0a0a]/80 transition-colors">
                     <div className="flex items-center gap-3">
                       <span className="text-xs font-mono font-bold text-slate-500 w-5">#{idx + 1}</span>
@@ -261,7 +224,7 @@ export function InstitutionsTab() {
                   {analytics?.byState?.length === 0 ? (
                     <p className="text-[11px] text-slate-500 italic text-center">No state data available.</p>
                   ) : (
-                    analytics?.byState?.slice(0, 5).map((item: any) => (
+                    analytics?.byState?.slice(0, 5).map((item) => (
                       <div key={item.state} className="flex items-center justify-between text-xs">
                         <span className="text-slate-300 font-medium">{item.state}</span>
                         <span className="font-bold text-white">{item.user_count} users</span>
@@ -277,7 +240,7 @@ export function InstitutionsTab() {
                   {analytics?.byCountry?.length === 0 ? (
                     <p className="text-[11px] text-slate-500 italic text-center">No country data available.</p>
                   ) : (
-                    analytics?.byCountry?.slice(0, 5).map((item: any) => (
+                    analytics?.byCountry?.slice(0, 5).map((item) => (
                       <div key={item.country} className="flex items-center justify-between text-xs">
                         <span className="text-slate-300 font-medium flex items-center gap-1.5">
                           <Globe className="h-3 w-3 text-cyan-400" />

@@ -6,6 +6,7 @@ export function serializeMaterial(row: MaterialRow): UploadedMaterialRecord {
     id: row.id,
     userId: row.user_id,
     sessionId: row.session_id,
+    courseId: row.course_id ?? null,
     fileName: row.file_name,
     fileType: row.file_type,
     storagePath: row.storage_path,

@@ -1,9 +1,9 @@
 "use client";
 
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
 
-import type { AdminRangePreset } from "@/lib/admin/analytics-range";
-import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { ADMIN_RANGE_PRESETS, isValidTimezone, type AdminRangePreset } from "@/lib/admin/analytics-range";
+
 
 type AdminAnalyticsContextValue = {
   preset: AdminRangePreset;
@@ -21,53 +21,46 @@ type AdminAnalyticsContextValue = {
 const AdminAnalyticsContext = createContext<AdminAnalyticsContextValue | null>(null);
 const STORAGE_KEY = "lerna-admin-analytics-range-v1";
 
+let memorySettings: string | null = null;
+function readSettings() { try { return localStorage.getItem(STORAGE_KEY) ?? memorySettings; } catch { return memorySettings; } }
+function subscribeSettings(notify: () => void) {
+  window.addEventListener("storage", notify); window.addEventListener("lerna-admin-range", notify);
+  return () => { window.removeEventListener("storage", notify); window.removeEventListener("lerna-admin-range", notify); };
+}
+function writeSettings(value: unknown) {
+  memorySettings = JSON.stringify(value);
+  try { localStorage.setItem(STORAGE_KEY, memorySettings); } catch { /* Preferences continue in memory when storage is unavailable. */ }
+  window.dispatchEvent(new Event("lerna-admin-range"));
+}
+
 function localDateTime(date: Date) {
   const shifted = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
   return shifted.toISOString().slice(0, 16);
 }
 
 export function AdminAnalyticsProvider({ children }: { children: ReactNode }) {
-  const [preset, setPreset] = useState<AdminRangePreset>("30d");
-  const [timezone, setTimezone] = useState("UTC");
-  const [customStart, setCustomStart] = useState(() => localDateTime(new Date(Date.now() - 24 * 60 * 60 * 1000)));
-  const [customEnd, setCustomEnd] = useState(() => localDateTime(new Date()));
-  const [refreshToken, setRefreshToken] = useState(0);
-
-  useEffect(() => {
-    const browserTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+  const [defaults] = useState(() => ({ preset: "30d" as AdminRangePreset, timezone: "Africa/Lagos", customStart: localDateTime(new Date(Date.now()-86400000)), customEnd: localDateTime(new Date()) }));
+  const stored = useSyncExternalStore(subscribeSettings, readSettings, () => null);
+  const preferences = useMemo(() => {
     try {
-      const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "null");
-      if (stored?.preset) setPreset(stored.preset);
-      setTimezone(stored?.timezone || browserTimezone);
-      if (stored?.customStart) setCustomStart(stored.customStart);
-      if (stored?.customEnd) setCustomEnd(stored.customEnd);
-    } catch {
-      setTimezone(browserTimezone);
-    }
-  }, []);
-
+      const value = JSON.parse(stored ?? "null");
+      return { preset: ADMIN_RANGE_PRESETS.some(([key]) => key === value?.preset) ? value.preset as AdminRangePreset : defaults.preset,
+        timezone: typeof value?.timezone === "string" && isValidTimezone(value.timezone) ? value.timezone : defaults.timezone,
+        customStart: typeof value?.customStart === "string" ? value.customStart : defaults.customStart,
+        customEnd: typeof value?.customEnd === "string" ? value.customEnd : defaults.customEnd };
+    } catch { return defaults; }
+  }, [stored, defaults]);
+  const { preset, timezone, customStart, customEnd } = preferences;
+  const setPreset = (value: AdminRangePreset) => writeSettings({ ...preferences, preset: value });
+  const setTimezone = (value: string) => writeSettings({ ...preferences, timezone: value });
+  const setCustomStart = (value: string) => writeSettings({ ...preferences, customStart: value });
+  const setCustomEnd = (value: string) => writeSettings({ ...preferences, customEnd: value });
+  const [refreshToken, setRefreshToken] = useState(0);
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ preset, timezone, customStart, customEnd }));
-  }, [preset, timezone, customStart, customEnd]);
-
-  useEffect(() => {
-    const supabase = createSupabaseBrowserClient();
-    if (!supabase) return;
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    const refresh = () => {
-      clearTimeout(timer);
-      timer = setTimeout(() => setRefreshToken((value) => value + 1), 350);
-    };
-    let channel = supabase.channel("admin-bi-live");
-    for (const table of ["events", "study_messages", "study_sessions", "uploaded_materials", "quizzes", "ai_requests", "profiles", "billing_transactions"] as const) {
-      channel = channel.on("postgres_changes", { event: "*", schema: "public", table }, refresh);
-    }
-    channel.subscribe();
-    return () => {
-      clearTimeout(timer);
-      void supabase.removeChannel(channel);
-    };
-  }, []);
+    if (preset === "custom") return;
+    const timer = window.setInterval(() => { if (!document.hidden && navigator.onLine) setRefreshToken(value => value+1); }, 15000);
+    return () => window.clearInterval(timer);
+  }, [preset]);
 
   const queryString = useMemo(() => {
     const params = new URLSearchParams({ range: preset, timezone });

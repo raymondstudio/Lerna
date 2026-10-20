@@ -67,7 +67,7 @@ export default function WelcomePage() {
             Welcome to Lerna AI
           </h1>
           <p className="text-slate-400 text-sm leading-relaxed">
-            We'll personalize your AI tutor in less than one minute.
+            We&apos;ll personalize your AI tutor in less than one minute.
           </p>
         </div>
 

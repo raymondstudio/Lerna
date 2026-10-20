@@ -1,4 +1,6 @@
 'use client'
+import { uploadCourseMaterial } from "@/lib/uploads/course-upload";
+import { getAcceptedUploadMimeTypes, isAllowedUploadMimeType } from "@/lib/uploads/constants";
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
@@ -7,8 +9,6 @@ import { BookOpen, Plus, GraduationCap, Loader2, X } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 import { useCourses, useInvalidateCourses } from '@/hooks/use-courses'
 
-import { createSupabaseBrowserClient } from '@/lib/supabase/client'
-import { UPLOADED_MATERIALS_BUCKET, buildUploadPath, getAcceptedUploadMimeTypes, isAllowedUploadMimeType } from '@/lib/uploads/constants'
 
 interface Course {
   id: string
@@ -125,38 +125,12 @@ function AddCourseModal({ open, onClose, onCreated }: AddCourseModalProps) {
       
       if (file && newCourse) {
         try {
-          const supabase = createSupabaseBrowserClient();
-          if (!supabase) {
-            throw new Error('Supabase client not initialized');
-          }
-          const userRes = await supabase.auth.getUser();
-          const userId = userRes.data.user?.id;
-          
-          if (userId) {
-             const storagePath = buildUploadPath(userId, newCourse.id, file.name);
-             const { error: uploadError } = await supabase.storage.from(UPLOADED_MATERIALS_BUCKET).upload(storagePath, file, {
-               contentType: file.type || "application/octet-stream",
-               upsert: false,
-             });
-             
-             if (!uploadError) {
-               const { data: insertedRow } = await supabase.from('uploaded_materials').insert({
-                 user_id: userId,
-                 course_id: newCourse.id,
-                 file_name: file.name,
-                 file_type: file.type || "application/octet-stream",
-                 storage_path: storagePath,
-               }).select('id').single();
-               
-               if (insertedRow) {
-                 newCourse.uploaded_materials = [{ id: insertedRow.id }];
-                 // Trigger processing in background
-                 fetch(`/api/materials/${insertedRow.id}/process`, { method: "POST" }).catch(() => {});
-               }
-             }
-          }
+          const material = await uploadCourseMaterial(newCourse.id, file);
+          newCourse.uploaded_materials = [{ id: material.id }];
         } catch (uploadErr) {
-          console.error("Failed to upload course material", uploadErr);
+          onCreated(newCourse);
+          setError(uploadErr instanceof Error ? uploadErr.message : "Course saved, but its material could not be uploaded.");
+          return;
         }
       }
       

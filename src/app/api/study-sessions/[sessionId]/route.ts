@@ -1,278 +1,83 @@
 import { NextResponse } from "next/server";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { requireActiveUserApi } from "@/lib/auth/require-active-user-api";
 import { generateStudySessionTitle } from "@/lib/study-sessions/title";
-import type { StudySessionRecord } from "@/lib/study-sessions/types";
+import { assertSessionId, deleteOwnedSession, getOwnedMessages, getOwnedNoteVariants, getOwnedSession, mapStudySessionRow, saveOwnedNotes, SessionApiError, updateOwnedSession } from "@/lib/repositories/study-sessions";
+import { boundedLimit, boundedText, noteOperation, readSessionBody, sessionFailure } from "@/lib/study-sessions/api";
 
-function mapStudySessionRow(session: any): StudySessionRecord {
-  return {
-    id: session.id,
-    title: session.title,
-    topicCategory: session.topic_category ?? "General",
-    lastMessage: session.last_message ?? "",
-    createdAt: session.created_at,
-    updatedAt: session.updated_at,
-    courseId: session.course_id ?? undefined,
-    status: session.status ?? "active",
-    durationSeconds: session.duration_seconds ?? 0,
-    topicsCovered: Array.isArray(session.topics_covered) ? session.topics_covered : [],
-    summary: session.summary ?? undefined,
-    notes: session.notes ?? undefined,
-    messages: Array.isArray(session.study_messages)
-      ? session.study_messages.map((message: any) => ({
-          id: message.id,
-          role: message.role,
-          content: message.content,
-          createdAt: message.created_at,
-          sources: Array.isArray(message.sources) ? message.sources : [],
-        }))
-      : [],
-  };
+type Context = { params: Promise<{ sessionId: string }> };
+async function identity() {
+  const { supabase, user } = await requireActiveUserApi();
+  return { client: supabase, userId: user.id };
 }
 
-export async function GET(
-  _req: Request,
-  context: { params: Promise<{ sessionId: string }> }
-) {
+export async function GET(request: Request, context: Context) {
   const requestId = crypto.randomUUID();
-
   try {
+    const { client, userId } = await identity();
     const { sessionId } = await context.params;
-    const supabase = await createSupabaseServerClient();
-    const { data: userData } = await supabase.auth.getUser();
-    const user = userData.user;
-
-    if (!user) {
-      return NextResponse.json(
-        {
-          success: false,
-          requestId,
-          error: {
-            code: "UNAUTHORIZED",
-            message: "You must be signed in to view study sessions.",
-          },
-        },
-        { status: 401 }
-      );
-    }
-
-    const { data: session, error } = await supabase
-      .from("study_sessions")
-      .select("id,title,topic_category,last_message,created_at,updated_at,course_id,status,duration_seconds,topics_covered,summary,notes,study_messages(id,role,content,created_at,sources)")
-      .eq("id", sessionId)
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: true, foreignTable: "study_messages" })
-      .maybeSingle();
-
-    if (error || !session) {
-      return NextResponse.json(
-        {
-          success: false,
-          requestId,
-          error: {
-            code: "NOT_FOUND",
-            message: "Study session not found.",
-          },
-        },
-        { status: 404 }
-      );
-    }
-
-    return NextResponse.json({
-      success: true,
-      requestId,
-      data: {
-        session: mapStudySessionRow(session),
-      },
-    });
-  } catch (error) {
-    return NextResponse.json(
-      {
-        success: false,
-        requestId,
-        error: {
-          code: "SERVER_ERROR",
-          message: error instanceof Error ? error.message : "Unable to retrieve the study session.",
-        },
-      },
-      { status: 500 }
-    );
-  }
+    assertSessionId(sessionId);
+    const url = new URL(request.url);
+    const row = await getOwnedSession(client, userId, sessionId);
+    const notesOnly = url.searchParams.get("notesOnly") === "true";
+    const messageLimit = url.searchParams.has("messageLimit") ? boundedLimit(url.searchParams.get("messageLimit"), 100) : undefined;
+    const messages = notesOnly ? { rows: [], nextCursor: null } : await getOwnedMessages(client, userId, sessionId, messageLimit, url.searchParams.get("messagesBefore"));
+    return NextResponse.json({ success: true, requestId, data: {
+      session: mapStudySessionRow({ ...row, study_messages: messages.rows }),
+      ...(url.searchParams.get("noteVariants") === "true" ? { noteVariants: await getOwnedNoteVariants(client, sessionId) } : {}),
+      ...(!notesOnly && messageLimit ? { messagesPage: { nextCursor: messages.nextCursor } } : {}),
+    } }, { headers: { "Cache-Control": "no-store" } });
+  } catch (error) { return sessionFailure(error, requestId); }
 }
 
-export async function PATCH(req: Request, context: { params: Promise<{ sessionId: string }> }) {
+export async function PATCH(request: Request, context: Context) {
   const requestId = crypto.randomUUID();
-
   try {
+    const { client, userId } = await identity();
     const { sessionId } = await context.params;
-    const supabase = await createSupabaseServerClient();
-    const { data: userData } = await supabase.auth.getUser();
-    const user = userData.user;
-
-    if (!user) {
-      return NextResponse.json(
-        {
-          success: false,
-          requestId,
-          error: {
-            code: "UNAUTHORIZED",
-            message: "You must be signed in to update a study session.",
-          },
-        },
-        { status: 401 }
-      );
+    assertSessionId(sessionId);
+    const body = await readSessionBody(request);
+    const allowed = new Set(["notes", "expectedNotesRevision", "operationId", "title", "firstPrompt", "durationSeconds", "topicsCovered", "status"]);
+    if (Object.keys(body).some(key => !allowed.has(key))) throw new SessionApiError(400, "INVALID_REQUEST", "This study session update contains an unsupported field.");
+    // Never acknowledge partially applied mixed updates.
+    if (Object.hasOwn(body, "notes")) {
+      if (Object.keys(body).some(key => !["notes", "expectedNotesRevision", "operationId"].includes(key))) throw new SessionApiError(400, "MIXED_UPDATE", "Save notes separately from session settings.");
+      const operation = noteOperation(body);
+      await getOwnedSession(client, userId, sessionId);
+      const result = await saveOwnedNotes(client, sessionId, operation);
+      return NextResponse.json({ success: true, requestId, data: result }, { headers: { "Cache-Control": "no-store" } });
     }
-
-    const body: unknown = await req.json();
-    const title = typeof (body as { title?: unknown })?.title === "string" ? (body as { title?: string }).title : "";
-    const firstPrompt = typeof (body as any)?.firstPrompt === "string" ? ((body as any).firstPrompt as string) : "";
-    
-    // Notes & study stats updates
-    const notes = typeof (body as { notes?: unknown })?.notes === "string" ? (body as { notes?: string }).notes : null;
-    const durationSeconds = typeof (body as { durationSeconds?: unknown })?.durationSeconds === "number" ? (body as { durationSeconds?: number }).durationSeconds : null;
-    const topicsCovered = Array.isArray((body as { topicsCovered?: unknown })?.topicsCovered) ? (body as { topicsCovered?: string[] }).topicsCovered : null;
-    const status = typeof (body as { status?: unknown })?.status === "string" ? (body as { status?: string }).status : null;
-
-    const updateFields: Record<string, any> = {};
-    if (title || firstPrompt) {
-      updateFields.title = title ? title.trim() : generateStudySessionTitle(firstPrompt);
+    const fields: Record<string, unknown> = {};
+    if (Object.hasOwn(body, "title")) fields.title = boundedText(body.title, "Title", 200).trim();
+    if (Object.hasOwn(body, "firstPrompt") && !Object.hasOwn(body, "title")) fields.title = generateStudySessionTitle(boundedText(body.firstPrompt, "First prompt", 10_000));
+    if (Object.hasOwn(body, "durationSeconds")) {
+      if (!Number.isSafeInteger(body.durationSeconds) || (body.durationSeconds as number) < 0 || (body.durationSeconds as number) > 31_536_000) throw new SessionApiError(400, "INVALID_DURATION", "Study duration must be a nonnegative number of seconds.");
+      fields.duration_seconds = body.durationSeconds;
     }
-    if (typeof notes === "string") {
-      updateFields.notes = notes;
-      const wordCount = notes.trim() === "" ? 0 : notes.trim().split(/\s+/).length;
-      await supabase
-        .from("notes")
-        .upsert({
-          user_id: user.id,
-          session_id: sessionId,
-          content: notes,
-          word_count: wordCount,
-          updated_at: new Date().toISOString()
-        });
+    if (Object.hasOwn(body, "topicsCovered")) {
+      if (!Array.isArray(body.topicsCovered) || body.topicsCovered.length > 100) throw new SessionApiError(400, "INVALID_TOPICS", "A session can have at most 100 topics.");
+      fields.topics_covered = [...new Set(body.topicsCovered.map(topic => boundedText(topic, "Topic", 200).trim()))];
     }
-    if (durationSeconds !== null) updateFields.duration_seconds = durationSeconds;
-    if (topicsCovered !== null) updateFields.topics_covered = topicsCovered;
-    if (status !== null) updateFields.status = status;
-
-    const { data: session, error } = await supabase
-      .from("study_sessions")
-      .update(updateFields)
-      .eq("id", sessionId)
-      .eq("user_id", user.id)
-      .select("id,title,topic_category,last_message,created_at,updated_at,course_id,status,duration_seconds,topics_covered,summary,notes,study_messages(id,role,content,created_at,sources)")
-      .order("created_at", { ascending: true, foreignTable: "study_messages" })
-      .single();
-
-    if (error || !session) {
-      return NextResponse.json(
-        {
-          success: false,
-          requestId,
-          error: {
-            code: "UPDATE_FAILED",
-            message: error?.message ?? "Unable to update the study session.",
-          },
-        },
-        { status: 500 }
-      );
+    if (Object.hasOwn(body, "status")) {
+      if (typeof body.status !== "string" || !["active", "paused", "completed"].includes(body.status)) throw new SessionApiError(400, "INVALID_STATUS", "Choose a supported study session status.");
+      fields.status = body.status;
     }
-
-    return NextResponse.json({
-      success: true,
-      requestId,
-      data: {
-        session: mapStudySessionRow(session),
-      },
-    });
-  } catch (error) {
-    return NextResponse.json(
-      {
-        success: false,
-        requestId,
-        error: {
-          code: "SERVER_ERROR",
-          message: error instanceof Error ? error.message : "Unable to update the study session.",
-        },
-      },
-      { status: 500 }
-    );
-  }
+    if (!Object.keys(fields).length) throw new SessionApiError(400, "EMPTY_UPDATE", "Provide a study session change.");
+    const session = await updateOwnedSession(client, userId, sessionId, fields);
+    if (new URL(request.url).searchParams.get("metadataOnly") === "true") return NextResponse.json({ success: true, requestId, data: { session } }, { headers: { "Cache-Control": "no-store" } });
+    const messages = await getOwnedMessages(client, userId, sessionId);
+    return NextResponse.json({ success: true, requestId, data: { session: { ...session, messages: messages.rows.map(message => ({
+      id: message.id, role: message.role, content: message.content, createdAt: message.created_at, sources: message.sources ?? [],
+    })) } } }, { headers: { "Cache-Control": "no-store" } });
+  } catch (error) { return sessionFailure(error, requestId); }
 }
 
-export async function DELETE(_req: Request, context: { params: Promise<{ sessionId: string }> }) {
+export async function DELETE(_request: Request, context: Context) {
   const requestId = crypto.randomUUID();
-
   try {
+    const { client, userId } = await identity();
     const { sessionId } = await context.params;
-    const supabase = await createSupabaseServerClient();
-    const { data: userData } = await supabase.auth.getUser();
-    const user = userData.user;
-
-    if (!user) {
-      return NextResponse.json(
-        {
-          success: false,
-          requestId,
-          error: {
-            code: "UNAUTHORIZED",
-            message: "You must be signed in to delete a study session.",
-          },
-        },
-        { status: 401 }
-      );
-    }
-
-    const { data: deletedSessions, error } = await supabase
-      .from("study_sessions")
-      .delete()
-      .eq("id", sessionId)
-      .eq("user_id", user.id)
-      .select("id");
-
-    if (error) {
-      console.error("[api:study-sessions] delete failed", { requestId, sessionId, userId: user.id, error });
-      return NextResponse.json(
-        {
-          success: false,
-          requestId,
-          error: {
-            code: "DELETE_FAILED",
-            message: "Unable to delete this conversation.",
-          },
-        },
-        { status: 500 }
-      );
-    }
-
-    if (!deletedSessions || deletedSessions.length === 0) {
-      return NextResponse.json(
-        {
-          success: false,
-          requestId,
-          error: {
-            code: "NOT_FOUND",
-            message: "Conversation not found.",
-          },
-        },
-        { status: 404 },
-      );
-    }
-
-    return NextResponse.json({
-      success: true,
-      requestId,
-    });
-  } catch (error) {
-    console.error("[api:study-sessions] unexpected delete error", { requestId, error });
-    return NextResponse.json(
-      {
-        success: false,
-        requestId,
-        error: {
-          code: "SERVER_ERROR",
-          message: "Unable to delete this conversation.",
-        },
-      },
-      { status: 500 }
-    );
-  }
+    assertSessionId(sessionId);
+    await deleteOwnedSession(client, userId, sessionId);
+    return NextResponse.json({ success: true, requestId });
+  } catch (error) { return sessionFailure(error, requestId); }
 }

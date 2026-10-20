@@ -1,54 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Settings, Save, Loader2, ShieldCheck, RefreshCw } from "lucide-react";
+import { Settings, Loader2, ShieldCheck, RefreshCw } from "lucide-react";
+import { useAdminData } from "./use-admin-data";
 import { Button } from "@/components/ui/button";
 
 export function SettingsTab() {
-  const [flags, setFlags] = useState<Array<{ key: string; enabled: boolean; description: string }>>([]);
-  const [flagsLoading, setFlagsLoading] = useState(true);
-  
-  const [logs, setLogs] = useState<any[]>([]);
-  const [logsLoading, setLogsLoading] = useState(true);
-
-  const fetchFlags = async () => {
-    try {
-      setFlagsLoading(true);
-      const res = await fetch("/api/admin/feature-flags");
-      const json = await res.json();
-      if (json.success && Array.isArray(json.data)) {
-        setFlags(json.data);
-      }
-    } catch (err) {
-      console.warn("[settings:flags] Failed to fetch flags:", err);
-    } finally {
-      setFlagsLoading(false);
-    }
-  };
-
-  const fetchLogs = async () => {
-    try {
-      setLogsLoading(true);
-      const res = await fetch("/api/admin/audit-logs");
-      const json = await res.json();
-      if (json.success && Array.isArray(json.data)) {
-        setLogs(json.data);
-      }
-    } catch (err) {
-      console.warn("[settings:logs] Failed to fetch audit logs:", err);
-    } finally {
-      setLogsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    void fetchFlags();
-    void fetchLogs();
-  }, []);
+  const { data: flagRows, setData: setFlags, loading: flagsLoading, error: flagsError } = useAdminData<Array<{ key: string; enabled: boolean; description: string }>>('/api/admin/feature-flags');
+  const flags = flagRows ?? [];
+  const { data: logRows, loading: logsLoading, error: logsError, reload: fetchLogs } = useAdminData<Array<{ id: string; action: string; details: Record<string, unknown>; created_at: string; user_name: string | null; user_email: string | null }>>('/api/admin/audit-logs');
+  const logs = logRows ?? [];
 
   const handleToggleFlag = async (key: string, enabled: boolean) => {
     try {
-      setFlags(prev => prev.map(f => f.key === key ? { ...f, enabled } : f));
+      setFlags(prev => (prev ?? []).map(f => f.key === key ? { ...f, enabled } : f));
       
       const res = await fetch("/api/admin/feature-flags", {
         method: "POST",
@@ -58,14 +22,15 @@ export function SettingsTab() {
       const json = await res.json();
       if (!json.success) {
         alert(json.error || "Failed to update feature flag.");
-        setFlags(prev => prev.map(f => f.key === key ? { ...f, enabled: !enabled } : f));
+        setFlags(prev => (prev ?? []).map(f => f.key === key ? { ...f, enabled: !enabled } : f));
       }
-    } catch (err) {
+    } catch {
       alert("Network error updating feature flag.");
-      setFlags(prev => prev.map(f => f.key === key ? { ...f, enabled: !enabled } : f));
+      setFlags(prev => (prev ?? []).map(f => f.key === key ? { ...f, enabled: !enabled } : f));
     }
   };
 
+  if (flagsError || logsError) return <p role="alert" className="p-4 text-xs text-red-300">{flagsError || logsError}</p>;
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       

@@ -19,7 +19,7 @@ export async function selectUserProfile(userId: string) {
   return data;
 }
 
-export async function updateProfileIdentity(userId: string, profileData: any) {
+export async function updateProfileIdentity(userId: string, profileData: Record<string, unknown>) {
   const supabase = await createSupabaseServerClient();
   const { error } = await supabase
     .from("profiles")

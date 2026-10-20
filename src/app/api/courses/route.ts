@@ -1,15 +1,11 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { authorizeActiveUserApi } from "@/lib/auth/require-active-user-api";
 
 export async function GET(request: NextRequest) {
+  const auth = await authorizeActiveUserApi();
+  if (!auth.ok) return auth.response;
+  const { supabase, user } = auth;
   try {
-    const supabase = await createSupabaseServerClient();
-    const { data: userResponse, error: userError } = await supabase.auth.getUser();
-
-    if (userError || !userResponse.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
     const rawQuery = request.nextUrl.searchParams.get("query")?.trim().slice(0, 100) ?? "";
     const searchQuery = rawQuery.replace(/[,()%]/g, " ").replace(/\s+/g, " ").trim();
     const compact = request.nextUrl.searchParams.get("compact") === "true";
@@ -19,7 +15,7 @@ export async function GET(request: NextRequest) {
     let coursesQuery = supabase
       .from("courses")
       .select(compact ? "id,code,title" : "*, uploaded_materials(id)")
-      .eq("user_id", userResponse.user.id);
+      .eq("user_id", user.id);
 
     if (searchQuery) {
       coursesQuery = coursesQuery.or(`code.ilike.%${searchQuery}%,title.ilike.%${searchQuery}%`);
@@ -30,26 +26,22 @@ export async function GET(request: NextRequest) {
       .limit(limit);
 
     if (error) {
-      console.error("[api:courses] fetch failed", error);
+      console.error("[api:courses] fetch failed", { code: error.code });
       return NextResponse.json({ error: "Courses could not be loaded." }, { status: 500 });
     }
 
     return NextResponse.json({ courses: data });
-  } catch (err) {
-    console.error("[api:courses] unexpected error", err);
+  } catch {
+    console.error("[api:courses] unexpected error");
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }
 
 export async function POST(request: NextRequest) {
+  const auth = await authorizeActiveUserApi();
+  if (!auth.ok) return auth.response;
+  const { supabase, user } = auth;
   try {
-    const supabase = await createSupabaseServerClient();
-    const { data: userResponse, error: userError } = await supabase.auth.getUser();
-
-    if (userError || !userResponse.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
     const body = await request.json();
     const { code, title, description } = body;
 
@@ -61,7 +53,7 @@ export async function POST(request: NextRequest) {
       .from("courses")
       .insert([
         {
-          user_id: userResponse.user.id,
+          user_id: user.id,
           code,
           title,
           description,
@@ -71,13 +63,13 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (error) {
-      console.error("[api:courses] create failed", error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      console.error("[api:courses] create failed", { code: error.code });
+      return NextResponse.json({ error: "Course could not be created." }, { status: 500 });
     }
 
     return NextResponse.json({ course: data });
-  } catch (err) {
-    console.error("[api:courses] unexpected error", err);
+  } catch {
+    console.error("[api:courses] unexpected error");
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }

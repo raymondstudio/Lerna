@@ -1,122 +1,26 @@
 import { NextResponse } from "next/server";
-
-import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { MATERIAL_SELECT, type MaterialRow } from "@/lib/materials/types";
+import { requireActiveUserApi } from "@/lib/auth/require-active-user-api";
 import { serializeMaterial } from "@/lib/materials/serialize";
+import { MaterialBoundaryError } from "@/lib/uploads/validation";
+import { materialErrorResponse } from "@/lib/uploads/api-error";
+import { listOwnedMaterials, requireOwnedMaterialSession } from "@/lib/repositories/materials";
+import { POST as uploadMaterial } from "@/app/api/upload/route";
 
-export async function GET(req: Request) {
+export const runtime = "nodejs";
+export async function GET(request: Request) {
   const requestId = crypto.randomUUID();
-  const supabase = await createSupabaseServerClient();
-  const { data: userData } = await supabase.auth.getUser();
-  const user = userData.user;
-
-  if (!user) {
-    return NextResponse.json(
-      {
-        success: false,
-        requestId,
-        error: {
-          code: "UNAUTHORIZED",
-          message: "You must be signed in to view materials.",
-        },
-      },
-      { status: 401 }
-    );
-  }
-
-  const url = new URL(req.url);
-  const sessionId = url.searchParams.get("sessionId");
-  let query = supabase
-    .from("uploaded_materials")
-    .select(MATERIAL_SELECT)
-    .eq("user_id", user.id)
-    .is("deleted_at", null)
-    .order("created_at", { ascending: false });
-
-  if (sessionId) {
-    query = query.eq("session_id", sessionId);
-  }
-
-  const { data, error } = await query;
-
-  if (error) {
-    return NextResponse.json(
-      {
-        success: false,
-        requestId,
-        error: {
-          code: "FETCH_FAILED",
-          message: error.message,
-        },
-      },
-      { status: 500 }
-    );
-  }
-
-  return NextResponse.json({
-    success: true,
-    requestId,
-    data: {
-      materials: ((data ?? []) as MaterialRow[]).map(serializeMaterial),
-    },
-  });
-}
-
-export async function POST(req: Request) {
-  const requestId = crypto.randomUUID();
-  const supabase = await createSupabaseServerClient();
-  const { data: userData } = await supabase.auth.getUser();
-  const user = userData.user;
-
-  if (!user) {
-    return NextResponse.json(
-      {
-        success: false,
-        requestId,
-        error: {
-          code: "UNAUTHORIZED",
-          message: "You must be signed in to create materials.",
-        },
-      },
-      { status: 401 }
-    );
-  }
-
   try {
-    const { sessionId, fileName, fileType, storagePath, fileSize } = await req.json();
-    if (!sessionId || !fileName || !fileType || !storagePath) {
-      return NextResponse.json(
-        {
-          success: false,
-          requestId,
-          error: {
-            code: "BAD_REQUEST",
-            message: "Missing required fields.",
-          },
-        },
-        { status: 400 }
-      );
-    }
-
-    const { insertMaterial } = await import("@/lib/repositories/materials");
-    const insertedRow = await insertMaterial(user.id, sessionId, fileName, fileType, storagePath, fileSize);
-
-    return NextResponse.json({
-      success: true,
-      requestId,
-      data: insertedRow
-    });
-  } catch (err: any) {
-    return NextResponse.json(
-      {
-        success: false,
-        requestId,
-        error: {
-          code: "INSERT_FAILED",
-          message: err.message || String(err),
-        },
-      },
-      { status: 500 }
-    );
+    const { supabase, user } = await requireActiveUserApi();
+    const sessionId = new URL(request.url).searchParams.get("sessionId");
+    if (sessionId) await requireOwnedMaterialSession(supabase, sessionId, user.id);
+    const materials = await listOwnedMaterials(supabase, user.id, sessionId);
+    return NextResponse.json({ success: true, requestId, data: { materials: materials.map(serializeMaterial) } }, { headers: { "Cache-Control": "private, no-store" } });
+  } catch (error) { return materialErrorResponse(error, requestId); }
+}
+export async function POST(request: Request) {
+  // Legacy storage-path registration cannot bypass validation and reservation.
+  if (!request.headers.get("Content-Type")?.toLowerCase().startsWith("multipart/form-data;")) {
+    return materialErrorResponse(new MaterialBoundaryError("Upload the original file as multipart form data through /api/upload.", 415, "FILE_UPLOAD_REQUIRED"), crypto.randomUUID());
   }
+  return uploadMaterial(request);
 }

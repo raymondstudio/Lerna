@@ -128,7 +128,7 @@ export default function HomePage() {
     <header className={styles.header}>
       <div className={styles.navbar}>
         <Link href="/" className={styles.logo} aria-label="Lerna home">
-          <Image src="/assets/lerna-full-white.png" alt="Lerna" width={128} height={44} priority className={styles.brandLogo} />
+          <Image src="/assets/lerna-full-white.png" alt="Lerna" width={128} height={44} priority className={styles.brandLogo} style={{ height: "auto" }} />
         </Link>
         <nav aria-label="Main navigation" className={styles.desktopNav}>
           {navigation.map(item => <a key={item.id} href={"#" + item.id}>{item.label}</a>)}
@@ -207,7 +207,7 @@ export default function HomePage() {
     </section>
 
     <footer className={styles.footer}>
-      <Link href="/" aria-label="Lerna home"><Image src="/assets/lerna-full-white.png" alt="Lerna" width={112} height={38} className={styles.brandLogo} /></Link>
+      <Link href="/" aria-label="Lerna home"><Image src="/assets/lerna-full-white.png" alt="Lerna" width={112} height={38} className={styles.brandLogo} style={{ height: "auto" }} /></Link>
       <p>For the things you want to understand.</p>
       <nav aria-label="Footer navigation"><Link href="/privacy-policy">Privacy policy</Link><a href="mailto:support@uselerna.app">Contact support</a><a href="#community">Community</a></nav>
       <small>© {new Date().getFullYear()} Lerna AI</small>

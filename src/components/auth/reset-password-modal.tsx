@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { completePasswordRecovery, validRecoveryPassword } from "@/lib/auth/password-recovery";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,8 +32,8 @@ export function ResetPasswordModal({
       return;
     }
 
-    if (password.length < 6) {
-      setError("Password must be at least 6 characters long.");
+    if (!validRecoveryPassword(password)) {
+      setError("Use at least 8 characters, including uppercase, lowercase, a number and a special character.");
       return;
     }
 
@@ -46,21 +47,14 @@ export function ResetPasswordModal({
         throw new Error("Supabase is not configured.");
       }
 
-      const { error: updateError } = await supabase.auth.updateUser({
-        password: password.trim(),
-      });
-
-      if (updateError) {
-        throw updateError;
+      const result = await completePasswordRecovery(supabase, password);
+      if (!result.signedOut) {
+        setMessage("Password updated. Sign-out could not be confirmed. Close this page and sign in again.");
+        return;
       }
 
-      setMessage("Password updated successfully. You will now be redirected to the landing page.");
-      
-      // Delay before redirecting to complete success flow
-      setTimeout(async () => {
-        await supabase.auth.signOut();
-        onSuccess();
-      }, 2500);
+      setMessage("Password updated. Sign in with your new password.");
+
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to update your password.");
     } finally {
@@ -73,20 +67,23 @@ export function ResetPasswordModal({
       <div className="text-center">
         <h2 className="text-2xl font-semibold text-white">Create New Password</h2>
         <p className="text-slate-400 text-xs mt-2">
-          Choose a secure password with a minimum of 6 characters.
+          Use 8 or more characters with uppercase, lowercase, a number and a special character.
         </p>
       </div>
 
       {message ? (
-        <p className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
-          {message}
-        </p>
+        <div className="space-y-4">
+          <p role="status" className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">{message}</p>
+          <Button onClick={onSuccess} className="w-full">Continue to sign in</Button>
+        </div>
       ) : (
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
+            <label htmlFor="new-password" className="sr-only">New password</label>
             <Input
               id="new-password"
               type="password"
+              autoComplete="new-password"
               placeholder="New password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -96,9 +93,11 @@ export function ResetPasswordModal({
           </div>
 
           <div className="space-y-2">
+            <label htmlFor="confirm-password" className="sr-only">Confirm new password</label>
             <Input
               id="confirm-password"
               type="password"
+              autoComplete="new-password"
               placeholder="Confirm new password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}

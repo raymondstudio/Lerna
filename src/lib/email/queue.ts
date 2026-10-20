@@ -4,7 +4,7 @@ export async function enqueueEmail(
   recipient: string,
   subject: string,
   template: string,
-  payload: Record<string, any>
+  payload: Record<string, unknown>
 ) {
   try {
     const supabase = await createSupabaseServerClient();

@@ -1,13 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 export function ForgotPasswordModal({
-  onSwitchToLogin,
-  onClose
+  onSwitchToLogin
 }: {
   onSwitchToLogin: () => void;
   onClose: () => void;
@@ -29,24 +27,12 @@ export function ForgotPasswordModal({
       setError(null);
       setMessage(null);
 
-      const supabase = createSupabaseBrowserClient();
-      if (!supabase) {
-        throw new Error("Supabase is not configured.");
-      }
+      const response = await fetch("/api/auth/recovery", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: email.trim() }) });
+      if (!response.ok) throw new Error("Recovery unavailable.");
 
-      const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent("/chat?auth=reset")}`;
-
-      const { error: resetError } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-        redirectTo,
-      });
-
-      if (resetError) {
-        throw resetError;
-      }
-
-      setMessage("Check your inbox for a password reset email containing your recovery link.");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to send password reset email.");
+      setMessage("If an account can receive recovery email, a link will arrive shortly. Check your inbox.");
+    } catch {
+      setError("We could not send recovery email right now. Please try again later.");
     } finally {
       setLoading(false);
     }
@@ -57,7 +43,7 @@ export function ForgotPasswordModal({
       <div className="text-center">
         <h2 className="text-2xl font-semibold text-white">Reset Password</h2>
         <p className="text-slate-400 text-xs mt-2">
-          Enter your email address and we'll send you a recovery link to choose a new password.
+          Enter your email address and we&apos;ll send you a recovery link to choose a new password.
         </p>
       </div>
 
@@ -73,6 +59,7 @@ export function ForgotPasswordModal({
       ) : (
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
+            <label htmlFor="forgot-email" className="sr-only">Email address</label>
             <Input
               id="forgot-email"
               type="email"

@@ -2,13 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { 
-  User as UserIcon, 
-  Settings, 
-  CreditCard, 
-  Shield, 
-  BarChart3, 
-  HelpCircle, 
+import {
+  User as UserIcon,
+  Settings,
+  CreditCard,
+  Shield,
+  BarChart3,
+  HelpCircle,
   Info,
   Check,
   AlertCircle,
@@ -30,12 +30,17 @@ import { useAuth } from "@/hooks/use-auth";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { buildProfileUpdatePayload, stripUndefined } from "@/lib/profile";
+import { confirmUnsavedWorkBeforeSignOut } from "@/lib/study-sessions/unsaved-work";
+import type { AccountStats, AccountTicket, AccountQuota, AccountInvoice, AccountTransaction } from "@/lib/account/types";
 import { ONBOARDING_ACCOUNT_TYPES, type OnboardingAccountType } from "@/lib/onboarding";
 
 type TabId = "profile" | "preferences" | "subscription" | "security" | "stats" | "support" | "about";
 
 export default function AccountPage() {
+  const { user } = useAuth();
+  return <AccountContent key={user?.id ?? "anonymous"} />;
+}
+function AccountContent() {
   const router = useRouter();
   const { user, profile, refreshProfile, loading, signOut } = useAuth();
   const [activeTab, setActiveTab] = useState<TabId>("profile");
@@ -60,9 +65,10 @@ export default function AccountPage() {
   const [age, setAge] = useState<number | "">("");
 
   // Search and custom school integration states
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [searchQuery, setSearchValue] = useState("");
+  const [searchResults, setSearchResults] = useState<Array<{ id: string; name: string; institution_type: string; short_name?: string | null; city?: string | null; state?: string | null; country?: string }>>([]);
   const [isSearching, setIsSearching] = useState(false);
+  const setSearchQuery = (value: string) => { setSearchValue(value); if (!value.trim()) { setSearchResults([]); setIsSearching(false); } };
   const [showCustomForm, setShowCustomForm] = useState(false);
 
   // States for custom institution creation inside settings
@@ -75,7 +81,6 @@ export default function AccountPage() {
   // Debounced search query for account settings
   useEffect(() => {
     if (!searchQuery.trim()) {
-      setSearchResults([]);
       return;
     }
 
@@ -98,7 +103,7 @@ export default function AccountPage() {
     return () => clearTimeout(delayDebounceFn);
   }, [searchQuery, institutionType]);
 
-  const handleSelectInstitution = (inst: any) => {
+  const handleSelectInstitution = (inst: (typeof searchResults)[number]) => {
     setInstitution(inst.name);
     setInstitutionId(inst.id);
     setInstitutionType(inst.institution_type);
@@ -172,14 +177,14 @@ export default function AccountPage() {
   const [updatingPassword, setUpdatingPassword] = useState(false);
 
   // Support Tickets States
-  const [tickets, setTickets] = useState<any[]>([]);
+  const [tickets, setTickets] = useState<AccountTicket[]>([]);
   const [ticketSubject, setTicketSubject] = useState("");
   const [ticketMessage, setTicketMessage] = useState("");
   const [submittingTicket, setSubmittingTicket] = useState(false);
   const [ticketSuccess, setTicketSuccess] = useState<string | null>(null);
 
   // Feedback States
-  const [feedbacks, setFeedbacks] = useState<any[]>([]);
+  const [feedbacks, setFeedbacks] = useState<Array<{ id: string; type: string; message: string; rating: number; created_at: string }>>([]);
   const [feedbackType, setFeedbackType] = useState<"general" | "bug" | "feature">("general");
   const [feedbackMsg, setFeedbackMsg] = useState("");
   const [feedbackRating, setFeedbackRating] = useState(5);
@@ -187,26 +192,17 @@ export default function AccountPage() {
   const [feedbackSuccess, setFeedbackSuccess] = useState<string | null>(null);
 
   // Stats States
-  const [stats, setStats] = useState({
-    streak: 0,
-    questions: 0,
-    documents: 0,
-    sessions: 0,
-    hours: 0,
-  });
+  const [stats, setStats] = useState<AccountStats>({ streak: null, questions: null, documents: null, sessions: null, hours: null });
+  const [dataWarning, setDataWarning] = useState<string | null>(null);
 
   // UX Status
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileMessage, setProfileMessage] = useState<string | null>(null);
   const [profileError, setProfileError] = useState<string | null>(null);
   const [loadingData, setLoadingData] = useState(true);
-  const [quotaUsage, setQuotaUsage] = useState<any>(null);
-  const [billingHistory, setBillingHistory] = useState<any[]>([]);
-  const [invoices, setInvoices] = useState<any[]>([]);
-  const [couponCode, setCouponCode] = useState("");
-  const [redeemingCoupon, setRedeemingCoupon] = useState(false);
-  const [couponMessage, setCouponMessage] = useState<string | null>(null);
-  const [couponError, setCouponError] = useState<string | null>(null);
+  const [quotaUsage, setQuotaUsage] = useState<AccountQuota | null>(null);
+  const [billingHistory, setBillingHistory] = useState<AccountTransaction[]>([]);
+  const [invoices, setInvoices] = useState<AccountInvoice[]>([]);
 
   const formatBytes = (bytes: number) => {
     if (!bytes) return "0 Bytes";
@@ -216,7 +212,7 @@ export default function AccountPage() {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
   };
 
-  const supabase = createSupabaseBrowserClient();
+  const [supabase] = useState(createSupabaseBrowserClient);
   const isStudent = accountType === "Student";
   const usesInstitution = accountType === "Student" || accountType === "Teacher" || accountType === "Researcher";
 
@@ -230,11 +226,18 @@ export default function AccountPage() {
   useEffect(() => {
     if (!user || !supabase) return;
 
+    const controller = new AbortController();
     async function loadData() {
       const client = supabase;
       if (!client || !user) return;
       try {
-        setLoadingData(true);
+        const dashboardResponse = await fetch("/api/account/dashboard", { cache: "no-store", signal: controller.signal });
+        const dashboard = await dashboardResponse.json();
+        if (controller.signal.aborted) return;
+        if (!dashboardResponse.ok || !dashboard.success) throw new Error(dashboard.error || "Account details are unavailable.");
+        setStats(dashboard.data.stats);
+        setTickets(dashboard.data.tickets ?? []);
+        setDataWarning(dashboard.data.warnings?.join(" ") || null);
         if (profile) {
           setFirstName(profile.first_name || "");
           setLastName(profile.last_name || "");
@@ -256,7 +259,7 @@ export default function AccountPage() {
           setInterests(profile.interests || []);
           setGender(profile.gender || "Prefer not to say");
           setAge(profile.age || "");
-          
+
           setTeachingStyle(profile.teaching_style || "Intermediate");
           setDifficulty(profile.difficulty || "Medium");
           setPreferredQuizFormat(profile.preferred_quiz_format || "Mixed");
@@ -271,31 +274,13 @@ export default function AccountPage() {
           setDailyGoalMinutes(profile.daily_goal_minutes || 15);
           setPreferredTheme(profile.preferred_theme || "dark");
 
-          setStats(prev => ({
-            ...prev,
-            streak: profile.learning_streak || 0,
-            hours: Number(profile.hours_studied) || 0,
-          }));
         }
 
-        // Fetch counts for stats
-        const [docsRes, sessionsRes, aiRequestsRes, ticketsRes, feedbackRes] = await Promise.all([
-          client.from("uploaded_materials").select("*", { count: "exact", head: true }).eq("user_id", user.id).is("deleted_at", null),
-          client.from("study_sessions").select("*", { count: "exact", head: true }).eq("user_id", user.id),
-          client.from("ai_requests").select("*", { count: "exact", head: true }).eq("user_id", user.id),
-          client.from("support_tickets").select("*").eq("user_id", user.id).order("created_at", { ascending: false }),
-          client.from("feedback").select("*").eq("user_id", user.id).order("created_at", { ascending: false })
-        ]);
-
-        setStats(prev => ({
-          ...prev,
-          documents: docsRes.count || 0,
-          sessions: sessionsRes.count || 0,
-          questions: aiRequestsRes.count || 0,
-        }));
-
-        if (ticketsRes.data) setTickets(ticketsRes.data);
-        if (feedbackRes.data) setFeedbacks(feedbackRes.data);
+        const feedbackResponse = await fetch("/api/feedback", { cache: "no-store", signal: controller.signal });
+        const feedback = await feedbackResponse.json();
+        if (controller.signal.aborted) return;
+        if (feedbackResponse.ok && feedback.success) setFeedbacks(feedback.data);
+        else setDataWarning(previous => [previous, "Your feedback history could not be loaded."].filter(Boolean).join(" "));
 
         // Fetch dynamic quota usage and history
         const billingRes = await fetch("/api/account/billing").then(res => res.json()).catch(() => null);
@@ -316,48 +301,14 @@ export default function AccountPage() {
           setInvoices(invoicesRes.invoices || []);
         }
       } catch (err) {
-        console.error("[account] Error loading details:", err);
+        if (!controller.signal.aborted) setDataWarning(err instanceof Error ? err.message : "Account details are unavailable.");
       } finally {
-        setLoadingData(false);
+        if (!controller.signal.aborted) setLoadingData(false);
       }
     }
 
     void loadData();
   }, [user, supabase, profile]);
-
-  const handleRedeemCoupon = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!couponCode.trim()) return;
-
-    try {
-      setRedeemingCoupon(true);
-      setCouponMessage(null);
-      setCouponError(null);
-
-      const res = await fetch("/api/account/billing", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code: couponCode }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        setCouponMessage(data.message || "Coupon successfully applied!");
-        setCouponCode("");
-        // Reload details
-        const usageRes = await fetch("/api/account/usage").then(r => r.json()).catch(() => null);
-        if (usageRes) {
-          setQuotaUsage(usageRes);
-        }
-        window.location.reload();
-      } else {
-        setCouponError(data.error || "Failed to apply coupon.");
-      }
-    } catch (err) {
-      setCouponError("Network error applying coupon.");
-    } finally {
-      setRedeemingCoupon(false);
-    }
-  };
 
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -368,71 +319,13 @@ export default function AccountPage() {
       setProfileMessage(null);
       setProfileError(null);
 
-      const profilePayload = stripUndefined(buildProfileUpdatePayload({
-        firstName,
-        lastName,
-        avatarUrl: profile?.avatarUrl,
-        institution,
-        institutionId,
-        institutionType,
-        faculty,
-        department,
-        studyLevel,
-        studyGoals: studyGoals.filter(Boolean),
-        company,
-        occupation,
-        industry,
-        field,
-        interests,
-        isStudent,
-        gender,
-        age,
-        teachingStyle,
-        difficulty,
-        preferredQuizFormat,
-        preferredLanguage,
-        flashcardPreference,
-        responseLength,
-        voicePreference,
-        studyReminderEnabled,
-        marketingUpdatesEnabled,
-        securityAlertsEnabled,
-        dailyGoalMinutes,
-        preferredTheme,
-        accountType,
-        country: profile?.country,
-        timezone: profile?.timezone,
-        bio: profile?.bio,
-        favoriteSubjects: profile?.favoriteSubjects,
-        accessibilityPreferences: profile?.accessibilityPreferences,
-        learningPreferences: profile?.learningPreferences,
-      }));
-
-      const { data: savedProfile, error: profileErr } = await supabase
-        .from("profiles")
-        .update(profilePayload)
-        .eq("id", user.id)
-        .select("id,updated_at")
-        .single();
-
-      if (profileErr || !savedProfile) {
-        console.error("[account] Profile update failed", {
-          userId: user.id,
-          code: profileErr?.code,
-          message: profileErr?.message,
-        });
-        throw new Error("We could not save your profile. Please check your connection and try again.");
-      }
-
-      // Log event
-      await supabase.from("events").insert({
-        user_id: user.id,
-        event_type: "profile_updated",
-        properties: {
-          first_name: firstName.trim(),
-          last_name: lastName.trim(),
-        }
-      });
+      const response = await fetch("/api/account/profile", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({
+        firstName, lastName, accountType, institution, institutionId, institutionType, faculty, department, studyLevel, studyGoals, company, occupation, industry, field, interests, gender, age,
+        teachingStyle, difficulty, preferredQuizFormat, preferredLanguage, flashcardPreference, responseLength, voicePreference,
+        studyReminderEnabled, marketingUpdatesEnabled, securityAlertsEnabled, dailyGoalMinutes, preferredTheme,
+      }) });
+      const saved = await response.json();
+      if (!response.ok || !saved.success) throw new Error(saved.error || "Your profile could not be saved.");
 
       setProfileMessage("Your preferences and account settings have been saved.");
       await refreshProfile();
@@ -497,7 +390,7 @@ export default function AccountPage() {
       setPasswordSuccess(null);
 
       const { error } = await supabase.auth.updateUser({
-        password: newPassword.trim(),
+        password: newPassword,
       });
 
       if (error) throw error;
@@ -515,7 +408,9 @@ export default function AccountPage() {
   const handleLogoutAllDevices = async () => {
     if (!supabase) return;
     try {
-      await supabase.auth.signOut({ scope: "global" });
+      if (!await confirmUnsavedWorkBeforeSignOut()) return;
+      const result = await supabase.auth.signOut({ scope: "global" });
+      if (result.error) throw result.error;
       router.push("/");
     } catch (err) {
       console.error(err);
@@ -615,9 +510,10 @@ export default function AccountPage() {
   const currentDevice = getDeviceDetails();
 
   return (
-    
+
       <div className="h-full flex flex-col overflow-hidden bg-[#0d0f12]">
-        
+      {dataWarning && <p role="status" className="rounded-xl border border-amber-400/30 bg-amber-400/10 p-3 text-sm text-amber-200">{dataWarning}</p>}
+
         {/* Premium Top Sub-Navigation Header */}
         <div className="bg-[#111317] border-b border-white/5 px-6 md:px-8 py-3.5 shrink-0 sticky top-0 z-10">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -630,8 +526,8 @@ export default function AccountPage() {
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
                     className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold whitespace-nowrap transition-all select-none ${
-                      active 
-                        ? "bg-cyan-500/10 text-cyan-400 font-bold border border-cyan-500/20 shadow-sm" 
+                      active
+                        ? "bg-cyan-500/10 text-cyan-400 font-bold border border-cyan-500/20 shadow-sm"
                         : "text-slate-400 hover:text-slate-200 hover:bg-[#1a1c22]"
                     }`}
                   >
@@ -650,7 +546,7 @@ export default function AccountPage() {
         {/* Content Area */}
         <div className="flex-1 overflow-y-auto p-6 md:p-8 space-y-8 scrollbar-thin">
           <div className="max-w-2xl mx-auto md:py-4">
-          
+
           {loadingData ? (
             <div className="h-96 w-full flex items-center justify-center">
               <Loader2 className="h-8 w-8 text-cyan-500 animate-spin" />
@@ -678,18 +574,18 @@ export default function AccountPage() {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1.5">
                       <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">First Name</label>
-                      <Input 
-                        value={firstName} 
-                        onChange={e => setFirstName(e.target.value)} 
+                      <Input
+                        value={firstName}
+                        onChange={e => setFirstName(e.target.value)}
                         className="bg-[#14161a] border-white/5 h-11"
                         required
                       />
                     </div>
                     <div className="space-y-1.5">
                       <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Last Name</label>
-                      <Input 
-                        value={lastName} 
-                        onChange={e => setLastName(e.target.value)} 
+                      <Input
+                        value={lastName}
+                        onChange={e => setLastName(e.target.value)}
                         className="bg-[#14161a] border-white/5 h-11"
                         required
                       />
@@ -699,10 +595,10 @@ export default function AccountPage() {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1.5">
                       <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Age</label>
-                      <Input 
+                      <Input
                         type="number"
-                        value={age} 
-                        onChange={e => setAge(e.target.value === "" ? "" : Number(e.target.value))} 
+                        value={age}
+                        onChange={e => setAge(e.target.value === "" ? "" : Number(e.target.value))}
                         className="bg-[#14161a] border-white/5 h-11"
                       />
                     </div>
@@ -757,9 +653,9 @@ export default function AccountPage() {
                                       <span className="text-[9px] text-slate-500 font-medium block uppercase tracking-wider">{institutionType}</span>
                                     </div>
                                   </div>
-                                  <Button 
+                                  <Button
                                     type="button"
-                                    variant="ghost" 
+                                    variant="ghost"
                                     onClick={() => {
                                       setInstitution("");
                                       setInstitutionId("");
@@ -783,8 +679,8 @@ export default function AccountPage() {
                                           setSearchResults([]);
                                         }}
                                         className={`py-1 rounded transition-colors truncate ${
-                                          institutionType === t 
-                                            ? "bg-cyan-500/10 text-cyan-400 border border-cyan-500/10 font-bold" 
+                                          institutionType === t
+                                            ? "bg-cyan-500/10 text-cyan-400 border border-cyan-500/10 font-bold"
                                             : "hover:text-white"
                                         }`}
                                       >
@@ -795,9 +691,9 @@ export default function AccountPage() {
 
                                   <div className="relative">
                                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-500" />
-                                    <Input 
-                                      value={searchQuery} 
-                                      onChange={e => setSearchQuery(e.target.value)} 
+                                    <Input
+                                      value={searchQuery}
+                                      onChange={e => setSearchQuery(e.target.value)}
                                       placeholder={`Search ${institutionType.toLowerCase()}s...`}
                                       className="bg-[#14161a] border-white/5 h-11 pl-9 pr-4 placeholder:text-slate-600 text-xs"
                                     />
@@ -839,7 +735,7 @@ export default function AccountPage() {
                                         ))
                                       ) : (
                                         <div className="p-3 text-center space-y-2">
-                                          <p className="text-[10px] text-slate-500">Can't find your school?</p>
+                                          <p className="text-[10px] text-slate-500">Can&apos;t find your school?</p>
                                           <Button
                                             type="button"
                                             onClick={() => {
@@ -861,7 +757,7 @@ export default function AccountPage() {
                           ) : (
                             <div className="p-4 rounded-xl border border-white/5 bg-[#1a1c22] space-y-3 text-left">
                               <span className="text-xs font-semibold text-white block">Add Custom Institution</span>
-                              
+
                               <div className="space-y-1">
                                 <label className="text-[8px] text-slate-500 font-bold uppercase tracking-wider">Institution Name</label>
                                 <input
@@ -949,9 +845,9 @@ export default function AccountPage() {
 
                         <div className="space-y-1.5">
                           <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Department / Course</label>
-                          <Input 
-                            value={department} 
-                            onChange={e => setDepartment(e.target.value)} 
+                          <Input
+                            value={department}
+                            onChange={e => setDepartment(e.target.value)}
                             className="bg-[#14161a] border-white/5 h-11"
                           />
                         </div>
@@ -1001,24 +897,24 @@ export default function AccountPage() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-1.5">
                       <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Study Level</label>
-                      <Input 
-                        value={studyLevel} 
-                        onChange={e => setStudyLevel(e.target.value)} 
+                      <Input
+                        value={studyLevel}
+                        onChange={e => setStudyLevel(e.target.value)}
                         className="bg-[#14161a] border-white/5 h-11"
                       />
                     </div>
                     <div className="space-y-1.5">
                       <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Learning Goals</label>
-                      <Input 
-                        value={studyGoals.join(", ")} 
+                      <Input
+                        value={studyGoals.join(", ")}
                         onChange={e => setStudyGoals(e.target.value.split(",").map(s => s.trim()).filter(Boolean))}
                         className="bg-[#14161a] border-white/5 h-11"
                       />
                     </div>
                   </div>
 
-                  <Button 
-                    type="submit" 
+                  <Button
+                    type="submit"
                     disabled={profileSaving}
                     className="w-full bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold h-11 rounded-lg"
                   >
@@ -1031,7 +927,7 @@ export default function AccountPage() {
                 <form onSubmit={handleSaveProfile} className="space-y-6">
                   <div>
                     <h2 className="text-xl font-bold text-white">Tutor learning preferences</h2>
-                    <p className="text-xs text-slate-500 mt-1">Fine-tune the complexity, size, and style of your AI assistant's responses.</p>
+                    <p className="text-xs text-slate-500 mt-1">Fine-tune the complexity, size, and style of your AI assistant&apos;s responses.</p>
                   </div>
 
                   {profileMessage && (
@@ -1141,8 +1037,8 @@ export default function AccountPage() {
                     </div>
                   </div>
 
-                  <Button 
-                    type="submit" 
+                  <Button
+                    type="submit"
                     disabled={profileSaving}
                     className="w-full bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold h-11 rounded-lg"
                   >
@@ -1157,18 +1053,6 @@ export default function AccountPage() {
                     <h2 className="text-xl font-bold text-white">Billing & API Quotas</h2>
                     <p className="text-xs text-slate-500 mt-1">Monitor plan quotas, monthly API limits, and storage usage.</p>
                   </div>
-
-                  {/* Coupon Alerts */}
-                  {couponMessage && (
-                    <div className="flex items-center gap-2 p-3.5 rounded-xl border border-emerald-500/20 bg-emerald-500/5 text-xs text-emerald-300">
-                      <Check className="h-4 w-4 shrink-0" /> {couponMessage}
-                    </div>
-                  )}
-                  {couponError && (
-                    <div className="flex items-center gap-2 p-3.5 rounded-xl border border-red-500/20 bg-red-500/5 text-xs text-red-300">
-                      <AlertCircle className="h-4 w-4 shrink-0" /> {couponError}
-                    </div>
-                  )}
 
                   {/* Plan Card */}
                   <div className="p-5 rounded-2xl border border-cyan-500/20 bg-gradient-to-br from-cyan-500/5 to-transparent space-y-4">
@@ -1210,7 +1094,7 @@ export default function AccountPage() {
                           { key: "unlimited_uploads", label: "Unlimited Uploads" },
                           { key: "analytics", label: "Advanced Analytics" },
                         ].map((feat) => {
-                          const hasFeat = quotaUsage?.plan ? 
+                          const hasFeat = quotaUsage?.plan ?
                             (quotaUsage.plan.toLowerCase() === "student" && ["ai_chat", "advanced_quizzes", "flashcards", "ocr", "voice_tutor"].includes(feat.key)) ||
                             (["pro", "premium", "team", "enterprise"].includes(quotaUsage.plan.toLowerCase()))
                             : ["ai_chat", "flashcards"].includes(feat.key);
@@ -1260,48 +1144,48 @@ export default function AccountPage() {
                   {/* Progress bars */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {[
-                      { 
-                        label: "Monthly AI Requests", 
-                        used: quotaUsage?.usage?.aiRequests || 0, 
-                        limit: quotaUsage?.limits?.aiRequests || 100 
+                      {
+                        label: "Monthly AI Requests",
+                        used: quotaUsage?.usage?.aiRequests || 0,
+                        limit: quotaUsage?.limits?.aiRequests || 100
                       },
-                      { 
-                        label: "Daily AI Limit", 
-                        used: quotaUsage?.usage?.dailyAiRequests || 0, 
-                        limit: quotaUsage?.limits?.dailyRequests || 20 
+                      {
+                        label: "Daily AI Limit",
+                        used: quotaUsage?.usage?.dailyAiRequests || 0,
+                        limit: quotaUsage?.limits?.dailyRequests || 20
                       },
-                      { 
-                        label: "Quiz Generations", 
-                        used: quotaUsage?.usage?.quizzes || 0, 
-                        limit: quotaUsage?.limits?.quizzes || 20 
+                      {
+                        label: "Quiz Generations",
+                        used: quotaUsage?.usage?.quizzes || 0,
+                        limit: quotaUsage?.limits?.quizzes || 20
                       },
-                      { 
-                        label: "Flashcard Generations", 
-                        used: quotaUsage?.usage?.flashcards || 0, 
-                        limit: quotaUsage?.limits?.flashcards || 50 
+                      {
+                        label: "Flashcard Generations",
+                        used: quotaUsage?.usage?.flashcards || 0,
+                        limit: quotaUsage?.limits?.flashcards || 50
                       },
-                      { 
-                        label: "OCR Pages Limit", 
-                        used: quotaUsage?.usage?.ocrPages || 0, 
-                        limit: quotaUsage?.limits?.ocrPages || 5 
+                      {
+                        label: "OCR Pages Limit",
+                        used: quotaUsage?.usage?.ocrPages || 0,
+                        limit: quotaUsage?.limits?.ocrPages || 5
                       },
-                      { 
-                        label: "Voice Usage Minutes", 
-                        used: Math.ceil((quotaUsage?.usage?.voiceSeconds || 0) / 60), 
+                      {
+                        label: "Voice Usage Minutes",
+                        used: Math.ceil((quotaUsage?.usage?.voiceSeconds || 0) / 60),
                         limit: Math.ceil((quotaUsage?.limits?.voiceSeconds || 120) / 60),
                         percentage: Math.min(((quotaUsage?.usage?.voiceSeconds || 0) / (quotaUsage?.limits?.voiceSeconds || 120)) * 100, 100)
                       },
-                      { 
-                        label: "Storage Usage", 
-                        used: formatBytes(quotaUsage?.usage?.storageBytes || 0), 
-                        limit: formatBytes(quotaUsage?.limits?.storage || 52428800), 
-                        percentage: Math.min(((quotaUsage?.usage?.storageBytes || 0) / (quotaUsage?.limits?.storage || 52428800)) * 100, 100) 
+                      {
+                        label: "Storage Usage",
+                        used: formatBytes(quotaUsage?.usage?.storageBytes || 0),
+                        limit: formatBytes(quotaUsage?.limits?.storage || 52428800),
+                        percentage: Math.min(((quotaUsage?.usage?.storageBytes || 0) / (quotaUsage?.limits?.storage || 52428800)) * 100, 100)
                       }
                     ].map((item, idx) => {
                       const isStorage = item.label === "Storage Usage";
                       const isVoice = item.label === "Voice Usage Minutes";
-                      const pct = isStorage || isVoice 
-                        ? (item as any).percentage 
+                      const pct = isStorage || isVoice
+                        ? ("percentage" in item ? Number(item.percentage) : 0)
                         : Math.min(((item.used as number) / (item.limit as number)) * 100, 100);
 
                       return (
@@ -1319,29 +1203,11 @@ export default function AccountPage() {
                     })}
                   </div>
 
-                  {/* Redeem Coupon */}
+                  {/* Historical discount vouchers require a verified checkout contract. */}
                   <div className="p-5 rounded-xl border border-white/5 bg-[#14161a] space-y-3">
-                    <h3 className="text-sm font-bold text-white flex items-center gap-1.5">
-                      🎟 Redeem Promo Coupon
-                    </h3>
-                    <p className="text-[10px] text-slate-500">Enter a gift coupon code or promotional voucher to activate premium features.</p>
-                    
-                    <form onSubmit={handleRedeemCoupon} className="flex gap-2">
-                      <Input
-                        placeholder="ENTER COUPON CODE"
-                        value={couponCode}
-                        onChange={(e) => setCouponCode(e.target.value)}
-                        className="bg-[#0d0f12] border-white/5 uppercase font-semibold text-xs tracking-wider"
-                        disabled={redeemingCoupon}
-                      />
-                      <Button
-                        type="submit"
-                        disabled={redeemingCoupon}
-                        className="bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs h-10 px-5"
-                      >
-                        {redeemingCoupon ? "Applying..." : "Redeem"}
-                      </Button>
-                    </form>
+                    <h3 className="text-sm font-bold text-white">Promo codes</h3>
+                    <p className="text-xs text-slate-400">Promo redemption is temporarily unavailable. Your current plan and usage remain visible above. Contact support if you were issued a voucher.</p>
+                    <a className="inline-flex min-h-11 items-center text-xs text-cyan-300 underline underline-offset-4" href="mailto:support@uselerna.app">Contact support</a>
                   </div>
 
                   {/* Empty States for Billing History & Invoices */}
@@ -1452,12 +1318,12 @@ export default function AccountPage() {
 
                     <div className="space-y-1.5">
                       <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">New Email Address</label>
-                      <Input 
-                        type="email" 
-                        placeholder="e.g. name@university.edu" 
-                        value={newEmail} 
-                        onChange={e => setNewEmail(e.target.value)} 
-                        className="bg-[#0d0f12] border-white/5 h-11" 
+                      <Input
+                        type="email"
+                        placeholder="e.g. name@university.edu"
+                        value={newEmail}
+                        onChange={e => setNewEmail(e.target.value)}
+                        className="bg-[#0d0f12] border-white/5 h-11"
                         disabled={updatingEmail}
                         required
                       />
@@ -1569,12 +1435,12 @@ export default function AccountPage() {
 
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                     {[
-                      { label: "Learning Streak", value: `${stats.streak} days`, desc: "Consecutive study days" },
-                      { label: "Questions Asked", value: stats.questions, desc: "Total chat tutor calls" },
-                      { label: "Files Uploaded", value: stats.documents, desc: "Materials indexed in RAG" },
-                      { label: "Study Workspaces", value: stats.sessions, desc: "Active workspace logs" },
-                      { label: "Hours Studied", value: `${stats.hours.toFixed(1)} hrs`, desc: "Total session elapsed hours" },
-                      { label: "Last Active", value: profile?.last_active ? new Date(profile.last_active).toLocaleDateString() : "Today", desc: "Profile metadata update" },
+                      { label: "Learning Streak", value: stats.streak === null ? "Unavailable" : `${stats.streak} days`, desc: "Consecutive study days" },
+                      { label: "Questions Asked", value: stats.questions ?? "Unavailable", desc: "Total chat tutor calls" },
+                      { label: "Files Uploaded", value: stats.documents ?? "Unavailable", desc: "Materials indexed in RAG" },
+                      { label: "Study Workspaces", value: stats.sessions ?? "Unavailable", desc: "Active workspace logs" },
+                      { label: "Hours Studied", value: stats.hours === null ? "Unavailable" : `${stats.hours.toFixed(1)} hrs`, desc: "Total session elapsed hours" },
+                      { label: "Last Active", value: profile?.lastActive ? new Date(profile.lastActive).toLocaleDateString() : "Today", desc: "Profile metadata update" },
                     ].map((stat) => (
                       <div key={stat.label} className="p-4 rounded-xl border border-white/5 bg-[#14161a] space-y-1">
                         <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">{stat.label}</span>
@@ -1648,7 +1514,7 @@ export default function AccountPage() {
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-1.5">
                         <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Feedback Type</label>
-                        <select value={feedbackType} onChange={e => setFeedbackType(e.target.value as any)} className="w-full h-11 px-3 bg-[#0d0f12] border border-white/5 rounded-lg text-xs">
+                        <select value={feedbackType} onChange={e => setFeedbackType(e.target.value as "general" | "bug" | "feature")} className="w-full h-11 px-3 bg-[#0d0f12] border border-white/5 rounded-lg text-xs">
                           <option value="general">General Feedback</option>
                           <option value="bug">Report a Bug</option>
                           <option value="feature">Request a Feature</option>
@@ -1690,7 +1556,7 @@ export default function AccountPage() {
                       <p className="text-[10px] text-slate-500 italic">No tickets submitted.</p>
                     ) : (
                       <div className="divide-y divide-white/5 border border-white/5 rounded-xl bg-[#14161a] overflow-hidden">
-                        {tickets.map((t: any) => (
+                        {tickets.map((t) => (
                           <div key={t.id} className="p-4 flex justify-between items-start gap-4 text-xs">
                             <div className="space-y-1">
                               <span className="font-semibold text-white block">{t.subject}</span>
@@ -1752,6 +1618,6 @@ export default function AccountPage() {
           </div>
         </div>
       </div>
-    
+
   );
 }

@@ -5,7 +5,7 @@ export interface CheckoutOptions {
   amount: number;
   currency: string;
   callbackUrl: string;
-  metadata?: any;
+  metadata?: Record<string, unknown>;
 }
 
 export interface CheckoutResult {
@@ -19,5 +19,5 @@ export interface PaymentVerificationResult {
   amount: number;
   currency: string;
   status: "successful" | "failed" | "pending";
-  metadata?: any;
+  metadata?: Record<string, unknown>;
 }

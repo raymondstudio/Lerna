@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
+import { sanitizeAuthReturnPath } from "@/lib/auth/return-path";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -38,7 +39,7 @@ export function LoginForm({
       setLoading(true);
       setError(null);
       await signIn({ email: email.trim(), password });
-      router.push(redirectTo);
+      router.push(sanitizeAuthReturnPath(redirectTo));
       router.refresh();
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : "Unable to sign in right now.");
@@ -107,6 +108,9 @@ export function LoginForm({
         <div className="space-y-2">
           <Input
             id="email"
+            name="email"
+            aria-label="Email address"
+            spellCheck={false}
             type="email"
             placeholder="Email address"
             autoComplete="email"
@@ -119,6 +123,8 @@ export function LoginForm({
           <div className="relative">
             <Input
               id="password"
+              name="password"
+              aria-label="Password"
               type={showPassword ? "text" : "password"}
               placeholder="Password"
               autoComplete="current-password"
@@ -146,7 +152,7 @@ export function LoginForm({
           </div>
         </div>
         {(error || authError) ? (
-          <p className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+          <p role="alert" className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">
             {error ?? authError}
           </p>
         ) : null}

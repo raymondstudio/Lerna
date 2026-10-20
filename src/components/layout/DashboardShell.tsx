@@ -44,10 +44,14 @@ export function DashboardShell({ children }: { children: ReactNode }) {
     deleteSession,
   } = useDashboard();
 
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchValue] = useState("");
   const [searchResults, setSearchResults] = useState<StudySessionRecord[]>([]);
   const [searchingSessions, setSearchingSessions] = useState(false);
   const [sessionSearchError, setSessionSearchError] = useState<string | null>(null);
+  const setSearchQuery = (value: string) => {
+    setSearchValue(value);
+    if (!value.trim()) { setSearchResults([]); setSearchingSessions(false); setSessionSearchError(null); }
+  };
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; title: string } | null>(null);
   const [deletingSession, setDeletingSession] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -62,12 +66,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const query = searchQuery.trim();
-    if (!query) {
-      setSearchResults([]);
-      setSearchingSessions(false);
-      setSessionSearchError(null);
-      return;
-    }
+    if (!query) return;
 
     const controller = new AbortController();
     const timeout = window.setTimeout(async () => {

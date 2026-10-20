@@ -7,6 +7,7 @@ import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { BookOpen, FileText, Loader2, RefreshCw, Search } from "lucide-react";
 
 import type { ChatReference } from "@/lib/chat/references";
+import { useHydrated } from "@/hooks/use-hydrated";
 
 type FloatingLayout = {
   top: number;
@@ -57,7 +58,7 @@ export function MentionPopover({
   onActiveIndexChange,
   anchorRef,
 }: MentionPopoverProps) {
-  const [mounted, setMounted] = useState(false);
+  const mounted = useHydrated();
   const panelRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const reduceMotion = useReducedMotion();
@@ -69,8 +70,6 @@ export function MentionPopover({
     side: "top",
     ready: false,
   });
-
-  useEffect(() => setMounted(true), []);
 
   const updatePosition = useCallback(() => {
     const anchor = anchorRef.current;
@@ -219,7 +218,7 @@ export function MentionPopover({
               </p>
               {!query && (
                 <Link
-                  href="/upload"
+                  href="/materials"
                   onClick={onDismiss}
                   className="inline-flex min-h-11 items-center text-sm font-medium text-cyan-400 hover:text-cyan-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"
                 >

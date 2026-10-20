@@ -1,6 +1,8 @@
 "use client";
+import { ExportLink } from "@/components/admin/ExportLink";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import { useAdminData } from "./use-admin-data";
 import { AlertTriangle, ArrowDownRight, ArrowUpRight, Download, FileBarChart, Loader2 } from "lucide-react";
 
 import { useAdminAnalytics } from "@/context/admin-analytics-context";
@@ -40,27 +42,8 @@ function comparison(current: MetricValue, previous: MetricValue) {
 
 export function ReportsTab() {
   const { queryString, refreshToken } = useAdminAnalytics();
-  const [data, setData] = useState<ReportData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { data, loading, error } = useAdminData<ReportData>(`/api/admin/analytics?${queryString}&refresh=${refreshToken}`);
   const [dataset, setDataset] = useState<(typeof EXPORT_DATASETS)[number]>("messages");
-
-  useEffect(() => {
-    const controller = new AbortController();
-    setLoading(true);
-    void fetch(`/api/admin/analytics?${queryString}`, { signal: controller.signal, cache: "no-store" })
-      .then(async (response) => {
-        const payload = await response.json();
-        if (!response.ok || !payload.success) throw new Error(payload.error || "Unable to load report.");
-        setData(payload.data);
-        setError(null);
-      })
-      .catch((reason) => {
-        if (reason?.name !== "AbortError") setError(reason instanceof Error ? reason.message : String(reason));
-      })
-      .finally(() => setLoading(false));
-    return () => controller.abort();
-  }, [queryString, refreshToken]);
 
   const maxMessages = useMemo(() => Math.max(1, ...(data?.series ?? []).map((point) => Number(point.messages ?? 0))), [data]);
   const period = data?.range ? `${new Date(data.range.start_at).toLocaleString([], { timeZone: data.range.timezone })} – ${new Date(data.range.end_at).toLocaleString([], { timeZone: data.range.timezone })}` : "";
@@ -122,8 +105,8 @@ function ReportDetails({
     <div className="rounded-2xl border border-white/5 bg-[#141414]/60 p-5">
       <div className="flex flex-wrap items-end gap-3">
         <label className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Detailed export<select value={dataset} onChange={(event) => setDataset(event.target.value as typeof dataset)} className="mt-1 block h-9 rounded-lg border border-white/10 bg-[#0a0a0a] px-3 text-xs normal-case text-slate-200">{EXPORT_DATASETS.map((value) => <option key={value} value={value}>{value.replaceAll("_", " ")}</option>)}</select></label>
-        <a href={exportUrl("csv")} className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-cyan-500 px-3 text-xs font-bold text-black hover:bg-cyan-400"><Download className="h-3.5 w-3.5" /> Export CSV</a>
-        <a href={exportUrl("json")} className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-white/10 px-3 text-xs font-semibold text-slate-300 hover:text-white"><Download className="h-3.5 w-3.5" /> Export JSON</a>
+        <ExportLink href={exportUrl("csv")} className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-cyan-500 px-3 text-xs font-bold text-black hover:bg-cyan-400"><Download className="h-3.5 w-3.5" /> Export CSV</ExportLink>
+        <ExportLink href={exportUrl("json")} className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-white/10 px-3 text-xs font-semibold text-slate-300 hover:text-white"><Download className="h-3.5 w-3.5" /> Export JSON</ExportLink>
       </div>
     </div>
 

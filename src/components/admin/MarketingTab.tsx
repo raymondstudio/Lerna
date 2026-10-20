@@ -17,17 +17,19 @@ type AttributionStats = {
 
 export function MarketingTab() {
   const [stats, setStats] = useState<AttributionStats>({
-    tiktok: 45,
-    whatsapp: 88,
-    discord: 121,
-    x: 62,
-    linkedin: 34,
-    google: 210,
-    direct: 145,
-    referral: 75,
+    tiktok: 0,
+    whatsapp: 0,
+    discord: 0,
+    x: 0,
+    linkedin: 0,
+    google: 0,
+    direct: 0,
+    referral: 0,
   });
 
   const [loading, setLoading] = useState(true);
+  const [available, setAvailable] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     void (async () => {
@@ -35,6 +37,7 @@ export function MarketingTab() {
         const res = await fetch("/api/admin/analytics");
         const json = await res.json();
         if (json.success && json.data && json.data.trafficSources) {
+          setAvailable(true);
           const src = json.data.trafficSources;
           setStats({
             tiktok: src.tiktok || 0,
@@ -46,9 +49,9 @@ export function MarketingTab() {
             direct: src.direct || 0,
             referral: src.referral || 0,
           });
-        }
+        } else throw new Error("Reported acquisition data is unavailable.");
       } catch (err) {
-        console.warn("[marketing] failed to fetch real telemetry stats, using defaults:", err);
+        setError(err instanceof Error ? err.message : "Reported acquisition data is unavailable.");
       } finally {
         setLoading(false);
       }
@@ -70,6 +73,7 @@ export function MarketingTab() {
 
   return (
     <div className="space-y-6">
+      {error && <p role="alert" className="rounded-xl border border-red-400/30 p-3 text-sm text-red-300">{error}</p>}
       <div>
         <h2 className="text-xl font-semibold text-white tracking-tight">Marketing Attribution & Acquisition</h2>
         <p className="text-slate-400 text-xs mt-1">
@@ -81,14 +85,14 @@ export function MarketingTab() {
         {/* KPI Summaries */}
         <div className="p-5 rounded-2xl border border-white/5 bg-[#141414]/50 backdrop-blur-md">
           <div className="flex justify-between items-center gap-3">
-            <span className="text-xs font-semibold text-slate-400">Total Acquisitions</span>
+            <span className="text-xs font-semibold text-slate-400">Known channel reports</span>
             <Users className="h-4 w-4 text-cyan-400" />
           </div>
           <div className="text-2xl font-bold text-white mt-2">
-            {loading ? "..." : totalAcquisition.toLocaleString()}
+            {loading ? "…" : available ? totalAcquisition.toLocaleString() : "Unavailable"}
           </div>
           <p className="text-[10px] text-emerald-400 flex items-center gap-1 mt-1 font-medium">
-            <ArrowUpRight className="h-3 w-3" /> +14.2% from last month
+            <ArrowUpRight className="h-3 w-3" /> Browser-reported attribution
           </p>
         </div>
 
@@ -98,10 +102,10 @@ export function MarketingTab() {
             <Globe className="h-4 w-4 text-cyan-400" />
           </div>
           <div className="text-2xl font-bold text-white mt-2">
-            {channels[0]?.name || "Google"}
+            {available && totalAcquisition ? channels[0]?.name : "Unavailable"}
           </div>
           <p className="text-[10px] text-slate-500 mt-1">
-            Accounting for {((channels[0]?.count / totalAcquisition) * 100).toFixed(1)}% of user growth
+            Accounting for {available && totalAcquisition ? ((channels[0].count/totalAcquisition)*100).toFixed(1) : "N/A"}% of user growth
           </p>
         </div>
 
@@ -111,7 +115,7 @@ export function MarketingTab() {
             <Share2 className="h-4 w-4 text-cyan-400" />
           </div>
           <div className="text-2xl font-bold text-white mt-2">
-            {(stats.tiktok + stats.discord + stats.whatsapp + stats.x).toLocaleString()}
+            {available ? (stats.tiktok + stats.discord + stats.whatsapp + stats.x).toLocaleString() : "Unavailable"}
           </div>
           <p className="text-[10px] text-slate-500 mt-1">
             Driven by virality and community shares
@@ -135,7 +139,7 @@ export function MarketingTab() {
                   <div className="flex justify-between text-xs">
                     <span className="text-slate-300 font-medium">{chan.name}</span>
                     <span className="text-slate-400">
-                      <strong>{chan.count}</strong> signups ({percentage.toFixed(1)}%)
+                      <strong>{available ? chan.count : "Unavailable"}</strong> reports ({percentage.toFixed(1)}%)
                     </span>
                   </div>
                   <div className="h-2 w-full bg-[#0a0a0a] rounded-full overflow-hidden">
@@ -162,12 +166,11 @@ export function MarketingTab() {
             <svg width="180" height="180" viewBox="0 0 36 36" className="transform -rotate-90">
               <circle cx="18" cy="18" r="15.915" fill="transparent" stroke="#1d1d1d" strokeWidth="2.5" />
               {(() => {
-                let accumulatedPercent = 0;
-                return channels.map((chan, idx) => {
+                return channels.map((chan, index) => {
                   const percent = totalAcquisition > 0 ? (chan.count / totalAcquisition) * 100 : 0;
                   const dashArray = `${percent} ${100 - percent}`;
-                  const dashOffset = 100 - accumulatedPercent;
-                  accumulatedPercent += percent;
+                  const preceding = channels.slice(0, index).reduce((sum, channel) => sum + channel.count, 0);
+                  const dashOffset = 100 - (totalAcquisition > 0 ? preceding / totalAcquisition * 100 : 0);
 
                   let strokeColor = "#3b82f6"; // blue
                   if (chan.key === "direct") strokeColor = "#10b981"; // emerald

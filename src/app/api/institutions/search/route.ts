@@ -1,17 +1,11 @@
 import { NextResponse } from "next/server";
 import { searchInstitutions } from "@/lib/repositories/institutions";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { authorizeActiveUserApi } from "@/lib/auth/require-active-user-api";
 
 export async function GET(req: Request) {
+  const auth = await authorizeActiveUserApi();
+  if (!auth.ok) return auth.response;
   try {
-    const supabase = await createSupabaseServerClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    
-    // API key/auth check
-    if (!user) {
-      return NextResponse.json({ success: false, error: "Unauthenticated" }, { status: 401 });
-    }
-
     const { searchParams } = new URL(req.url);
     const query = (searchParams.get("query") || "").trim().slice(0, 120);
     const type = searchParams.get("type") || undefined;
@@ -24,8 +18,8 @@ export async function GET(req: Request) {
 
     const data = await searchInstitutions(query, type, limit);
     return NextResponse.json({ success: true, data });
-  } catch (err: unknown) {
-    console.error("[api:institutions:search] Error:", err);
+  } catch {
+    console.error("[api:institutions:search] lookup failed");
     return NextResponse.json({ success: false, error: "Institution search is temporarily unavailable." }, { status: 500 });
   }
 }

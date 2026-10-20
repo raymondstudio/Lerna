@@ -1,5 +1,6 @@
 "use client";
 
+import type { ProfileWithAliases } from "@/lib/profile";
 import { createContext } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 
@@ -28,7 +29,7 @@ export type AuthContextValue = {
   signUp: (credentials: SignUpCredentials) => Promise<{ needsEmailConfirmation: boolean }>;
   signOut: () => Promise<void>;
   signInWithProvider?: (provider: string, redirectTo?: string) => Promise<void>;
-  profile: any | null;
+  profile: ProfileWithAliases | null;
   refreshProfile: () => Promise<void>;
 };
 

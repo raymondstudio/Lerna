@@ -22,6 +22,9 @@ export interface ChatMessage {
     promptTokens: number;
     completionTokens: number;
     totalTokens: number;
-    estimatedCost: number;
+    estimatedCost: number | null;
+    tokenSource?: "provider" | "estimated";
+    operationId?: string;
+    operationOutcome?: "succeeded" | "simulated" | "pending";
   };
 }

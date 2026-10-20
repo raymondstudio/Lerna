@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
+import { sanitizeAuthReturnPath } from "@/lib/auth/return-path";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
@@ -16,7 +17,6 @@ import {
   ArrowLeft, 
   ChevronDown, 
   ChevronUp, 
-  Sparkles,
   Loader2
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -59,8 +59,6 @@ export function SignupForm({
   
   // Status states
   const [loading, setLoading] = useState(false);
-  const [checkingEmail, setCheckingEmail] = useState(false);
-  const [duplicateEmail, setDuplicateEmail] = useState(false);
   const [error, setError] = useState<string | null>(initialErrorMessage ?? null);
   const [viewState, setViewState] = useState<"form" | "verification-sent" | "success">("form");
   
@@ -81,36 +79,6 @@ export function SignupForm({
     }, 1000);
     return () => clearInterval(interval);
   }, [resendCountdown]);
-
-  // Handle email unique validation on blur
-  async function handleEmailBlur() {
-    if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      setDuplicateEmail(false);
-      return;
-    }
-    try {
-      setCheckingEmail(true);
-      const checkRes = await fetch("/api/auth/check-email", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim() }),
-      });
-      const checkData = await checkRes.json();
-      if (checkData.exists) {
-        setDuplicateEmail(true);
-        setError("This email address is already registered. Try logging in instead.");
-      } else {
-        setDuplicateEmail(false);
-        if (error === "This email address is already registered. Try logging in instead.") {
-          setError(null);
-        }
-      }
-    } catch (err) {
-      console.warn("Failed to check email uniqueness:", err);
-    } finally {
-      setCheckingEmail(false);
-    }
-  }
 
   // Handle Form Submission
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -145,20 +113,6 @@ export function SignupForm({
       setLoading(true);
       setError(null);
 
-      // Final uniqueness verification
-      const checkRes = await fetch("/api/auth/check-email", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim() }),
-      });
-      const checkData = await checkRes.json();
-      if (checkData.exists) {
-        setDuplicateEmail(true);
-        setError("This email address is already registered. Try logging in instead.");
-        setLoading(false);
-        return;
-      }
-
       // Execute Signup
       const result = await signUp({
         email: email.trim(),
@@ -176,7 +130,7 @@ export function SignupForm({
       } else {
         setViewState("success");
         setTimeout(() => {
-          router.push(redirectTo);
+          router.push(sanitizeAuthReturnPath(redirectTo));
           router.refresh();
         }, 2000);
       }
@@ -252,7 +206,7 @@ export function SignupForm({
           <div className="space-y-2">
             <h2 className="text-2xl font-bold text-white tracking-tight">Verify your email</h2>
             <p className="text-slate-400 text-sm leading-relaxed max-w-sm mx-auto">
-              We've sent a verification link to <span className="text-slate-200 font-semibold">{email}</span>. Click the link to complete account setup.
+              We&apos;ve sent a verification link to <span className="text-slate-200 font-semibold">{email}</span>. Click the link to complete account setup.
             </p>
           </div>
         </div>
@@ -315,8 +269,7 @@ export function SignupForm({
     isPasswordValid && 
     password === confirmPassword && 
     acceptTerms && 
-    acceptPrivacy &&
-    !duplicateEmail;
+    acceptPrivacy;
 
   return (
     <div className="space-y-6">
@@ -372,6 +325,8 @@ export function SignupForm({
           <div className="space-y-1">
             <Input
               id="firstName"
+              name="given-name"
+              aria-label="First name"
               type="text"
               placeholder="First Name"
               required
@@ -384,6 +339,8 @@ export function SignupForm({
           <div className="space-y-1">
             <Input
               id="lastName"
+              name="family-name"
+              aria-label="Last name"
               type="text"
               placeholder="Last Name"
               required
@@ -400,23 +357,19 @@ export function SignupForm({
           <div className="relative">
             <Input
               id="email"
+              name="email"
+              aria-label="Email address"
+              spellCheck={false}
               type="email"
               placeholder="Email address"
               required
               value={email}
               onChange={(e) => {
                 setEmail(e.target.value);
-                setDuplicateEmail(false);
               }}
-              onBlur={handleEmailBlur}
-              className={`bg-[#1c1f26] border-white/5 h-10 focus-visible:ring-cyan-500/50 text-sm rounded-lg pr-9 ${duplicateEmail ? "border-red-500/30 focus-visible:ring-red-500/30" : ""}`}
+              className="bg-[#1c1f26] border-white/5 h-10 focus-visible:ring-cyan-500/50 text-sm rounded-lg"
               autoComplete="email"
             />
-            {checkingEmail && (
-              <div className="absolute right-3 top-2.5">
-                <Loader2 className="h-4 w-4 animate-spin text-slate-500" />
-              </div>
-            )}
           </div>
         </div>
 
@@ -425,6 +378,8 @@ export function SignupForm({
           <div className="relative">
             <Input
               id="password"
+              name="password"
+              aria-label="Password"
               type={showPassword ? "text" : "password"}
               placeholder="Password"
               required
@@ -498,6 +453,8 @@ export function SignupForm({
           <div className="relative">
             <Input
               id="confirmPassword"
+              name="confirm-password"
+              aria-label="Confirm password"
               type={showConfirmPassword ? "text" : "password"}
               placeholder="Confirm Password"
               required
@@ -604,7 +561,7 @@ export function SignupForm({
         </div>
 
         {/* Global Error Display */}
-        {((error || authError) && !checkingEmail) ? (
+        {(error || authError) ? (
           <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-3.5 py-2.5 text-xs text-red-200 flex items-start gap-2.5 animate-in shake">
             <AlertCircle className="h-4 w-4 text-red-400 shrink-0 mt-0.5" />
             <p className="leading-normal font-medium">{error ?? authError}</p>

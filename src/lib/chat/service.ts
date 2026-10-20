@@ -1,7 +1,9 @@
 import { generateText } from "@/lib/gemini/client";
+import type { GenerateContentResponse } from "@google/genai";
 import type { ChatMessage, ChatSource } from "./types";
 import { formatRagContext, retrieveMaterialContext } from "@/lib/materials/retrieval";
 import { buildAIProfileContext, normalizeProfile } from "@/lib/profile";
+import { selectReadyOwnedMaterialIds } from "@/lib/repositories/materials";
 
 const SYSTEM_PROMPT = `You are Lerna AI, an elite personal learning companion and academic tutor. 
 
@@ -17,23 +19,22 @@ Your mission is to act as a highly effective learning companion rather than a si
 6. **Institution-Appropriate Assessments**: If the student asks for a practice quiz, test, or essay question, generate questions and assessments that align with their university level, department, and preferences.
 7. **Handle Insufficient Context**: If a student's prompt is too brief, ambiguous, or lacks context, do not make wild assumptions. Ask brief, polite, clarifying questions to target their specific learning needs.`;
 
-async function callGeminiAPI(prompt: string, userId?: string): Promise<{ text: string; usage: any }> {
+async function callGeminiAPI(prompt: string, userId?: string): Promise<{ text: string; usage: NonNullable<ChatMessage["usage"]> }> {
   try {
     const promptWithSystem = `${SYSTEM_PROMPT}\n\n${prompt}`;
     const result = await generateText(promptWithSystem, { userId, requestType: "chat" });
     const text = (result?.text ?? "").toString().trim();
 
-    if (!text) {
-      console.error("[chat] Gemini returned empty payload", { raw: result?.raw });
-      return {
-        text: "Sorry, the tutoring service did not return a response. Please try again.",
-        usage: { promptTokens: 0, completionTokens: 0, totalTokens: 0, modelUsed: "gemini-2.5-flash", estimatedCost: 0 }
-      };
-    }
+    if (!text) throw new Error("The tutoring provider returned an empty response.");
 
-    const raw: any = result?.raw;
-    const promptTokens = raw?.usageMetadata?.promptTokenCount || Math.ceil(promptWithSystem.length / 4);
-    const completionTokens = raw?.usageMetadata?.candidatesTokenCount || Math.ceil(text.length / 4);
+    const raw = result?.raw as Partial<GenerateContentResponse> | undefined;
+    const usage = raw?.usageMetadata;
+    const hasProviderCounts = typeof usage?.promptTokenCount === "number" && Number.isFinite(usage.promptTokenCount)
+      && typeof usage.candidatesTokenCount === "number" && Number.isFinite(usage.candidatesTokenCount);
+    const promptTokens = hasProviderCounts ? usage!.promptTokenCount! : Math.ceil(promptWithSystem.length / 4);
+    const candidateTokens = hasProviderCounts ? usage!.candidatesTokenCount! : Math.ceil(text.length / 4);
+    const thoughtTokens = hasProviderCounts && typeof usage?.thoughtsTokenCount === "number" ? usage.thoughtsTokenCount : 0;
+    const completionTokens = candidateTokens + thoughtTokens;
     const modelUsed = "gemini-2.5-flash";
 
     return {
@@ -43,19 +44,15 @@ async function callGeminiAPI(prompt: string, userId?: string): Promise<{ text: s
         promptTokens,
         completionTokens,
         totalTokens: promptTokens + completionTokens,
-        estimatedCost: (promptTokens * 0.000000075) + (completionTokens * 0.00000030)
+        tokenSource: hasProviderCounts ? "provider" : "estimated",
+        operationId: result.operation?.id,
+        operationOutcome: result.operation?.outcome,
+        estimatedCost: result.operation?.outcome === "succeeded"
+          ? (promptTokens * 0.00000030) + (completionTokens * 0.00000250) : null,
       }
     };
   } catch (err) {
-    const errorDetails = err instanceof Error ? err.message : String(err);
-    console.error("[chat] callGeminiAPI error", {
-      error: errorDetails,
-      timestamp: new Date().toISOString(),
-    });
-    return {
-      text: `Sorry, the tutoring service encountered an error: ${errorDetails}. Please check your API key and try again.`,
-      usage: { promptTokens: 0, completionTokens: 0, totalTokens: 0, modelUsed: "gemini-2.5-flash", estimatedCost: 0 }
-    };
+    throw err;
   }
 }
 
@@ -76,6 +73,10 @@ export async function getAIResponse(
   
   if (sessionId && userId && lastUserMessage) {
     searchPromise = (async () => {
+      // Check the material scope before even a paid query reformulation. If the
+      // authorization store is unavailable, no subsequent provider call is safe.
+      const readyIds = await selectReadyOwnedMaterialIds(userId, documentIds);
+      if (readyIds.length === 0) return { contextText: "", sources: [] as ChatSource[] };
       let searchQuery = lastUserMessage.content;
       
       // Query Reformulation if there is conversation history
@@ -86,13 +87,9 @@ Conversation:
 ${transcript}
 
 Standalone Query:`;
-        try {
-          const reformulateResult = await generateText(reformulationPrompt, { userId, requestType: "chat" });
-          const text = reformulateResult?.text?.toString().trim();
-          if (text) searchQuery = text;
-        } catch (e) {
-          console.warn("[chat] Query reformulation failed, using fallback");
-        }
+        const reformulateResult = await generateText(reformulationPrompt, { userId, requestType: "chat" });
+        const text = reformulateResult?.text?.toString().trim();
+        if (text) searchQuery = text;
       }
 
       try {
@@ -109,8 +106,8 @@ Standalone Query:`;
             sources: ragResult.sources,
           };
         }
-      } catch (e) {
-        console.error("[chat] RAG retrieval error:", e);
+      } catch {
+        throw new Error("Authorized material retrieval is unavailable. Please retry.");
       }
       return { contextText: "", sources: [] };
     })();
@@ -130,8 +127,8 @@ Standalone Query:`;
 
         const profile = normalizeProfile(profileResult.data, subscriptionResult.data, roleResult.data);
         return profile ? buildAIProfileContext(profile) : "";
-      } catch (err) {
-        console.error("[chat] Failed to fetch profile context:", err);
+      } catch {
+        console.error("[chat] Profile context unavailable");
         return "";
       }
     })();

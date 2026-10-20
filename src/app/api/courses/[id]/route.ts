@@ -1,32 +1,17 @@
 import { NextResponse } from "next/server";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { authorizeActiveUserApi } from "@/lib/auth/require-active-user-api";
 
 export async function GET(
   _req: Request,
   context: { params: Promise<{ id: string }> }
 ) {
   const requestId = crypto.randomUUID();
+  const auth = await authorizeActiveUserApi();
+  if (!auth.ok) return auth.response;
+  const { supabase, user } = auth;
 
   try {
     const { id } = await context.params;
-    const supabase = await createSupabaseServerClient();
-    const { data: userData } = await supabase.auth.getUser();
-    const user = userData.user;
-
-    if (!user) {
-      return NextResponse.json(
-        {
-          success: false,
-          requestId,
-          error: {
-            code: "UNAUTHORIZED",
-            message: "You must be signed in to view this course.",
-          },
-        },
-        { status: 401 }
-      );
-    }
-
     // 1. Fetch Course details
     const { data: course, error: courseError } = await supabase
       .from("courses")
@@ -35,7 +20,8 @@ export async function GET(
       .eq("user_id", user.id)
       .maybeSingle();
 
-    if (courseError || !course) {
+    if (courseError) throw courseError;
+    if (!course) {
       return NextResponse.json(
         {
           success: false,
@@ -50,7 +36,7 @@ export async function GET(
     }
 
     // 2. Fetch associated Materials
-    const { data: materials } = await supabase
+    const { data: materials, error: materialsError } = await supabase
       .from("uploaded_materials")
       .select("id, file_name, file_type, status, created_at")
       .eq("course_id", id)
@@ -59,18 +45,20 @@ export async function GET(
       .order("created_at", { ascending: false });
 
     // 3. Fetch Study Sessions for statistics
-    const { data: sessions } = await supabase
+    const { data: sessions, error: sessionsError } = await supabase
       .from("study_sessions")
       .select("id, duration_seconds, status")
       .eq("course_id", id)
       .eq("user_id", user.id);
 
     // 4. Fetch Quizzes for statistics
-    const { data: quizzes } = await supabase
+    const { data: quizzes, error: quizzesError } = await supabase
       .from("quizzes")
       .select("id, score, total_questions")
       .eq("course_id", id)
       .eq("user_id", user.id);
+
+    if (materialsError || sessionsError || quizzesError) throw new Error("Course details unavailable.");
 
     return NextResponse.json({
       success: true,
@@ -82,14 +70,14 @@ export async function GET(
         quizzes: quizzes ?? [],
       },
     });
-  } catch (error) {
+  } catch {
     return NextResponse.json(
       {
         success: false,
         requestId,
         error: {
           code: "SERVER_ERROR",
-          message: error instanceof Error ? error.message : "Unable to retrieve course details.",
+          message: "Unable to retrieve course details.",
         },
       },
       { status: 500 }
@@ -102,27 +90,12 @@ export async function PATCH(
   context: { params: Promise<{ id: string }> }
 ) {
   const requestId = crypto.randomUUID();
+  const auth = await authorizeActiveUserApi();
+  if (!auth.ok) return auth.response;
+  const { supabase, user } = auth;
 
   try {
     const { id } = await context.params;
-    const supabase = await createSupabaseServerClient();
-    const { data: userData } = await supabase.auth.getUser();
-    const user = userData.user;
-
-    if (!user) {
-      return NextResponse.json(
-        {
-          success: false,
-          requestId,
-          error: {
-            code: "UNAUTHORIZED",
-            message: "You must be signed in to edit this course.",
-          },
-        },
-        { status: 401 }
-      );
-    }
-
     const body: unknown = await req.json();
     const { code, title, description } = body as {
       code?: string;
@@ -130,7 +103,7 @@ export async function PATCH(
       description?: string;
     };
 
-    const updateFields: Record<string, any> = {};
+    const updateFields: Record<string, string> = {};
     if (typeof code === "string" && code.trim()) updateFields.code = code.trim();
     if (typeof title === "string" && title.trim()) updateFields.title = title.trim();
     if (typeof description === "string") updateFields.description = description.trim();
@@ -155,11 +128,10 @@ export async function PATCH(
       .eq("id", id)
       .eq("user_id", user.id)
       .select()
-      .single();
+      .maybeSingle();
 
-    if (error || !course) {
-      throw error ?? new Error("Failed to update course.");
-    }
+    if (error) throw error;
+    if (!course) return NextResponse.json({ success: false, requestId, error: { code: "NOT_FOUND", message: "Course not found." } }, { status: 404 });
 
     return NextResponse.json({
       success: true,
@@ -168,14 +140,14 @@ export async function PATCH(
         course,
       },
     });
-  } catch (error) {
+  } catch {
     return NextResponse.json(
       {
         success: false,
         requestId,
         error: {
           code: "UPDATE_FAILED",
-          message: error instanceof Error ? error.message : "Unable to edit the course.",
+          message: "Unable to edit the course.",
         },
       },
       { status: 500 }
@@ -188,49 +160,37 @@ export async function DELETE(
   context: { params: Promise<{ id: string }> }
 ) {
   const requestId = crypto.randomUUID();
+  const auth = await authorizeActiveUserApi();
+  if (!auth.ok) return auth.response;
+  const { supabase, user } = auth;
 
   try {
     const { id } = await context.params;
-    const supabase = await createSupabaseServerClient();
-    const { data: userData } = await supabase.auth.getUser();
-    const user = userData.user;
-
-    if (!user) {
-      return NextResponse.json(
-        {
-          success: false,
-          requestId,
-          error: {
-            code: "UNAUTHORIZED",
-            message: "You must be signed in to delete this course.",
-          },
-        },
-        { status: 401 }
-      );
-    }
-
-    const { error } = await supabase
+    const { data: deleted, error } = await supabase
       .from("courses")
       .delete()
       .eq("id", id)
-      .eq("user_id", user.id);
+      .eq("user_id", user.id)
+      .select("id")
+      .maybeSingle();
 
     if (error) {
       throw error;
     }
+    if (!deleted) return NextResponse.json({ success: false, requestId, error: { code: "NOT_FOUND", message: "Course not found." } }, { status: 404 });
 
     return NextResponse.json({
       success: true,
       requestId,
     });
-  } catch (error) {
+  } catch {
     return NextResponse.json(
       {
         success: false,
         requestId,
         error: {
           code: "DELETE_FAILED",
-          message: error instanceof Error ? error.message : "Unable to delete the course.",
+          message: "Unable to delete the course.",
         },
       },
       { status: 500 }

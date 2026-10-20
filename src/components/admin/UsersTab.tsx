@@ -1,25 +1,26 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { 
   Loader2, 
   MoreVertical, 
   Search, 
   ShieldCheck, 
-  UserX, 
   Users, 
-  ShieldAlert, 
   Download,
   AlertOctagon,
   UserCheck,
   Trash2
 } from "lucide-react";
+import { useAdminData } from "./use-admin-data";
+import { useVisibleRefresh } from "./use-visible-refresh";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { UserDetailDrawer } from "./UserDetailDrawer";
 
 type UserRecord = {
   id: string;
+  total_count?: number;
   name: string;
   email: string;
   provider: string;
@@ -36,8 +37,7 @@ type UserRecord = {
 };
 
 export function UsersTab() {
-  const [users, setUsers] = useState<UserRecord[]>([]);
-  const [loading, setLoading] = useState(true);
+
   
   // Filtering States
   const [searchQuery, setSearchQuery] = useState("");
@@ -53,7 +53,7 @@ export function UsersTab() {
   const [debouncedDepartment, setDebouncedDepartment] = useState("");
 
   const [page, setPage] = useState(1);
-  const [totalCount, setTotalCount] = useState(0);
+
   const limit = 10;
 
   const [actionMenuOpen, setActionMenuOpen] = useState<string | null>(null);
@@ -87,66 +87,11 @@ export function UsersTab() {
     return () => clearTimeout(handler);
   }, [departmentFilter]);
 
-  const fetchUsers = async () => {
-    try {
-      setLoading(true);
-      const res = await fetch(
-        `/api/admin/users?search=${encodeURIComponent(debouncedSearch)}&plan=${planFilter}&status=${statusFilter}&institution=${encodeURIComponent(debouncedInstitution)}&department=${encodeURIComponent(debouncedDepartment)}&page=${page}&limit=${limit}`
-      );
-      const json = await res.json();
-      if (json.success && Array.isArray(json.data)) {
-        setUsers(json.data);
-        if (json.data.length > 0) {
-          setTotalCount(json.data[0].total_count || json.data.length);
-        } else {
-          setTotalCount(0);
-        }
-      }
-    } catch (err) {
-      console.error("[users-tab] Failed to fetch users:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    void fetchUsers();
-  }, [debouncedSearch, planFilter, statusFilter, debouncedInstitution, debouncedDepartment, page]);
-
-  useEffect(() => {
-    const { createSupabaseBrowserClient } = require("@/lib/supabase/client");
-    const supabase = createSupabaseBrowserClient();
-    if (!supabase) return;
-
-    const channel = supabase
-      .channel("users_realtime_sync")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "profiles" },
-        () => {
-          void fetchUsers();
-        }
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "subscriptions" },
-        () => {
-          void fetchUsers();
-        }
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "user_roles" },
-        () => {
-          void fetchUsers();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      void supabase.removeChannel(channel);
-    };
-  }, [debouncedSearch, planFilter, statusFilter, debouncedInstitution, debouncedDepartment, page]);
+  const url = '/api/admin/users?' + new URLSearchParams({ search: debouncedSearch, plan: planFilter, status: statusFilter, institution: debouncedInstitution, department: debouncedDepartment, page: String(page), limit: String(limit) });
+  const { data: rows, loading, error, reload: fetchUsers } = useAdminData<UserRecord[]>(url);
+  const users = rows ?? [];
+  const totalCount = users[0]?.total_count ?? users.length;
+  useVisibleRefresh(fetchUsers);
 
   const handleUserAction = async (userId: string, action: "suspend" | "restore" | "delete" | "change-role" | "restore-deleted", value?: string) => {
     if (action === "delete") {
@@ -207,6 +152,7 @@ export function UsersTab() {
 
   const totalPages = Math.ceil(totalCount / limit) || 1;
 
+  if (error) return <p role="alert" className="p-4 text-xs text-red-300">{error}</p>;
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">

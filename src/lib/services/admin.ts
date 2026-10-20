@@ -11,7 +11,7 @@ export async function updateSupportTicket(
   }
 ) {
   const supabase = await createSupabaseServerClient();
-  const updateData: any = {};
+  const updateData: Record<string, unknown> = {};
   if (data.status !== undefined) updateData.status = data.status;
   if (data.priority !== undefined) updateData.priority = data.priority;
   if (data.category !== undefined) updateData.category = data.category;
@@ -41,7 +41,7 @@ export async function updateFeedbackRoadmap(
   }
 ) {
   const supabase = await createSupabaseServerClient();
-  const updateData: any = {};
+  const updateData: Record<string, unknown> = {};
   if (data.status !== undefined) updateData.status = data.status;
   if (data.adminNotes !== undefined) updateData.admin_notes = data.adminNotes;
 

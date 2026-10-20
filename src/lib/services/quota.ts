@@ -67,8 +67,7 @@ export async function checkQuota(
     };
   } catch (err) {
     console.error("[quota-service] checkQuota error:", err);
-    // Safe fallback: allow action but return empty metrics
-    return { allowed: true, remaining: 999, limit: 999, used: 0 };
+    throw new Error("Quota verification is unavailable. Please retry before starting another operation.");
   }
 }
 
@@ -98,7 +97,7 @@ export async function recordUsage(
   userId: string,
   resourceType: string,
   amount = 1,
-  metadata?: any
+  metadata?: Record<string, unknown>
 ): Promise<boolean> {
   try {
     await recordUsageLedgerEvent(userId, resourceType, amount, metadata);

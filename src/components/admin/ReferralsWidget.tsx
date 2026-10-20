@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Gift, Heart, Link, TrendingUp, Users } from "lucide-react";
+import { Gift, TrendingUp } from "lucide-react";
 
 export function ReferralsWidget() {
   const [data, setData] = useState<{
@@ -28,12 +28,14 @@ export function ReferralsWidget() {
   });
 
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     void (async () => {
       try {
         const res = await fetch("/api/admin/analytics");
         const json = await res.json();
+        if (!res.ok || !json.success || !json.data) throw new Error("Referral measurements are unavailable.");
         if (json.success && json.data) {
           const a = json.data;
           setData({
@@ -47,13 +49,15 @@ export function ReferralsWidget() {
           });
         }
       } catch (err) {
-        console.warn("[referrals] failed to fetch real referral data:", err);
+        setError(err instanceof Error ? err.message : "Referral measurements are unavailable.");
       } finally {
         setLoading(false);
       }
     })();
   }, []);
 
+  if (loading) return <p className="text-xs text-slate-500">Loading referral measurements…</p>;
+  if (error) return <p role="alert" className="text-xs text-red-300">{error}</p>;
   const stats = data.referralStats;
   const topReferrers = data.topPromoters;
 

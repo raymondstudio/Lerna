@@ -1,10 +1,12 @@
 import { GoogleGenAI } from "@google/genai";
 import { env } from "../env";
-import { emitAnalyticsEvent } from "@/lib/analytics/events";
+import { reserveProviderOperation, OperationError } from "@/lib/repositories/operations";
+import { activityEnvironment } from "@/lib/activity/environment";
 
 type GenerateResult = {
   text: string;
   raw: unknown;
+  operation?: { id: string; outcome: "succeeded" | "simulated" | "pending" };
 };
 
 export type EmbeddingTaskType =
@@ -20,7 +22,7 @@ let aiClient: GoogleGenAI | null = null;
 let mockModeNotified = false;
 
 function getApiKey(): string {
-  return env.GEMINI_API_KEY || env.GEMINI_API_KEY || "";
+  return env.GEMINI_API_KEY ?? "";
 }
 
 function isKeyValid(): boolean {
@@ -30,7 +32,7 @@ function isKeyValid(): boolean {
 
 function notifyMockMode() {
   if (!mockModeNotified) {
-    console.info("[Gemini Client] Simulated mock mode enabled. Make sure to set GEMINI_API_KEY starting with 'AIzaSy' in .env for live AI responses.");
+    console.info("[Gemini Client] Local simulated mode enabled. Set server-only GEMINI_API_KEY for live AI responses.");
     mockModeNotified = true;
   }
 }
@@ -53,13 +55,14 @@ const MOCK_ANSWERS: Record<string, string> = {
   "default": "That's an excellent study question! In academic terms, this concept focuses on how structured inputs adapt to dynamic environments. To master this topic, try breaking it down into its core components: define the primary terms, map out their relationships, and look for real-world examples of this system in action."
 };
 
-function generateQuestionsFromText(text: string, count: number): any[] {
+type MockQuestion = { question: string; options: string[]; correct_answer: string; explanation: string };
+function generateQuestionsFromText(text: string, count: number): MockQuestion[] {
   const sentences = text
     .split(/[.!?]+/)
     .map(s => s.trim())
     .filter(s => s.length > 40 && s.length < 200);
 
-  const questions: any[] = [];
+  const questions: MockQuestion[] = [];
   const countToGen = Math.min(count, sentences.length);
 
   const words = text
@@ -116,7 +119,7 @@ function getMockAnswer(prompt: string): string {
       }
     }
     
-    let quizQuestions: any[] = [];
+    let quizQuestions: MockQuestion[] = [];
     if (textContent.length > 100) {
       quizQuestions = generateQuestionsFromText(textContent, count);
     }
@@ -217,308 +220,75 @@ function getMockEmbedding(text: string): number[] {
   return vector;
 }
 
-function isMockingNeeded(error: unknown): boolean {
-  const msg = (error instanceof Error ? error.message : String(error)).toLowerCase();
-  return (
-    msg.includes("api key") ||
-    msg.includes("api_key") ||
-    msg.includes("invalid_argument") ||
-    msg.includes("missing gemini_api_key") ||
-    msg.includes("unauthorized") ||
-    msg.includes("forbidden") ||
-    msg.includes("auth")
-  );
+type ProviderOptions = { userId?: string; signal?: AbortSignal; requestType?: string; operationId?: string };
+export function providerArtifactScope() {
+  return `${activityEnvironment()}:${providerMode()}`;
 }
-
-export async function generateText(
-  prompt: string,
-  options?: { userId?: string; requestType?: string }
-): Promise<GenerateResult> {
-  if (!isKeyValid()) {
-    notifyMockMode();
-    const mockText = getMockAnswer(prompt);
-    const mockPromptTokens = Math.ceil(prompt.length / 4);
-    const mockCompletionTokens = Math.ceil(mockText.length / 4);
-    void emitAnalyticsEvent(
-      options?.userId,
-      "ai_request_completed",
-      {
-        promptTokens: mockPromptTokens,
-        completionTokens: mockCompletionTokens,
-        modelUsed: GENERATIVE_MODEL,
-        requestType: options?.requestType || "chat",
-      }
-    );
-    return {
-      text: mockText,
-      raw: { mock: true },
-    };
-  }
-
-  try {
-    const response = await getClient().models.generateContent({
-      model: GENERATIVE_MODEL,
-      contents: prompt,
-    });
-
-    const text = response.text;
-
-    if (!text || text.trim() === "") {
-      console.error("[Gemini Error] Response text is empty", {
-        rawResponse: response,
-      });
-
-      throw new Error(
-        "Gemini API returned empty response. Check API key and rate limits."
-      );
+function providerMode(): "mock" | "live" {
+  if (process.env.LERNA_TEST_MODE === "local" && process.env.NODE_ENV !== "production") {
+    for (const key of ["NEXT_PUBLIC_SUPABASE_URL", "ELASTICSEARCH_URL"]) {
+      const value = process.env[key];
+      if (value && !["localhost","127.0.0.1","[::1]"].includes(new URL(value).hostname)) throw new OperationError("Test providers require local backend targets.");
     }
-
-    const promptTokens = response.usageMetadata?.promptTokenCount || Math.ceil(prompt.length / 4);
-    const completionTokens = response.usageMetadata?.candidatesTokenCount || Math.ceil(text.length / 4);
-
-    void emitAnalyticsEvent(
-      options?.userId,
-      "ai_request_completed",
-      {
-        promptTokens,
-        completionTokens,
-        modelUsed: GENERATIVE_MODEL,
-        requestType: options?.requestType || "chat",
-      }
-    );
-
-    return {
-      text,
-      raw: response,
-    };
-  } catch (error) {
-    console.error("[Gemini Client] Real API request failed. Error Details:", error);
-    if (isMockingNeeded(error)) {
-      notifyMockMode();
-      const mockText = getMockAnswer(prompt);
-      const mockPromptTokens = Math.ceil(prompt.length / 4);
-      const mockCompletionTokens = Math.ceil(mockText.length / 4);
-      void emitAnalyticsEvent(
-        options?.userId,
-        "ai_request_completed",
-        {
-          promptTokens: mockPromptTokens,
-          completionTokens: mockCompletionTokens,
-          modelUsed: GENERATIVE_MODEL,
-          requestType: options?.requestType || "chat",
-        }
-      );
-      return {
-        text: mockText,
-        raw: { mock: true },
-      };
-    }
-
-    const errorMessage =
-      error instanceof Error ? error.message : String(error);
-
-    console.error("[Gemini Error] generateText failed", {
-      message: errorMessage,
-      stack: error instanceof Error ? error.stack : undefined,
-    });
-
-    void emitAnalyticsEvent(
-      options?.userId,
-      "ai_request_failed",
-      {
-        promptTokens: Math.ceil(prompt.length / 4),
-        modelUsed: GENERATIVE_MODEL,
-        requestType: options?.requestType || "chat",
-        errorMessage,
-      }
-    );
-
-    throw new Error(`Gemini API error: ${errorMessage}`);
+    return "mock";
   }
+  if (!isKeyValid()) throw new OperationError("The tutoring provider is not configured. Please try again later.");
+  return "live";
 }
-
-export async function generateEmbedding(
-  text: string,
-  taskType: EmbeddingTaskType = "RETRIEVAL_DOCUMENT",
-  options?: { userId?: string }
-): Promise<number[]> {
-  if (!isKeyValid()) {
-    notifyMockMode();
-    const mockEmb = getMockEmbedding(text);
-    void emitAnalyticsEvent(
-      options?.userId,
-      "ai_request_completed",
-      {
-        promptTokens: Math.ceil(text.length / 4),
-        completionTokens: 0,
-        modelUsed: EMBEDDING_MODEL,
-        requestType: "embedding",
-      }
-    );
-    return mockEmb;
+function boundedSignal(signal?: AbortSignal) { return signal ? AbortSignal.any([signal, AbortSignal.timeout(45000)]) : AbortSignal.timeout(45000); }
+async function executeProvider<T>(model: string, requestType: string, options: ProviderOptions | undefined, run: (mode: "live"|"mock", signal: AbortSignal) => Promise<{ value: T; promptTokens?: number; completionTokens?: number; tokenSource?: "provider"|"estimated"|"unavailable" }>): Promise<T> {
+  const mode = providerMode();
+  if (options?.signal?.aborted) throw new OperationError("The tutoring request was cancelled.", 400);
+  const reservation = await reserveProviderOperation(model,requestType,mode,options?.userId,options?.operationId);
+  if (options?.signal?.aborted) { await reservation.release(); throw new OperationError("The tutoring request was cancelled.", 400); }
+  const started = Date.now();
+  let result: Awaited<ReturnType<typeof run>>;
+  try { result = await run(mode,boundedSignal(options?.signal)); }
+  catch {
+    // The provider may have accepted the call even if its acknowledgement was lost.
+    // Unknown work remains charged until an operator reconciles it; it is never silently retried.
+    await reservation.finalize("unknown", { durationMs: Date.now()-started });
+    throw new OperationError("The tutoring request could not be confirmed. Please retry later.");
   }
-
+  // Logging/settlement failure is surfaced, never converted into a second provider call.
+  let outcome: "succeeded" | "simulated" | "pending" = mode === "mock" ? "simulated" : "succeeded";
   try {
-    const response = await getClient().models.embedContent({
-      model: EMBEDDING_MODEL,
-      contents: text,
-      config: {
-        taskType,
-        outputDimensionality: EMBEDDING_DIMENSIONS,
-      },
-    });
-
-    const embedding = response.embeddings?.[0]?.values;
-
-    if (!embedding || embedding.length === 0) {
-      throw new Error("Empty embedding returned by Gemini.");
-    }
-
-    const promptTokens = Math.ceil(text.length / 4);
-    void emitAnalyticsEvent(
-      options?.userId,
-      "ai_request_completed",
-      {
-        promptTokens,
-        completionTokens: 0,
-        modelUsed: EMBEDDING_MODEL,
-        requestType: "embedding",
-      }
-    );
-
-    return embedding;
-  } catch (error) {
-    console.error("[Gemini Client] Real Embedding request failed. Error Details:", error);
-    if (isMockingNeeded(error)) {
-      notifyMockMode();
-      const mockEmb = getMockEmbedding(text);
-      void emitAnalyticsEvent(
-        options?.userId,
-        "ai_request_completed",
-        {
-          promptTokens: Math.ceil(text.length / 4),
-          completionTokens: 0,
-          modelUsed: EMBEDDING_MODEL,
-          requestType: "embedding",
-        }
-      );
-      return mockEmb;
-    }
-
-    const errorMessage =
-      error instanceof Error ? error.message : String(error);
-
-    console.error("[Gemini Error] generateEmbedding failed", {
-      message: errorMessage,
-      stack: error instanceof Error ? error.stack : undefined,
-    });
-
-    void emitAnalyticsEvent(
-      options?.userId,
-      "ai_request_failed",
-      {
-        promptTokens: Math.ceil(text.length / 4),
-        modelUsed: EMBEDDING_MODEL,
-        requestType: "embedding",
-        errorMessage,
-      }
-    );
-
-    throw new Error(`Gemini Embedding error: ${errorMessage}`);
+    await reservation.finalize(outcome, { promptTokens: result.promptTokens, completionTokens: result.completionTokens, durationMs: Date.now()-started, tokenSource: result.tokenSource ?? "unavailable" });
+  } catch {
+    // The durable reservation still holds the budget. Preserve an already-paid result;
+    // reconciliation sees pending work rather than a fabricated successful event.
+    outcome = "pending";
+    console.warn("[provider] settlement_pending", { operationId: reservation.id });
   }
+  if (result.value && typeof result.value === "object" && !Array.isArray(result.value) && "text" in result.value) Object.assign(result.value, { operation: { id: reservation.id, outcome } });
+  return result.value;
 }
-
-export async function extractImageText(
-  buffer: Buffer,
-  mimeType: string,
-  fileName?: string,
-  options?: { userId?: string }
-): Promise<string> {
-  if (!isKeyValid()) {
-    notifyMockMode();
-    const mockText = `[Mock OCR Result: Extracted text from ${fileName || "image"}. Let's study this material together!]`;
-    void emitAnalyticsEvent(
-      options?.userId,
-      "ai_request_completed",
-      {
-        promptTokens: 100,
-        completionTokens: Math.ceil(mockText.length / 4),
-        modelUsed: GENERATIVE_MODEL,
-        requestType: "ocr",
-      }
-    );
-    return mockText;
-  }
-
-  try {
-    const base64Data = buffer.toString("base64");
-    const response = await getClient().models.generateContent({
-      model: GENERATIVE_MODEL,
-      contents: [
-        {
-          inlineData: {
-            mimeType,
-            data: base64Data,
-          },
-        },
-        {
-          text: "Extract and transcribe all readable text from this image exactly as it appears. Do not add any extra commentary or explanations, just the extracted text.",
-        },
-      ],
-    });
-
-    const text = response.text || "";
-    const promptTokens = response.usageMetadata?.promptTokenCount || 200;
-    const completionTokens = response.usageMetadata?.candidatesTokenCount || Math.ceil(text.length / 4);
-
-    void emitAnalyticsEvent(
-      options?.userId,
-      "ai_request_completed",
-      {
-        promptTokens,
-        completionTokens,
-        modelUsed: GENERATIVE_MODEL,
-        requestType: "ocr",
-      }
-    );
-
-    return text;
-  } catch (error) {
-    if (isMockingNeeded(error)) {
-      notifyMockMode();
-      const mockText = `[Mock OCR Result: Extracted text from ${fileName || "image"}. Let's study this material together!]`;
-      void emitAnalyticsEvent(
-        options?.userId,
-        "ai_request_completed",
-        {
-          promptTokens: 100,
-          completionTokens: Math.ceil(mockText.length / 4),
-          modelUsed: GENERATIVE_MODEL,
-          requestType: "ocr",
-        }
-      );
-      return mockText;
-    }
-
-    const errorMessage =
-      error instanceof Error ? error.message : String(error);
-
-    console.error("[Gemini Error] extractImageText failed", {
-      message: errorMessage,
-      stack: error instanceof Error ? error.stack : undefined,
-    });
-
-    void emitAnalyticsEvent(
-      options?.userId,
-      "ai_request_failed",
-      {
-        promptTokens: 200,
-        modelUsed: GENERATIVE_MODEL,
-        requestType: "ocr",
-        errorMessage,
-      }
-    );
-
-    throw new Error(`Gemini Image Extraction error: ${errorMessage}`);
-  }
+export async function generateText(prompt: string, options?: ProviderOptions): Promise<GenerateResult> {
+  if (Buffer.byteLength(prompt,"utf8") > 500000) throw new OperationError("The tutoring input is too large.",413);
+  return executeProvider<GenerateResult>(GENERATIVE_MODEL,options?.requestType ?? "chat",options,async (mode,signal) => {
+    if (mode === "mock") { notifyMockMode(); return { value: {text:getMockAnswer(prompt),raw:{mock:true}} }; }
+    const response = await getClient().models.generateContent({ model: GENERATIVE_MODEL, contents: prompt, config: { maxOutputTokens: 4096, abortSignal: signal } });
+    if (!response.text?.trim()) throw new Error("Empty provider response");
+    const usage = response.usageMetadata;
+    return { value: {text:response.text,raw:response}, promptTokens:usage?.promptTokenCount, completionTokens:usage?.candidatesTokenCount === undefined ? undefined : usage.candidatesTokenCount + (usage.thoughtsTokenCount ?? 0), tokenSource:usage?.promptTokenCount === undefined || usage?.candidatesTokenCount === undefined ? "unavailable" : "provider" };
+  });
+}
+export async function generateEmbedding(text: string, taskType: EmbeddingTaskType = "RETRIEVAL_DOCUMENT", options?: ProviderOptions): Promise<number[]> {
+  if (Buffer.byteLength(text,"utf8") > 100000) throw new OperationError("The embedding input is too large.",413);
+  return executeProvider(EMBEDDING_MODEL,"embedding",options,async (mode,signal) => {
+    if (mode === "mock") return { value:getMockEmbedding(text) };
+    const response = await getClient().models.embedContent({ model:EMBEDDING_MODEL,contents:text,config:{taskType,outputDimensionality:EMBEDDING_DIMENSIONS,abortSignal:signal} });
+    const values = response.embeddings?.[0]?.values;
+    if (!values || values.length!==EMBEDDING_DIMENSIONS || values.some(value=>!Number.isFinite(value))) throw new Error("Invalid embedding");
+    return {value:values,promptTokens:Math.ceil(text.length/4),completionTokens:0,tokenSource:"estimated"};
+  });
+}
+export async function extractImageText(buffer: Buffer,mimeType: string,_fileName?: string,options?: ProviderOptions): Promise<string> {
+  if (buffer.length>20*1024*1024) throw new OperationError("The image is too large.",413);
+  return executeProvider(GENERATIVE_MODEL,"ocr",options,async (mode,signal) => {
+    if (mode === "mock") return {value:"Synthetic local fixture image text."};
+    const response=await getClient().models.generateContent({model:GENERATIVE_MODEL,contents:[{inlineData:{mimeType,data:buffer.toString("base64")}},{text:"Extract and transcribe all readable text from this image exactly as it appears. Do not add any extra commentary or explanations, just the extracted text."}],config:{maxOutputTokens:4096,abortSignal:signal}});
+    const usage=response.usageMetadata;
+    return {value:response.text??"",promptTokens:usage?.promptTokenCount,completionTokens:usage?.candidatesTokenCount === undefined ? undefined : usage.candidatesTokenCount+(usage.thoughtsTokenCount??0),tokenSource:usage?.promptTokenCount === undefined || usage?.candidatesTokenCount === undefined ? "unavailable" : "provider"};
+  });
 }

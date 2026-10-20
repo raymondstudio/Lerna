@@ -3,43 +3,15 @@ import { getAIResponse } from "@/lib/chat/service";
 import type { ChatMessage } from "@/lib/chat/types";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { DEFAULT_STUDY_SESSION_TITLE, generateStudySessionTitle } from "@/lib/study-sessions/title";
-import type { StudySessionRecord } from "@/lib/study-sessions/types";
-import { emitAnalyticsEvent } from "@/lib/analytics/events";
-
-function getLastUserMessage(messages: ChatMessage[]) {
-  return [...messages].reverse().find((message) => message?.role === "user" && message?.content?.trim());
-}
-
-function mapStudySessionRow(session: any): StudySessionRecord {
-  return {
-    id: session.id,
-    title: session.title,
-    topicCategory: session.topic_category ?? "General",
-    lastMessage: session.last_message ?? "",
-    createdAt: session.created_at,
-    updatedAt: session.updated_at,
-    courseId: session.course_id ?? undefined,
-    status: session.status ?? "active",
-    durationSeconds: session.duration_seconds ?? 0,
-    topicsCovered: Array.isArray(session.topics_covered) ? session.topics_covered : [],
-    summary: session.summary ?? undefined,
-    notes: session.notes ?? undefined,
-    messages: Array.isArray(session.study_messages)
-      ? session.study_messages.map((message: any) => ({
-          id: message.id,
-          role: message.role,
-          content: message.content,
-          createdAt: message.created_at,
-          sources: Array.isArray(message.sources) ? message.sources : [],
-        }))
-      : [],
-  };
-}
+import { mapStudySessionRow } from "@/lib/repositories/study-sessions";
+import { OperationError } from "@/lib/repositories/operations";
+import { readBoundedJson } from "@/lib/http/bounded-json";
+import { authorizeActiveUserApi } from "@/lib/auth/require-active-user-api";
 
 async function fetchSessionForUser(supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>, sessionId: string, userId: string) {
   const { data, error } = await supabase
     .from("study_sessions")
-    .select("id,title,topic_category,last_message,created_at,updated_at,course_id")
+    .select("id,title,topic_category,last_message,created_at,updated_at,course_id,status,duration_seconds,topics_covered,summary,notes,notes_revision,notes_updated_at")
     .eq("id", sessionId)
     .eq("user_id", userId)
     .maybeSingle();
@@ -54,7 +26,7 @@ async function fetchSessionForUser(supabase: Awaited<ReturnType<typeof createSup
 async function fetchSessionWithMessages(supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>, sessionId: string, userId: string) {
   const { data, error } = await supabase
     .from("study_sessions")
-    .select("id,title,topic_category,last_message,created_at,updated_at,course_id,study_messages(id,role,content,created_at,sources)")
+    .select("id,title,topic_category,last_message,created_at,updated_at,course_id,status,duration_seconds,topics_covered,summary,notes,notes_revision,notes_updated_at,study_messages(id,role,content,created_at,sources)")
     .eq("id", sessionId)
     .eq("user_id", userId)
     .order("created_at", { ascending: true, foreignTable: "study_messages" })
@@ -71,18 +43,24 @@ export async function POST(req: Request) {
   const requestId = crypto.randomUUID();
 
   try {
-    const body: unknown = await req.json();
-    const messages = (body as { messages?: ChatMessage[] })?.messages;
-    const sessionId = typeof (body as { sessionId?: unknown })?.sessionId === "string" ? (body as { sessionId?: string }).sessionId : null;
-    const requestedCourseId = typeof (body as { courseId?: unknown })?.courseId === "string"
-      ? (body as { courseId: string }).courseId
-      : null;
-    const requestedMaterialId = typeof (body as { materialId?: unknown })?.materialId === "string"
-      ? (body as { materialId: string }).materialId
-      : null;
-    const supabase = await createSupabaseServerClient();
-    const { data: userData } = await supabase.auth.getUser();
-    const user = userData.user;
+    const body: unknown = await readBoundedJson(req);
+    const input = body && typeof body === "object" && !Array.isArray(body) ? body as Record<string, unknown> : null;
+    if (!input) throw new OperationError("The conversation request is invalid.", 400);
+    const messages = input.messages as ChatMessage[] | undefined;
+    if (!Array.isArray(messages) || messages.length > 100 || messages.some(message => !message || !["user", "assistant"].includes(message.role) || typeof message.content !== "string" || message.content.length > 50_000)) throw new OperationError("The conversation request is invalid or too large.", 400);
+    const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    for (const key of ["sessionId", "courseId", "materialId"] as const) {
+      const value = input[key];
+      if (value !== undefined && value !== null && (typeof value !== "string" || !uuid.test(value))) {
+        throw new OperationError(`The selected ${key} is invalid.`, 400);
+      }
+    }
+    const sessionId = (input.sessionId as string | null | undefined) ?? null;
+    const requestedCourseId = (input.courseId as string | null | undefined) ?? null;
+    const requestedMaterialId = (input.materialId as string | null | undefined) ?? null;
+    const auth = await authorizeActiveUserApi();
+    if (!auth.ok) return auth.response;
+    const { supabase, user } = auth;
 
     console.info("[chat] request received", {
       requestId,
@@ -135,6 +113,35 @@ export async function POST(req: Request) {
     }
 
     let session = sessionId ? await fetchSessionForUser(supabase, sessionId, user.id) : null;
+    if (sessionId && !session) {
+      return NextResponse.json({ success: false, requestId, error: { code: "SESSION_NOT_FOUND", message: "This study session is no longer available." } }, { status: 404 });
+    }
+
+    // Resolve every explicit parent before creating or changing a session.
+    // Invalid foreign/deleted references must have no persistence side effect.
+    let ownedCourseId: string | null = null;
+    if (requestedCourseId) {
+      const { data, error } = await supabase.from("courses").select("id")
+        .eq("user_id", user.id).eq("id", requestedCourseId).maybeSingle();
+      if (error) {
+        console.error("[chat] course reference lookup failed", { requestId, code: error.code });
+        return NextResponse.json({ success: false, requestId, error: { code: "REFERENCE_LOOKUP_FAILED", message: "The selected course could not be loaded." } }, { status: 503 });
+      }
+      if (!data) return NextResponse.json({ success: false, requestId, error: { code: "REFERENCE_NOT_FOUND", message: "The selected course is no longer available." } }, { status: 404 });
+      ownedCourseId = data.id;
+    }
+
+    let selectedMaterialId: string | null = null;
+    if (requestedMaterialId) {
+      const { data, error } = await supabase.from("uploaded_materials").select("id")
+        .eq("id", requestedMaterialId).eq("user_id", user.id).is("deleted_at", null).maybeSingle();
+      if (error) {
+        console.error("[chat] material reference lookup failed", { requestId, code: error.code });
+        return NextResponse.json({ success: false, requestId, error: { code: "REFERENCE_LOOKUP_FAILED", message: "The selected material could not be loaded." } }, { status: 503 });
+      }
+      if (!data) return NextResponse.json({ success: false, requestId, error: { code: "REFERENCE_NOT_FOUND", message: "The selected material is no longer available." } }, { status: 404 });
+      selectedMaterialId = data.id;
+    }
 
     if (!session) {
       const { data: createdSession, error: createSessionError } = await supabase
@@ -144,8 +151,9 @@ export async function POST(req: Request) {
           title: generateStudySessionTitle(lastUserMessage.content),
           topic_category: "General",
           last_message: lastUserMessage.content,
+          ...(ownedCourseId ? { course_id: ownedCourseId } : {}),
         })
-        .select("id,title,topic_category,last_message,created_at,updated_at")
+        .select("id,title,topic_category,last_message,course_id,created_at,updated_at")
         .single();
 
       if (createSessionError || !createdSession) {
@@ -155,7 +163,7 @@ export async function POST(req: Request) {
             requestId,
             error: {
               code: "SESSION_CREATE_FAILED",
-              message: createSessionError?.message ?? "Unable to create a study session.",
+              message: "Unable to create a study session.",
             },
           },
           { status: 500 }
@@ -163,53 +171,17 @@ export async function POST(req: Request) {
       }
 
       session = createdSession;
-
-      void emitAnalyticsEvent(user.id, "session_started", {
-        sessionId: createdSession.id,
-        title: createdSession.title,
-        topicCategory: createdSession.topic_category,
-      });
     }
 
-    if (requestedCourseId) {
-      const { data: ownedCourse, error: courseLookupError } = await supabase
-        .from("courses")
-        .select("id")
-        .eq("id", requestedCourseId)
-        .eq("user_id", user.id)
-        .maybeSingle();
-
-      if (courseLookupError) {
-        console.error("[chat] course reference lookup failed", { requestId, courseLookupError });
-        return NextResponse.json(
-          {
-            success: false,
-            requestId,
-            error: { code: "REFERENCE_LOOKUP_FAILED", message: "The selected course could not be loaded." },
-          },
-          { status: 500 },
-        );
-      }
-
-      if (!ownedCourse) {
-        return NextResponse.json(
-          {
-            success: false,
-            requestId,
-            error: { code: "REFERENCE_NOT_FOUND", message: "The selected course is no longer available." },
-          },
-          { status: 404 },
-        );
-      }
-
+    if (ownedCourseId && sessionId) {
       const { error: courseUpdateError } = await supabase
         .from("study_sessions")
-        .update({ course_id: ownedCourse.id })
+        .update({ course_id: ownedCourseId })
         .eq("id", session.id)
         .eq("user_id", user.id);
 
       if (courseUpdateError) {
-        console.error("[chat] course scope update failed", { requestId, courseUpdateError });
+        console.error("[chat] course scope update failed", { requestId, code: courseUpdateError.code });
         return NextResponse.json(
           {
             success: false,
@@ -220,43 +192,7 @@ export async function POST(req: Request) {
         );
       }
 
-      session = { ...session, course_id: ownedCourse.id };
-    }
-
-    let selectedMaterialId: string | null = null;
-    if (requestedMaterialId) {
-      const { data: ownedMaterial, error: materialLookupError } = await supabase
-        .from("uploaded_materials")
-        .select("id")
-        .eq("id", requestedMaterialId)
-        .eq("user_id", user.id)
-        .is("deleted_at", null)
-        .maybeSingle();
-
-      if (materialLookupError) {
-        console.error("[chat] material reference lookup failed", { requestId, materialLookupError });
-        return NextResponse.json(
-          {
-            success: false,
-            requestId,
-            error: { code: "REFERENCE_LOOKUP_FAILED", message: "The selected material could not be loaded." },
-          },
-          { status: 500 },
-        );
-      }
-
-      if (!ownedMaterial) {
-        return NextResponse.json(
-          {
-            success: false,
-            requestId,
-            error: { code: "REFERENCE_NOT_FOUND", message: "The selected material is no longer available." },
-          },
-          { status: 404 },
-        );
-      }
-
-      selectedMaterialId = ownedMaterial.id;
+      session = { ...session, course_id: ownedCourseId };
     }
 
     if (session.title === DEFAULT_STUDY_SESSION_TITLE) {
@@ -274,7 +210,7 @@ export async function POST(req: Request) {
             requestId,
             error: {
               code: "SESSION_UPDATE_FAILED",
-              message: renameError.message,
+              message: "The session title could not be updated.",
             },
           },
           { status: 500 }
@@ -301,17 +237,12 @@ export async function POST(req: Request) {
           requestId,
           error: {
             code: "MESSAGE_SAVE_FAILED",
-            message: userMessageError.message,
+            message: "Your message could not be saved.",
           },
         },
         { status: 500 }
       );
     }
-
-    void emitAnalyticsEvent(user.id, "chat_sent", {
-      sessionId: session.id,
-      contentLength: lastUserMessage.content.length,
-    });
 
     let documentIds: string[] = selectedMaterialId ? [selectedMaterialId] : [];
     if (!selectedMaterialId) {
@@ -322,7 +253,7 @@ export async function POST(req: Request) {
         .is("deleted_at", null);
 
       if (materialsError) {
-        console.error("[chat] scoped material lookup failed", { requestId, materialsError });
+        throw new Error("Authorized material lookup is unavailable. Please retry.");
       } else if (materials) {
         documentIds = materials.map((material) => material.id);
       }
@@ -338,22 +269,6 @@ export async function POST(req: Request) {
       sources: aiMessage.sources ?? [],
     });
 
-    if (!assistantMessageError && aiMessage.usage) {
-      try {
-        const { logAiRequest } = await import("@/lib/analytics/tracker");
-        await logAiRequest(
-          user.id,
-          aiMessage.usage.promptTokens,
-          aiMessage.usage.completionTokens,
-          aiMessage.usage.modelUsed,
-          "chat",
-          "success"
-        );
-      } catch (trackErr) {
-        console.error("[api:chat] Failed to log AI request telemetry:", trackErr);
-      }
-    }
-
     if (assistantMessageError) {
       return NextResponse.json(
         {
@@ -361,18 +276,12 @@ export async function POST(req: Request) {
           requestId,
           error: {
             code: "MESSAGE_SAVE_FAILED",
-            message: assistantMessageError.message,
+            message: "The tutor response could not be saved.",
           },
         },
         { status: 500 }
       );
     }
-
-    void emitAnalyticsEvent(user.id, "chat_received", {
-      sessionId: session.id,
-      contentLength: aiMessage.content.length,
-      sourceCount: aiMessage.sources?.length || 0,
-    });
 
     const { error: sessionUpdateError } = await supabase
       .from("study_sessions")
@@ -387,7 +296,7 @@ export async function POST(req: Request) {
           requestId,
           error: {
             code: "SESSION_UPDATE_FAILED",
-            message: sessionUpdateError.message,
+            message: "The session could not be updated.",
           },
         },
         { status: 500 }
@@ -424,21 +333,21 @@ export async function POST(req: Request) {
       },
     });
   } catch (error) {
-    console.error("[chat] request failed", {
-      requestId,
-      error,
-    });
+    const status = error instanceof OperationError ? error.status : 500;
+    console.error("[chat] request failed", { requestId, status });
 
     return NextResponse.json(
       {
         success: false,
         requestId,
         error: {
-          code: "SERVER_ERROR",
-          message: "Unable to generate a tutor response right now.",
+          code: error instanceof OperationError
+            ? (status === 400 ? "INVALID_REQUEST" : status === 403 ? "FORBIDDEN" : status === 409 ? "OPERATION_CONFLICT" : status === 429 ? "PLAN_LIMIT_REACHED" : "OPERATION_UNAVAILABLE")
+            : "SERVER_ERROR",
+          message: error instanceof OperationError ? error.message : "Unable to generate a tutor response right now.",
         },
       },
-      { status: 500 }
+      { status }
     );
   }
 }

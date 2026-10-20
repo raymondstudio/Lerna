@@ -61,8 +61,6 @@ export function ChatInput({
     if (!showMentionPopover) return;
 
     const controller = new AbortController();
-    setReferencesLoading(true);
-    setReferencesError(null);
     const timeout = window.setTimeout(async () => {
       try {
         const params = new URLSearchParams({ query: mentionQuery });
@@ -115,6 +113,8 @@ export function ChatInput({
     }
 
     setMentionStart(atIndex);
+    setReferencesLoading(true);
+    setReferencesError(null);
     setMentionQuery(query);
     setActiveIndex(0);
     setShowMentionPopover(true);
@@ -228,7 +228,7 @@ export function ChatInput({
         references={references}
         onSelect={handleMentionSelect}
         onDismiss={dismissMentionPopover}
-        onRetry={() => setRetryKey((current) => current + 1)}
+        onRetry={() => { setReferencesLoading(true); setReferencesError(null); setRetryKey((current) => current + 1); }}
         isOpen={showMentionPopover}
         query={mentionQuery}
         isLoading={referencesLoading}

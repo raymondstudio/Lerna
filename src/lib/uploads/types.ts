@@ -4,6 +4,7 @@ export type UploadedMaterialRecord = {
   id: string;
   userId: string;
   sessionId: string | null;
+  courseId?: string | null;
   fileName: string;
   fileType: string;
   storagePath: string;

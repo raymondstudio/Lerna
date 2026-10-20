@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback, Suspense } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef, useCallback, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -17,16 +17,19 @@ import {
   Plus,
   Paperclip,
   FileText,
-  Check,
-  AlertCircle
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { useDashboard } from '@/context/dashboard-context';
 import { useCourses } from '@/hooks/use-courses';
 import { useMaterials, useInvalidateMaterials } from '@/hooks/use-materials';
+import { usePersistedNotes } from '@/hooks/use-persisted-notes';
+import { QuickNotes } from '@/components/study/QuickNotes';
+import { StudySessionHistory } from '@/components/study/StudySessionHistory';
+import type { PersistedStudySession } from '@/lib/repositories/study-sessions';
+import type { ChatSource } from '@/lib/chat/types';
+import { StudyActionScope, completeCurrentStudySession } from '@/lib/study-sessions/action-scope';
 
-import { createSupabaseBrowserClient } from '@/lib/supabase/client';
-import { UPLOADED_MATERIALS_BUCKET, buildUploadPath, isAllowedUploadMimeType, getAcceptedUploadMimeTypes } from '@/lib/uploads/constants';
+import { isAllowedUploadMimeType, getAcceptedUploadMimeTypes } from '@/lib/uploads/constants';
 import { ChatMessage as ChatMessageComponent } from '@/components/chat/ChatMessage';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -42,7 +45,8 @@ type ChatMsg = {
   id: string;
   role: 'user' | 'assistant';
   content: string;
-  sources?: any[];
+  sources?: ChatSource[];
+  timestamp?: number;
 };
 
 type Material = {
@@ -259,47 +263,6 @@ function TopicTracker({
   );
 }
 
-function QuickNotes({
-  value,
-  onChange,
-  isSaved,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  isSaved: boolean;
-}) {
-  return (
-    <div className="flex flex-col gap-3">
-      <div className="flex items-center justify-between text-sm font-semibold text-white">
-        <span className="flex items-center gap-2">
-          <NotebookPen size={15} className="text-cyan-400" />
-          Quick Notes
-        </span>
-        <span className="text-[10px] font-normal text-slate-500 flex items-center gap-1">
-          {isSaved ? (
-            <>
-              <Check size={10} className="text-emerald-500" />
-              Saved
-            </>
-          ) : (
-            <>
-              <Loader2 size={10} className="animate-spin text-cyan-500" />
-              Saving...
-            </>
-          )}
-        </span>
-      </div>
-      <textarea
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder="Jot down thoughts, formulas, reminders..."
-        rows={6}
-        className="w-full bg-[#0a0a0a] border border-white/10 rounded-xl px-3 py-2.5 text-sm text-slate-300 placeholder-slate-600 focus:outline-none focus:border-cyan-500/50 transition-colors resize-none leading-relaxed"
-      />
-    </div>
-  );
-}
-
 function InlineChat({
   messages,
   courseId,
@@ -391,7 +354,7 @@ function InlineChat({
             <div>
               <p className="text-sm font-medium text-white">AI Study Assistant</p>
               <p className="text-xs text-slate-500 mt-1 max-w-xs leading-relaxed">
-                Ask anything related to your course. I'm here to help you understand concepts, solve problems, and stay on track.
+                Ask anything related to your course. I&apos;m here to help you understand concepts, solve problems, and stay on track.
               </p>
             </div>
           </div>
@@ -401,7 +364,7 @@ function InlineChat({
             id: msg.id,
             role: msg.role,
             content: msg.content,
-            timestamp: Date.now(),
+            timestamp: msg.timestamp ?? 0,
             sources: msg.sources ?? []
           }} />
         ))}
@@ -450,6 +413,13 @@ function InlineChat({
 // ─── Main Content component ───────────────────────────────────────────────────
 
 function StudyPageContent() {
+  const { user } = useAuth();
+  const params = useSearchParams();
+  // Identity and session changes discard all visible state before the next paint.
+  return <StudySessionEditor key={`${user?.id ?? 'anonymous'}:${params.get('session') ?? 'setup'}`} />;
+}
+
+function StudySessionEditor() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -457,20 +427,34 @@ function StudyPageContent() {
   const queryCourseId = searchParams.get('courseId');
 
   // ── Phase ─────────────────────────────────────────────────────────────────
-  const { sessions, upsertSession } = useDashboard();
-  const cachedSession = querySessionId ? sessions.find(s => s.id === querySessionId) : null;
-  const initialPhase = cachedSession && cachedSession.status !== 'completed' ? 'active' : 'setup';
-  const [phase, setPhase] = useState<Phase>(initialPhase);
+  const { upsertSession } = useDashboard();
+  const [phase, setPhase] = useState<Phase>('setup');
   const [activeTab, setActiveTab] = useState<'study' | 'notes'>('study');
+  const [sessionData, setSessionData] = useState<PersistedStudySession | null>(null);
+  const [sessionOwnerId, setSessionOwnerId] = useState<string | null>(null);
+  const [sessionLoading, setSessionLoading] = useState(Boolean(querySessionId));
+  const [sessionError, setSessionError] = useState<string | null>(null);
+  const [restoreAttempt, setRestoreAttempt] = useState(0);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [starting, setStarting] = useState(false);
+  const startOperation = useRef<{ id: string; courseId: string } | null>(null);
+  const startPending = useRef(false);
+  const [ending, setEnding] = useState(false);
+  const endPending = useRef(false);
+  const [historyCursor, setHistoryCursor] = useState<string | null>(null);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [actionScope] = useState(() => new StudyActionScope());
+  useLayoutEffect(() => { actionScope.activate(); return () => actionScope.close(); }, [actionScope]);
 
   // ── Setup — courses come from React Query (cached, no re-fetch on navigation) ─
   const { data: courses = [], isLoading: coursesLoading } = useCourses();
-  const [selectedCourseId, setSelectedCourseId] = useState('');
+  const [chosenCourseId, setSelectedCourseId] = useState('');
+  const selectedCourseId = chosenCourseId || (courses.some((course: Course) => course.id === queryCourseId) ? queryCourseId! : courses[0]?.id ?? '');
 
   // ── Session ───────────────────────────────────────────────────────────────
-  const [sessionId, setSessionId] = useState<string | null>(cachedSession?.id || null);
-  const [sessionStart, setSessionStart] = useState<Date | null>(cachedSession ? new Date(cachedSession.createdAt) : null);
-  const [elapsedSeconds, setElapsedSeconds] = useState(cachedSession?.durationSeconds || 0);
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [sessionStart, setSessionStart] = useState<Date | null>(null);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
 
   // ── Pomodoro ──────────────────────────────────────────────────────────────
   const [pomMode, setPomMode] = useState<PomodoroMode>('work');
@@ -479,19 +463,12 @@ function StudyPageContent() {
   const pomIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // ── Topics & Notes ────────────────────────────────────────────────────────
-  const [topics, setTopics] = useState<string[]>(cachedSession?.topicsCovered || []);
-  const [notes, setNotes] = useState(cachedSession?.notes || '');
-  const [notesSaved, setNotesSaved] = useState(true);
+  const [topics, setTopics] = useState<string[]>([]);
+  const notesSave = usePersistedNotes(user?.id, sessionOwnerId === user?.id ? sessionData : null);
+  const notes = notesSave.value;
 
   // ── Chat ──────────────────────────────────────────────────────────────────
-  const [chatMessages, setChatMessages] = useState<ChatMsg[]>(
-    cachedSession ? cachedSession.messages.map((m: any) => ({
-      id: m.id,
-      role: m.role as 'user' | 'assistant',
-      content: m.content,
-      sources: m.sources
-    })) : []
-  );
+  const [chatMessages, setChatMessages] = useState<ChatMsg[]>([]);
 
   // ── Materials — also cached via React Query ─────────────────────────────────
   const { data: allMaterials = [] } = useMaterials();
@@ -501,6 +478,7 @@ function StudyPageContent() {
   // ── Summary ───────────────────────────────────────────────────────────────
   const [summaryLoading, setSummaryLoading] = useState(false);
   const [aiSummary, setAiSummary] = useState<string | null>(null);
+  const [summaryError, setSummaryError] = useState<string | null>(null);
   const [totalDuration, setTotalDuration] = useState(0);
 
   // ─── Auth guard ────────────────────────────────────────────────────────────
@@ -510,115 +488,43 @@ function StudyPageContent() {
     }
   }, [user, authLoading, router]);
 
-  // Preselect course from query params when courses load
+  // A cache entry can be incomplete after chat updates. Hydrate from the owner-checked API.
+  const courseMaterials = allMaterials.filter((material: Material) => material.course_id === selectedCourseId);
+
   useEffect(() => {
-    if (courses.length > 0 && queryCourseId) {
-      const match = courses.some((c: any) => c.id === queryCourseId);
-      setSelectedCourseId(match ? queryCourseId : courses[0].id);
-    } else if (courses.length > 0 && !selectedCourseId) {
-      setSelectedCourseId(cachedSession?.courseId || courses[0].id);
-    }
-  }, [courses, queryCourseId, cachedSession]);
-
-  // Filter materials for selected course
-  const courseMaterials = allMaterials.filter((m: any) => m.course_id === selectedCourseId);
-
-  const lastFetchedSessionIdRef = useRef<string | null>(null);
-
-  // ─── Restore active study session from DB ──────────────────────────────────
-  useEffect(() => {
-    if (!user || !querySessionId) {
-      if (!querySessionId) setPhase('setup');
-      lastFetchedSessionIdRef.current = null;
-      return;
-    }
-
-    // Only restore/fetch once per querySessionId change
-    if (lastFetchedSessionIdRef.current === querySessionId) {
-      return;
-    }
-    lastFetchedSessionIdRef.current = querySessionId;
-
-    const sessionToRestore = cachedSession;
-
-    // Synchronously restore from cache if available to prevent flashing
-    if (sessionToRestore && sessionToRestore.status !== 'completed') {
-      setSessionId(sessionToRestore.id);
-      setSelectedCourseId(sessionToRestore.courseId || '');
-      setSessionStart(new Date(sessionToRestore.createdAt));
-      setElapsedSeconds(sessionToRestore.durationSeconds || 0);
-      setTopics(sessionToRestore.topicsCovered || []);
-      setNotes(sessionToRestore.notes || '');
-      setChatMessages(sessionToRestore.messages.map((m: any) => ({
-        id: m.id,
-        role: m.role as 'user' | 'assistant',
-        content: m.content,
-        sources: m.sources
-      })));
-      setPhase('active');
-    }
-
-    // Always fetch in background to sync latest
+    if (!user || !querySessionId) return;
+    const abort = new AbortController();
     async function restore() {
       try {
-        const res = await fetch(`/api/study-sessions/${querySessionId}`);
-        if (res.ok) {
-          const payload = await res.json();
-          const session = payload.data?.session;
-          if (session && session.status !== 'completed') {
-            upsertSession(session);
-            
-            // If it wasn't cached before, update local state now
-            if (!sessionToRestore) {
-              setSessionId(session.id);
-              setSelectedCourseId(session.courseId || '');
-              setSessionStart(new Date(session.createdAt));
-              setElapsedSeconds(session.durationSeconds || 0);
-              setTopics(session.topicsCovered || []);
-              setNotes(session.notes || '');
-              setChatMessages(session.messages.map((m: any) => ({
-                id: m.id,
-                role: m.role,
-                content: m.content,
-                sources: m.sources
-              })));
-              setPhase('active');
-            }
-          }
-        }
-      } catch (e) {
-        console.error("Failed to restore session state", e);
-      }
+        const response = await fetch(`/api/study-sessions/${encodeURIComponent(querySessionId!)}?messageLimit=100`, {
+          signal: abort.signal, cache: 'no-store'
+        });
+        const payload = await response.json();
+        if (!response.ok || !payload.success || !payload.data?.session) throw new Error(payload.error?.message || 'This study session could not be opened.');
+        if (abort.signal.aborted) return;
+        const session: PersistedStudySession = payload.data.session;
+        setSessionData(session);
+        setSessionOwnerId(user!.id);
+        setSessionId(session.id);
+        setSelectedCourseId(session.courseId || '');
+        // Continue the recorded duration, excluding time while the study page was closed.
+        setSessionStart(new Date(Date.now() - (session.durationSeconds || 0) * 1000));
+        setElapsedSeconds(session.durationSeconds || 0);
+        setTopics(session.topicsCovered || []);
+        setChatMessages(session.messages.map(message => ({ id: message.id, role: message.role, content: message.content, sources: message.sources, timestamp: Date.parse(message.createdAt) })));
+        setHistoryCursor(payload.data.messagesPage?.nextCursor ?? null);
+        setTotalDuration(session.durationSeconds || 0);
+        setAiSummary(session.summary || null);
+        setSummaryError(null);
+        setActionError(null);
+        setPhase(session.status === 'completed' ? 'summary' : 'active');
+      } catch (caught) {
+        if (!abort.signal.aborted) setSessionError(caught instanceof Error ? caught.message : 'This study session could not be opened.');
+      } finally { if (!abort.signal.aborted) setSessionLoading(false); }
     }
-    
-    restore();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [querySessionId, user, upsertSession]);
-
-  // ─── Debounced notes auto-save ─────────────────────────────────────────────
-  const [debouncedNotes, setDebouncedNotes] = useState(notes);
-
-  useEffect(() => {
-    if (phase !== 'active') return;
-    setNotesSaved(false);
-    const handler = setTimeout(() => {
-      setDebouncedNotes(notes);
-    }, 1500);
-
-    return () => clearTimeout(handler);
-  }, [notes, phase]);
-
-  useEffect(() => {
-    if (phase === 'active' && sessionId && debouncedNotes !== undefined) {
-      fetch(`/api/study-sessions/${sessionId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ notes: debouncedNotes })
-      })
-      .then(() => setNotesSaved(true))
-      .catch(() => {});
-    }
-  }, [debouncedNotes, sessionId, phase]);
+    void restore();
+    return () => abort.abort();
+  }, [querySessionId, user, restoreAttempt]);
 
   // ─── Elapsed session timer ─────────────────────────────────────────────────
   useEffect(() => {
@@ -632,6 +538,32 @@ function StudyPageContent() {
       if (interval) clearInterval(interval);
     };
   }, [phase, sessionStart]);
+
+  const checkpointRef = useRef({ durationSeconds: elapsedSeconds, topicsCovered: topics });
+  useLayoutEffect(() => { checkpointRef.current = { durationSeconds: elapsedSeconds, topicsCovered: topics }; }, [elapsedSeconds, topics]);
+  useEffect(() => {
+    if (!sessionId || phase !== 'active') return;
+    const isCurrent = actionScope.capture();
+    const abort = new AbortController();
+    let pending = false;
+    const checkpoint = async () => {
+      if (pending || !isCurrent()) return;
+      pending = true;
+      try {
+        const response = await fetch(`/api/study-sessions/${encodeURIComponent(sessionId)}?metadataOnly=true`, {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(checkpointRef.current), signal: abort.signal
+        });
+        if (!response.ok) throw new Error('Progress could not be checkpointed. Completing the session will retry it.');
+      } catch {
+        if (!abort.signal.aborted) setActionError('Time and topics have unsaved changes. Completing the session will retry them. Your note save state is shown separately.');
+      } finally { pending = false; }
+    };
+    const interval = setInterval(() => { void checkpoint(); }, 30_000);
+    const onHidden = () => { if (document.visibilityState === 'hidden') { void checkpoint(); } };
+    document.addEventListener('visibilitychange', onHidden);
+    return () => { abort.abort(); clearInterval(interval); document.removeEventListener('visibilitychange', onHidden); };
+  }, [sessionId, phase, actionScope]);
 
   // ─── Pomodoro tick ─────────────────────────────────────────────────────────
   const advancePomMode = useCallback(() => {
@@ -664,182 +596,181 @@ function StudyPageContent() {
   // ─── Actions ───────────────────────────────────────────────────────────────
 
   const startSession = async () => {
-    if (!selectedCourseId) return;
-    
+    if (!selectedCourseId || startPending.current) return;
+    const isCurrent = actionScope.capture();
+    startPending.current = true;
+    setStarting(true);
+    setActionError(null);
+    const operationKey = `lerna.session-create:${user?.id}:${selectedCourseId}`;
     try {
-      const currentCourse = courses.find((c) => c.id === selectedCourseId);
-      const res = await fetch('/api/study-sessions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          courseId: selectedCourseId,
-          title: `Study Session - ${currentCourse?.code || 'General'}`,
-          topicCategory: 'General'
-        })
-      });
-
-      if (res.ok) {
-        const payload = await res.json();
-        const session = payload.data?.session;
-        if (session) {
-          router.push(`/study?session=${session.id}`);
-          setSessionId(session.id);
-          setSessionStart(new Date());
-          setElapsedSeconds(0);
-          setTopics([]);
-          setNotes('');
-          setChatMessages([]);
-          setPomMode('work');
-          setPomSeconds(WORK_SECONDS);
-          setPomRunning(false);
-          setAiSummary(null);
-          setPhase('active');
-        }
+      if (!startOperation.current || startOperation.current.courseId !== selectedCourseId) {
+        let existing: string | null = null;
+        try { existing = sessionStorage.getItem(operationKey); } catch { /* In-memory retries still retain identity. */ }
+        startOperation.current = { id: existing && /^[0-9a-f-]{36}$/i.test(existing) ? existing : crypto.randomUUID(), courseId: selectedCourseId };
+        try { sessionStorage.setItem(operationKey, startOperation.current.id); } catch { /* Storage can be unavailable. */ }
       }
-    } catch (e) {
-      console.error("Failed to start study session", e);
-    }
+      const currentCourse = courses.find((course: Course) => course.id === selectedCourseId);
+      const response = await fetch('/api/study-sessions', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ courseId: selectedCourseId, title: `Study Session - ${currentCourse?.code || 'General'}`, topicCategory: 'General', operationId: startOperation.current.id }),
+        signal: AbortSignal.timeout(20_000)
+      });
+      const payload = await response.json();
+      if (!isCurrent()) return;
+      if (!response.ok || !payload.success || !payload.data?.session) throw new Error(payload.error?.message || 'The session was not confirmed. Retry to check the same attempt.');
+      try { sessionStorage.removeItem(operationKey); } catch { /* No stored draft to remove. */ }
+      startOperation.current = null;
+      setPomMode('work');
+      setPomSeconds(WORK_SECONDS);
+      setPomRunning(false);
+      router.push(`/study?session=${payload.data.session.id}`);
+    } catch (caught) {
+      if (isCurrent()) setActionError(caught instanceof Error ? caught.message : 'The session was not confirmed. Retry to check the same attempt.');
+    } finally { if (isCurrent()) { startPending.current = false; setStarting(false); } }
+  };
+
+  const requestSummary = async (id: string) => {
+    const isCurrent = actionScope.capture();
+    if (!isCurrent()) return;
+    setSummaryLoading(true);
+    setSummaryError(null);
+    try {
+      const response = await fetch(`/api/study-sessions/${encodeURIComponent(id)}/summary`, { method: 'POST', signal: AbortSignal.timeout(60_000) });
+      const payload = await response.json();
+      if (!response.ok || !payload.success || typeof payload.data?.summary !== 'string') throw new Error(payload.error?.message || 'Your session is saved. Its AI summary is unavailable; retry later.');
+      if (isCurrent()) setAiSummary(payload.data.summary);
+    } catch (caught) {
+      if (isCurrent()) setSummaryError(caught instanceof Error ? caught.message : 'Your session is saved. Its AI summary is unavailable; retry later.');
+    } finally { if (isCurrent()) setSummaryLoading(false); }
   };
 
   const endSession = async () => {
-    if (!sessionId) return;
+    if (!sessionId || endPending.current) return;
+    const isCurrent = actionScope.capture();
+    endPending.current = true;
+    setEnding(true);
+    setActionError(null);
     setPomRunning(false);
-    const duration = elapsedSeconds;
-    setTotalDuration(duration);
-    setPhase('summary');
-    setSummaryLoading(true);
-
     try {
-      // 1. Save final stats (duration, topics, completed status)
-      await fetch(`/api/study-sessions/${sessionId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          durationSeconds: duration,
-          topicsCovered: topics,
-          status: 'completed'
-        })
+      const outcome = await completeCurrentStudySession<PersistedStudySession>({
+        isCurrent, flush: notesSave.flush,
+        save: async () => {
+          const response = await fetch(`/api/study-sessions/${encodeURIComponent(sessionId)}`, {
+            method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ durationSeconds: elapsedSeconds, topicsCovered: topics, status: 'completed' })
+          });
+          const payload = await response.json();
+          if (!response.ok || !payload.success || !payload.data?.session) throw new Error(payload.error?.message || 'The session could not be completed. Your notes are kept; retry.');
+          return payload.data.session;
+        },
+        completed: session => {
+          setSessionData(session);
+          upsertSession(session);
+          setTotalDuration(session.durationSeconds || elapsedSeconds);
+          setPhase('summary');
+        },
+        summary: () => requestSummary(sessionId),
       });
-
-      // 2. Fetch AI-generated summary
-      const summaryRes = await fetch(`/api/study-sessions/${sessionId}/summary`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
-      });
-
-      if (summaryRes.ok) {
-        const payload = await summaryRes.json();
-        setAiSummary(payload.data?.summary ?? "Unable to compile session details.");
-      } else {
-        throw new Error("Summary generation failed.");
-      }
-    } catch (err) {
-      setAiSummary(
-        `Great session! You covered ${topics.length} topic${topics.length !== 1 ? 's' : ''} over ${formatDuration(duration)}. ` +
-        `Your notes have been saved. Review your progress and continue studying to build momentum!`
-      );
-    } finally {
-      setSummaryLoading(false);
-    }
+      if (outcome === 'unsaved') setActionError('Save or resolve your note draft before completing this session.');
+    } catch (caught) {
+      if (isCurrent()) setActionError(caught instanceof Error ? caught.message : 'The session could not be completed. Retry when ready.');
+    } finally { if (isCurrent()) { endPending.current = false; setEnding(false); } }
   };
 
-  const resetToSetup = () => {
-    setPomRunning(false);
-    setPhase('setup');
-    setSessionId(null);
-    setElapsedSeconds(0);
-    setTopics([]);
-    setNotes('');
-    setChatMessages([]);
-    setAiSummary(null);
-    setPomMode('work');
-    setPomSeconds(WORK_SECONDS);
-    router.push('/study');
+  const leaveSession = async (path: string) => {
+    const isCurrent = actionScope.capture();
+    const saved = await notesSave.flush();
+    if (!isCurrent()) return;
+    if (!saved) { setActionError('Your draft has not been saved. Resolve it or download a copy before leaving.'); return; }
+    router.push(path);
   };
+  const resetToSetup = () => { void leaveSession('/study'); };
 
-  const addTopic = async (t: string) => {
-    const nextTopics = [...topics, t];
+  const topicsRef = useRef(topics);
+  useLayoutEffect(() => { topicsRef.current = topics; }, [topics]);
+  const addTopic = async (topic: string) => {
+    if (!sessionId || ending) return;
+    const isCurrent = actionScope.capture();
+    const nextTopics = [...new Set([...topicsRef.current, topic])];
+    topicsRef.current = nextTopics;
     setTopics(nextTopics);
-    // Explicitly update topics list in DB
-    if (sessionId) {
-      await fetch(`/api/study-sessions/${sessionId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ topicsCovered: nextTopics })
+    setActionError(null);
+    try {
+      const response = await fetch(`/api/study-sessions/${encodeURIComponent(sessionId)}?metadataOnly=true`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ topicsCovered: nextTopics })
       });
+      const payload = await response.json();
+      if (!response.ok || !payload.success) throw new Error(payload.error?.message || 'Topic changes are unsaved. Completing the session will retry them.');
+      if (isCurrent()) setTopics(current => [...new Set([...current, ...(payload.data.session.topicsCovered || [])])]);
+    } catch (caught) {
+      if (isCurrent()) setActionError(caught instanceof Error ? caught.message : 'Topic changes are unsaved. Completing the session will retry them.');
     }
   };
 
-  const addChatMsg = (msg: ChatMsg) => setChatMessages((prev) => [...prev, msg]);
+  const loadOlderMessages = async () => {
+    if (!sessionId || !historyCursor || historyLoading) return;
+    const isCurrent = actionScope.capture();
+    setHistoryLoading(true);
+    const id = sessionId;
+    try {
+      const response = await fetch(`/api/study-sessions/${encodeURIComponent(id)}?messageLimit=100&messagesBefore=${encodeURIComponent(historyCursor)}`);
+      const payload = await response.json();
+      if (!response.ok || !payload.success) throw new Error(payload.error?.message || 'Older messages could not be loaded.');
+      if (!isCurrent()) return;
+      setChatMessages(current => {
+        const merged: ChatMsg[] = [...payload.data.session.messages, ...current];
+        return merged.filter((message, index) => merged.findIndex(other => other.id === message.id) === index);
+      });
+      setHistoryCursor(payload.data.messagesPage?.nextCursor ?? null);
+    } catch (caught) {
+      if (isCurrent()) setActionError(caught instanceof Error ? caught.message : 'Older messages could not be loaded.');
+    } finally { if (isCurrent()) setHistoryLoading(false); }
+  };
 
-  const handleSidebarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !selectedCourseId) return;
+  const addChatMsg = (msg: ChatMsg) => setChatMessages((prev) => [...prev, { ...msg, timestamp: msg.timestamp ?? Date.now() }]);
 
+  const handleSidebarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file || !sessionId || isUploading) return;
+    const isCurrent = actionScope.capture();
     if (!isAllowedUploadMimeType(file.type)) {
-      alert("Invalid file type. Please upload a PDF or Word document.");
+      setActionError('Choose a supported PDF, document or image.');
       return;
     }
-
     setIsUploading(true);
+    setActionError(null);
     try {
-      const supabase = createSupabaseBrowserClient();
-      if (!supabase) throw new Error('Supabase client not initialized');
-      
-      const userRes = await supabase.auth.getUser();
-      const userId = userRes.data.user?.id;
-      if (!userId) throw new Error('User not authenticated');
-
-      const storagePath = buildUploadPath(userId, selectedCourseId, file.name);
-      
-      // Upload to bucket
-      const { error: uploadError } = await supabase.storage.from(UPLOADED_MATERIALS_BUCKET).upload(storagePath, file, {
-        contentType: file.type || "application/octet-stream",
-        upsert: false,
-      });
-      if (uploadError) throw uploadError;
-
-      // Insert Row
-      const { data: insertedRow, error: insertError } = await supabase.from('uploaded_materials').insert({
-        user_id: userId,
-        course_id: selectedCourseId,
-        session_id: sessionId, // associate with active session if possible
-        file_name: file.name,
-        file_type: file.type || "application/octet-stream",
-        storage_path: storagePath,
-      }).select('id, file_name, course_id, status').single();
-
-      if (insertError) throw insertError;
-
-      // Invalidate React Query cache so the materials list refreshes
+      const form = new FormData();
+      form.append('file', file);
+      form.append('sessionId', sessionId);
+      const response = await fetch('/api/upload', { method: 'POST', body: form });
+      const payload = await response.json();
+      if (!isCurrent()) return;
+      if (!response.ok || !payload.success) throw new Error(typeof payload.error === 'string' ? payload.error : payload.error?.message || 'The material could not be uploaded.');
       invalidateMaterials();
-
-      // Process document in background
-      fetch(`/api/materials/${insertedRow.id}/process`, { method: "POST" }).catch(() => {});
-
-    } catch (err) {
-      console.error("Document upload failed", err);
-      alert("Failed to upload document. Please try again.");
-    } finally {
-      setIsUploading(false);
-    }
+    } catch (caught) {
+      if (isCurrent()) setActionError(caught instanceof Error ? caught.message : 'The material could not be uploaded. Retry when ready.');
+    } finally { if (isCurrent()) setIsUploading(false); }
   };
 
   const handleViewMaterial = async (matId: string) => {
+    const isCurrent = actionScope.capture();
     try {
       const res = await fetch(`/api/materials/${matId}/view`, { method: "POST" });
       const payload = await res.json();
+      if (!isCurrent()) return;
       if (payload.success && payload.data?.signedUrl) {
         window.open(payload.data.signedUrl, "_blank", "noopener,noreferrer");
       } else {
         alert("Failed to retrieve document view link.");
       }
-    } catch (e) {
-      alert("Could not open preview for this file.");
+    } catch {
+      if (isCurrent()) alert("Could not open preview for this file.");
     }
   };
 
-  const selectedCourse = courses.find((c) => c.id === selectedCourseId);
+  const selectedCourse = courses.find((c: Course) => c.id === selectedCourseId);
 
   // ─── Loading state ─────────────────────────────────────────────────────────
 
@@ -852,12 +783,19 @@ function StudyPageContent() {
   }
 
   if (!user) return null;
+  if (sessionError) return <div className="flex h-full flex-col items-center justify-center gap-4 p-6 text-center">
+    <p role="alert" className="text-sm text-amber-300">{sessionError}</p>
+    <button type="button" onClick={() => setRestoreAttempt(attempt => attempt + 1)} className="rounded-lg bg-cyan-400 px-4 py-2 text-sm font-semibold text-black">Retry opening session</button>
+    <button type="button" onClick={() => router.push('/study')} className="text-sm text-slate-300 underline">All study sessions</button>
+  </div>;
+  if (sessionLoading || (querySessionId && (sessionData?.id !== querySessionId || sessionOwnerId !== user.id))) return <div role="status" className="flex h-full items-center justify-center gap-3 p-6 text-sm text-slate-300"><Loader2 size={20} className="animate-spin text-cyan-400" />Opening saved session…</div>;
 
   // ─── Render ────────────────────────────────────────────────────────────────
 
   return (
     
       <div className="h-full w-full flex flex-col min-h-0 bg-[#0a0a0a] text-white">
+        {actionError && <div role="alert" className="shrink-0 border-b border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">{actionError}</div>}
         <AnimatePresence mode="wait">
         {/* ═══════════════════════════════ SETUP PHASE ══════════════════════════ */}
         {phase === 'setup' && (
@@ -867,7 +805,7 @@ function StudyPageContent() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -16 }}
             transition={{ duration: 0.35, ease: 'easeOut' }}
-            className="h-full w-full flex items-center justify-center overflow-y-auto px-4 py-8"
+            className="h-full w-full flex flex-col items-center gap-8 overflow-y-auto px-4 py-8"
           >
             <div className="w-full max-w-md">
               {/* Icon */}
@@ -893,7 +831,7 @@ function StudyPageContent() {
               <div className="bg-[#141414] border border-white/5 rounded-3xl p-8 flex flex-col gap-6">
                 {/* Course picker */}
                 <div className="flex flex-col gap-2">
-                  <label className="text-sm font-medium text-slate-300">
+                  <label htmlFor="study-course" className="text-sm font-medium text-slate-300">
                     Select Course
                   </label>
                   {coursesLoading ? (
@@ -904,11 +842,13 @@ function StudyPageContent() {
                     </p>
                   ) : (
                     <select
+                      id="study-course"
+                      disabled={starting}
                       value={selectedCourseId}
                       onChange={(e) => setSelectedCourseId(e.target.value)}
                       className="w-full bg-[#0a0a0a] border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-cyan-500/50 transition-colors appearance-none cursor-pointer"
                     >
-                      {courses.map((c) => (
+                      {courses.map((c: Course) => (
                         <option key={c.id} value={c.id}>
                           {c.code} — {c.title}
                         </option>
@@ -936,14 +876,15 @@ function StudyPageContent() {
                 {/* Start button */}
                 <button
                   onClick={startSession}
-                  disabled={!selectedCourseId || coursesLoading}
+                  disabled={!selectedCourseId || coursesLoading || starting}
                   className="w-full py-3.5 bg-cyan-500 hover:bg-cyan-400 disabled:bg-cyan-500/30 disabled:cursor-not-allowed text-black font-semibold rounded-2xl transition-all text-sm flex items-center justify-center gap-2"
                 >
                   <Play size={16} />
-                  Start Session
+                  {starting ? 'Starting…' : 'Start Session'}
                 </button>
               </div>
             </div>
+            <StudySessionHistory key={user.id} userId={user.id} onOpen={id => router.push(`/study?session=${id}`)} />
           </motion.div>
         )}
 
@@ -958,7 +899,7 @@ function StudyPageContent() {
             className="h-full w-full flex flex-col min-h-0 overflow-hidden"
           >
             {/* ── Header ── */}
-            <header className="flex items-center justify-between px-6 py-4 border-b border-white/5 bg-[#141414] shrink-0">
+            <header className="flex flex-wrap items-center justify-between gap-3 px-4 py-4 border-b border-white/5 bg-[#141414] shrink-0">
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center">
                   <Timer size={15} className="text-cyan-400" />
@@ -980,10 +921,11 @@ function StudyPageContent() {
                 {/* End Session */}
                 <button
                   onClick={endSession}
+                  disabled={ending}
                   className="flex items-center gap-2 px-4 py-2 rounded-xl border border-red-500/40 text-red-400 hover:bg-red-500/10 transition-all text-sm font-medium"
                 >
                   <Square size={14} />
-                  End Session
+                  {ending ? 'Saving session…' : 'End Session'}
                 </button>
               </div>
             </header>
@@ -1047,6 +989,7 @@ function StudyPageContent() {
                     )}
                   </div>
                   <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
+                    {historyCursor && <button type="button" disabled={historyLoading} onClick={() => { void loadOlderMessages(); }} className="mb-3 rounded-lg border border-white/15 px-3 py-2 text-xs text-slate-300">{historyLoading ? 'Loading…' : 'Load earlier messages'}</button>}
                     <InlineChat
                       messages={chatMessages}
                       courseId={selectedCourseId}
@@ -1064,7 +1007,7 @@ function StudyPageContent() {
               )}>
                 <TopicTracker topics={topics} onAdd={addTopic} />
                 <div className="border-t border-white/5" />
-                <QuickNotes value={notes} onChange={setNotes} isSaved={notesSaved} />
+                <QuickNotes notes={notesSave} disabled={ending} />
                 <div className="border-t border-white/5" />
                 
                 {/* Course Materials List */}
@@ -1100,7 +1043,7 @@ function StudyPageContent() {
                         No materials uploaded for this course.
                       </p>
                     ) : (
-                      courseMaterials.map((mat) => (
+                      courseMaterials.map((mat: Material) => (
                         <div
                           key={mat.id}
                           onClick={() => handleViewMaterial(mat.id)}
@@ -1140,7 +1083,7 @@ function StudyPageContent() {
                 <div>
                   <h1 className="text-3xl font-bold tracking-tight">Session Complete!</h1>
                   <p className="text-slate-400 text-sm mt-1">
-                    Here's a summary of your study session.
+                    Here&apos;s a summary of your study session.
                   </p>
                 </div>
               </div>
@@ -1197,17 +1140,7 @@ function StudyPageContent() {
               )}
 
               {/* Quick notes */}
-              {notes.trim() && (
-                <div className="bg-[#141414] border border-white/5 rounded-2xl p-5 flex flex-col gap-3">
-                  <h2 className="text-sm font-semibold text-white flex items-center gap-2">
-                    <NotebookPen size={14} className="text-cyan-400" />
-                    Your Notes
-                  </h2>
-                  <p className="text-sm text-slate-300 whitespace-pre-wrap leading-relaxed">
-                    {notes}
-                  </p>
-                </div>
-              )}
+              <div className="bg-[#141414] border border-white/5 rounded-2xl p-5"><QuickNotes notes={notesSave} /></div>
 
               {/* AI Summary */}
               <div className="bg-[#141414] border border-white/5 rounded-2xl p-5 flex flex-col gap-3">
@@ -1215,6 +1148,8 @@ function StudyPageContent() {
                   <BookOpen size={14} className="text-cyan-400" />
                   AI Session Summary
                 </h2>
+                {summaryError && <p role="alert" className="text-xs text-amber-300">{summaryError}</p>}
+                {!summaryLoading && !aiSummary && sessionId && <button type="button" onClick={() => { void requestSummary(sessionId); }} className="self-start rounded-lg border border-cyan-500/40 px-3 py-2 text-xs text-cyan-300">{summaryError ? 'Retry AI summary' : 'Generate AI summary'}</button>}
                 <AnimatePresence mode="wait">
                   {summaryLoading ? (
                     <motion.div
@@ -1252,7 +1187,7 @@ function StudyPageContent() {
                   Start New Session
                 </button>
                 <button
-                  onClick={() => router.push('/dashboard')}
+                  onClick={() => { void leaveSession('/dashboard'); }}
                   className="px-6 py-3 bg-[#141414] border border-white/10 text-slate-300 hover:bg-[#202020] hover:text-white rounded-2xl transition-all text-sm font-medium"
                 >
                   Dashboard

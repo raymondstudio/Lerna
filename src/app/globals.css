@@ -127,3 +127,8 @@
   letter-spacing: 0.01em;
   line-height: 1.4;
 }
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto !important; }
+  body { scroll-behavior: auto; }
+}

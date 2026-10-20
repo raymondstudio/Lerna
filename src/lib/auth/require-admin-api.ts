@@ -1,29 +1,30 @@
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { AuthApiError, authApiErrorResponse, requireActiveUserApi } from "@/lib/auth/require-active-user-api";
 
-export class AdminApiError extends Error {
-  constructor(message: string, public readonly status: 401 | 403) {
-    super(message);
+// Keep the existing export so callers handle active-user and admin failures alike.
+export { AuthApiError as AdminApiError } from "@/lib/auth/require-active-user-api";
+
+export async function requireAdminApi(options: { requireMfa?: boolean } = {}) {
+  const context = await requireActiveUserApi();
+  try {
+    const { data, error } = await context.supabase.rpc("is_admin", { user_id: context.user.id });
+    if (error) throw new AuthApiError("Role verification is temporarily unavailable. Please retry.", 503, "AUTH_UNAVAILABLE");
+    if (data !== true) throw new AuthApiError("You do not have access to this operation.", 403, "FORBIDDEN");
+    if (options.requireMfa) {
+      const { data: assurance, error: mfaError } = await context.supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+      if (mfaError) throw new AuthApiError("Security verification is temporarily unavailable. Please retry.", 503, "AUTH_UNAVAILABLE");
+      if (assurance?.currentLevel !== "aal2") throw new AuthApiError("Verify your authenticator before continuing.", 403, "MFA_REQUIRED");
+    }
+    return context;
+  } catch (error) {
+    if (error instanceof AuthApiError) throw error;
+    throw new AuthApiError("Role verification is temporarily unavailable. Please retry.", 503, "AUTH_UNAVAILABLE");
   }
 }
 
-export async function requireAdminApi() {
-  const supabase = await createSupabaseServerClient();
-  const { data, error: userError } = await supabase.auth.getUser();
-  const user = data.user;
-
-  if (userError || !user) throw new AdminApiError("Unauthenticated", 401);
-
-  const { data: isAdmin, error: adminError } = await supabase.rpc("is_admin", { user_id: user.id });
-  const configuredAdmins = (process.env.ADMIN_EMAILS ?? "")
-    .split(",")
-    .map((email) => email.trim().toLowerCase())
-    .filter(Boolean);
-  const fallbackAdmin = Boolean(user.email && configuredAdmins.includes(user.email.toLowerCase()));
-  const roleAdmin = user.app_metadata?.role === "admin" || user.app_metadata?.role === "owner";
-
-  if ((!isAdmin || adminError) && !fallbackAdmin && !roleAdmin) {
-    throw new AdminApiError("Unauthorized", 403);
+export async function authorizeAdminApi(options: { requireMfa?: boolean } = {}) {
+  try {
+    return { ok: true as const, ...await requireAdminApi(options) };
+  } catch (error) {
+    return { ok: false as const, response: authApiErrorResponse(error) };
   }
-
-  return { supabase, user };
 }

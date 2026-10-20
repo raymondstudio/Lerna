@@ -1,11 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { Bot, Coins, Headphones, Landmark, Megaphone, Sparkles, TrendingUp } from "lucide-react";
+import { Bot, Coins, Headphones, Megaphone, Sparkles, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export function AgentTab() {
-  const [agents, setAgents] = useState([
+  const [agents] = useState([
     {
       id: "marketing",
       name: "Marketing Agent",

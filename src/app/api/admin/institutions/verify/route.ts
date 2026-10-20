@@ -1,65 +1,36 @@
 import { NextResponse } from "next/server";
+import { authorizeAdminApi } from "@/lib/auth/require-admin-api";
 import { getUnverifiedInstitutions, verifyInstitution, deleteInstitution } from "@/lib/repositories/institutions";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
-
-async function verifyAdmin() {
-  const supabase = await createSupabaseServerClient();
-  const { data: userData } = await supabase.auth.getUser();
-
-  if (!userData?.user) {
-    throw new Error("Unauthenticated");
-  }
-
-  const { data: isAdmin } = await supabase.rpc("is_admin", { user_id: userData.user.id });
-  const adminEmails = process.env.ADMIN_EMAILS
-    ? process.env.ADMIN_EMAILS.split(",").map((e) => e.trim())
-    : ["msuraymond@gmail.com"];
-  const isFallbackAdmin = userData.user.email && adminEmails.includes(userData.user.email);
-  const isRoleAdmin = userData.user.app_metadata?.role === "admin";
-
-  if (!isAdmin && !isFallbackAdmin && !isRoleAdmin) {
-    throw new Error("Unauthorized");
-  }
-}
 
 export async function GET() {
+  const authorization = await authorizeAdminApi();
+  if (!authorization.ok) return authorization.response;
   try {
-    await verifyAdmin();
-    const data = await getUnverifiedInstitutions();
-    return NextResponse.json({ success: true, data });
-  } catch (err: any) {
-    const status = err.message === "Unauthenticated" ? 401 : err.message === "Unauthorized" ? 403 : 500;
-    return NextResponse.json({ success: false, error: err.message }, { status });
+    return NextResponse.json({ success: true, data: await getUnverifiedInstitutions() });
+  } catch {
+    return NextResponse.json({ success: false, error: "Institutions could not be loaded." }, { status: 500 });
   }
 }
-
 export async function POST(req: Request) {
+  const authorization = await authorizeAdminApi({ requireMfa: true });
+  if (!authorization.ok) return authorization.response;
   try {
-    await verifyAdmin();
     const { id } = await req.json();
-    if (!id) {
-      return NextResponse.json({ success: false, error: "ID is required" }, { status: 400 });
-    }
-    const data = await verifyInstitution(id);
-    return NextResponse.json({ success: true, data });
-  } catch (err: any) {
-    const status = err.message === "Unauthenticated" ? 401 : err.message === "Unauthorized" ? 403 : 500;
-    return NextResponse.json({ success: false, error: err.message }, { status });
+    if (typeof id !== "string" || !id) return NextResponse.json({ success: false, error: "ID is required." }, { status: 400 });
+    return NextResponse.json({ success: true, data: await verifyInstitution(id) });
+  } catch {
+    return NextResponse.json({ success: false, error: "Institution could not be verified." }, { status: 500 });
   }
 }
-
 export async function DELETE(req: Request) {
+  const authorization = await authorizeAdminApi({ requireMfa: true });
+  if (!authorization.ok) return authorization.response;
+  const id = new URL(req.url).searchParams.get("id");
+  if (!id) return NextResponse.json({ success: false, error: "ID is required." }, { status: 400 });
   try {
-    await verifyAdmin();
-    const { searchParams } = new URL(req.url);
-    const id = searchParams.get("id");
-    if (!id) {
-      return NextResponse.json({ success: false, error: "ID is required" }, { status: 400 });
-    }
     await deleteInstitution(id);
     return NextResponse.json({ success: true });
-  } catch (err: any) {
-    const status = err.message === "Unauthenticated" ? 401 : err.message === "Unauthorized" ? 403 : 500;
-    return NextResponse.json({ success: false, error: err.message }, { status });
+  } catch {
+    return NextResponse.json({ success: false, error: "Institution could not be deleted." }, { status: 500 });
   }
 }

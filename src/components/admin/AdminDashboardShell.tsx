@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { 
+import { useRouter, useSearchParams } from "next/navigation";
+import { type LucideIcon,
   BarChart2, 
   BookOpen, 
   Brain, 
@@ -47,7 +47,7 @@ import { BillingTab } from "./BillingTab";
 type NavItem = {
   name: string;
   tab: string;
-  icon: any;
+  icon: LucideIcon;
 };
 
 export function AdminDashboardShell() {

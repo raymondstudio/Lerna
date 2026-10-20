@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { motion } from "framer-motion";
 import ReactMarkdown from "react-markdown";
 import rehypeHighlight from "rehype-highlight";
@@ -74,12 +74,6 @@ function CodeBlock({ language, value }: { language: string; value: string }) {
 }
 
 export function ChatMessage({ message }: { message?: MsgType | null }) {
-  const [hasMounted, setHasMounted] = useState(false);
-
-  useEffect(() => {
-    setHasMounted(true);
-  }, []);
-
   const safeMessage = {
     id: typeof message?.id === "string" ? message.id : "unknown-message",
     role: message?.role === "assistant" ? "assistant" : "user",
@@ -113,7 +107,7 @@ export function ChatMessage({ message }: { message?: MsgType | null }) {
               {children}
             </a>
           ),
-          code: ({ node, inline, className, children, ...props }: any) => {
+          code: ({ node: _node, className, children, ...props }) => {
             const match = /language-(\w+)/.exec(className || "");
             const lang = match ? match[1] : "";
             const content = String(children).replace(/\n$/, "");

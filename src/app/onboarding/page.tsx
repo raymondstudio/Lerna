@@ -142,10 +142,14 @@ export default function OnboardingPage() {
   const [hydrated, setHydrated] = useState(false);
   const [saving, setSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchValue] = useState("");
   const [searchResults, setSearchResults] = useState<InstitutionResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
+  const setSearchQuery = (value: string) => {
+    setSearchValue(value);
+    if (value.trim().length < 2) { setSearchResults([]); setIsSearching(false); setSearchError(null); }
+  };
   const headingRef = useRef<HTMLHeadingElement>(null);
 
   const storageKey = user ? `lerna:onboarding-draft:${user.id}` : null;
@@ -222,9 +226,6 @@ export default function OnboardingPage() {
 
   useEffect(() => {
     if (!isInstitutionRole || searchQuery.trim().length < 2) {
-      setSearchResults([]);
-      setIsSearching(false);
-      setSearchError(null);
       return;
     }
 
