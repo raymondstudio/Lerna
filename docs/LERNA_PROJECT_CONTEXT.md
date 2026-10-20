@@ -1,5 +1,29 @@
 # Lerna AI project context
 
+## Stabilization update — 20 October 2026
+
+The original audit below remains a dated snapshot. The active integration checkout
+is `security/stabilization` based on clean main `35914eb39c4f1fdb79666c5829d28ca4f17841f4`;
+the original `main` checkout remains untouched. Track current source, checks and
+review status in [STABILIZATION_WORKBOARD.md](STABILIZATION_WORKBOARD.md).
+Next 16.4.1, React Query and local fonts now build. The current source passes
+strict lint with warnings, typecheck, 76 Node checks including actual SQL files
+against synthetic Auth/Storage schemas, 94 Vitest assertions, and a production
+build. These are local application/source controls; Docker/Podman is unavailable,
+so real Supabase Auth, Postgres, Storage, mailbox and isolated search evidence is
+still blocked. Browser tests refuse to run unless the app reports local mocked
+providers and local Auth is healthy.
+
+Canonical `user_roles` plus active-profile checks now form the intended runtime
+authorization boundary. Sessions retain `study_sessions.notes` as canonical with
+revisioned transactional writes and a compatibility `notes` projection. Activity
+v1 derives trusted actor/outcome/environment on the server and keeps browser
+reports separate. The public landing source uses the approved dimensional
+illustration and exact hero direction. Each area still needs independent
+integrated review and real provider/browser verification before milestone acceptance.
+The historical service credential exposure remains open for owner-controlled
+containment, and no hosted configuration or data has been changed.
+
 Audit snapshot: 12 October 2026, Africa/Lagos. Read this document, LERNA_AUDIT.md and LERNA_NEXT_STAGE.md before continuing development. Application changes were not made in this audit.
 
 ## Product context supplied by the founders
@@ -61,5 +85,17 @@ Existing commands: `npm run dev`, `npm run build`, `npm run start`, `npm run lin
 - Dev server started on 127.0.0.1:3100 with provider URLs overridden to loopback and placeholder keys in process only. Health and selected anonymous API rejection checks worked. Root UI returned 500. Audit server stopped afterwards.
 
 ## What future sessions must verify
+
+The isolated `security/stabilization` worktree now contains integrated source
+for canonical active authorization/MFA, bounded uploads/provider budgets,
+transactional note revisions and receipts, dedicated password recovery,
+durable activity and the revised landing. It has not been published or applied
+to a hosted service. The earlier command failures above describe the audit
+baseline. Dependencies and strict tooling were restored; current checks and
+their precise limits are recorded in `STABILIZATION_WORKBOARD.md` and
+`STABILIZATION_HANDOFF.md`. Real local Auth/Storage/mailbox gates remain
+blocked by unavailable Docker/Podman. Independent review corrections include
+chat parents before writes, final export authorization, quiz generation/save
+budget separation, failed-recovery cookie suppression and deletion metadata.
 
 The deployed commit; applied SQL migrations/policies/grants; Supabase OAuth Site URL/allowlist and Google provider settings; real model/account availability; Elastic mappings and durability; actual authenticated sign-in -> upload -> grounded question -> saved reload; small-screen keyboard/scroll behavior; ticket delivery; telemetry/event definitions and counts; backups and restore procedure. No current traction or revenue counts were measured. Refer to LERNA_NEXT_STAGE.md for ordered acceptance criteria.

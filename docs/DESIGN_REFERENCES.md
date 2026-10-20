@@ -33,13 +33,40 @@ Layer scale is local: content 0, study artifacts 1–3, navigation 20, skip link
 
 ## Evidence and remaining checks
 
+On 20 October the integrated Next 16.4.1 development app was checked in local
+mock-provider mode with headless Chrome, using `scripts/check-landing-browser.mjs`.
+At 360, 390, 768, 1280 and 1440px, hydrated React content retained the exact
+hero, no document-level horizontal overflow, functional native FAQ/mobile
+navigation, and a working signup dialog entry. The check also covered the
+actual `html.light` theme at 390px, first-Tab skip-link focus, reduced motion,
+standard motion settling after its finite reveal, and a throttled network with
+the primary CTA available at initial DOM content. It captured no page or
+hydration errors after waiting for hydration before toggling native disclosures.
+The script blocks nonlocal requests and checks that the development server
+reports mocked AI providers before navigation. Evidence and screenshots live
+in ignored `.stabilization-local/evidence/landing-integrated*.{json,png}`.
+Opening the dialog is not a real Auth login; the local Auth service is absent.
+This local development check is not a production bundle/performance comparison.
+
+The first browser draft clicked a native `<details>` while React was still
+hydrating and produced an attribute mismatch warning for its `open` state.
+The reproducible check now verifies initial CTA visibility first and waits for
+hydration before native interactive controls. The static fixture separately
+verifies complete content before JavaScript; this does not prove every
+pre-hydration interaction is warning-free.
+
 Local Chrome fixture checks on 2026-10-19 used the real landing React server markup and scoped stylesheet with the existing licensed Space Grotesk asset. All five requested widths had `document.scrollWidth === viewport width`, no visible overflowing elements, the exact hero text, and working section anchors. The primary CTA's bottom edge was 454px at 360/390px, 436px at 768px, 593px at 1280px, and 598px at 1440px, within each tested viewport. Native mobile navigation and FAQ disclosures opened successfully; a light-theme mobile screenshot and a standard-motion desktop screenshot were also captured. The finite JavaScript animation itself was not hydrated by this fixture.
 
 Evidence directory: `C:/Users/USER/AppData/Local/Temp/lerna-landing-visual-checks/`, containing `results.json`, five `landing-WIDTH.png` full-page captures, `landing-390-light.png`, and `landing-1440-standard.png`. Temporary fixture source: `C:/Users/USER/AppData/Local/Temp/lerna-landing-render.cjs`. These artifacts are local layout evidence; they contain synthetic/public content only.
 
 Sampled CSS text/background pairs measured between 6.11:1 and 16.97:1 contrast, including muted text and primary CTAs in both themes. This is a sampled palette check, not a full accessibility certification. Strict Next/TypeScript ESLint on the new landing source and all persistence-owned source files passed with zero errors and warnings.
 
-The release owner must verify the integrated app at 360, 390, 768, 1280, and 1440px; both existing themes; keyboard and mobile navigation; reduced motion; hidden-tab/offscreen behavior; slow network; real auth entry/recovery routes; and route/build asset loading. Compare the integrated route bundle, loading, and layout results against baseline. Fixture rendering cannot establish hosted performance, real authentication, or field Core Web Vitals.
+The remaining design gates are authenticated entry/recovery, hidden-tab/offscreen
+motion on real devices, baseline-to-branch bundle and loading comparisons,
+and field Core Web Vitals. The integrated local browser already covered the
+five specified widths, light theme at 390px, keyboard skip link, reduced motion,
+slow-network CTA availability and route asset loading. Fixture rendering and
+development mode cannot establish hosted performance or real authentication.
 
 Worker layout screenshots and structured checks, when produced, use the actual landing React server markup and CSS with closed auth components mocked. They are kept outside git in a temporary evidence directory. Their report explicitly distinguishes static/no-hydration layout proof from full-app behavior. The worker does not label those screenshots as production or as an authentication test.
 

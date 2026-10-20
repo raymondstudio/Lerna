@@ -1,5 +1,25 @@
 # Security test matrix
 
+## Stabilization status — 20 October 2026
+
+The rows below preserve the 12 October audit baseline; they are not current pass
+claims. The original dependency-mocked `security-boundary-tests.mjs --secure`
+runner recorded 5 secure assertions passing and 11 failing at baseline. Its old
+module mocks no longer load several revised routes (current replay: 3 PASS, 13
+test-harness ERROR), so a green result must not be inferred from that script.
+Current `npm test` passes 76 Node tests and 94 Vitest assertions, including
+25 actual-migration controls in synthetic Postgres/Auth/Storage schemas, ordinary
+A/B roles, positive owner access and negative foreign access. A subsequent coupon
+policy control raises the ordered-SQL count to 26; re-run the full suite after
+this and later changes. New tests cover role demotion, final-owner protection,
+suspension, parent ownership, note revision/receipt/rollback, practice shapes,
+operation idempotency, recovery proof and material cleanup revisions. They do
+not prove real local Supabase services, concurrent connections, browser Auth or
+hosted policies. Docker/Podman is unavailable, and the real integration gate
+remains blocked. Browser tests explicitly refuse live providers or nonlocal
+targets. The independent integrated security review is still open.
+
+
 **Private — 12 October 2026, Africa/Lagos.** main @ 9b37a7e8de96b09340ef4ecb5d0ded52840f5476. Current code is unmodified. Scope is source review and dependency-mocked boundary tests; deployed and ordinary-role DB outcomes remain blocked. No tests are counted green merely because a route fails.
 
 ## Identities, resources and isolation
@@ -159,5 +179,15 @@ Begin configuration collection with configuration-evidence.sql (read-only metada
 Keep a fixture manifest of IDs and fake markers. Delete only created objects/accounts/index entries after capturing redacted before/after evidence; clear only fixture jobs/quotas. Never run broad ownerless cleanup or drop shared indexes. Assertions inspect HTTP outcome, DB row state, storage/index state and model/billing call counts. Record deployed schema differences as evidence rather than silently changing test assumptions. No live provider tests or fixture cleanup occurred in this audit.
 
 ## Existing project checks
+
+The following failures are the historical audit baseline. The current isolated
+stabilization source has restored dependencies/checks and a new test suite.
+Its executable coverage includes ordinary A/B SQL policies, note transaction
+rollback/receipts, parent-before-write denials, canonical admin/MFA controls,
+provider budget holds, recovery-cookie failures, deletion pseudonymization and
+truthful pre-read activity outcomes. Refer to `../STABILIZATION_WORKBOARD.md`
+for current counts and remaining real-provider/browser gates. The old VM
+runner's incompatible import mocks are retained as historical evidence and
+do not certify the revised source.
 
 Typecheck exit 2 (missing React Query and implicit-any errors); npm run lint exit 1 (Next 16 next lint removed); npm ls reports two missing packages; npm audit returned an error object without metadata. No build/provider-backed UI run. These outcomes are limitations and stabilization work, not substitutes for security results. See SECURITY_AUDIT.md.
