@@ -55,6 +55,9 @@ in the next workboard update/handoff. Failing and blocked gates are never marked
   targeted independent reviews and their corrections; 82 Node/117 Vitest
   tests, lint, typecheck and production build pass. This preserves the work in
   a local commit; it does not accept M1–M7 or close provider/browser/re-audit gates.
+- `fb0f192`: documentation/evidence checkpoint with the activity contract,
+  independent review log, current context/security reports and blocked-gate
+  handoff. Documentation coverage is not full M8 acceptance.
 
 ## Integration progress — 20 October 2026
 
