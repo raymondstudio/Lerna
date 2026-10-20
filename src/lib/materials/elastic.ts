@@ -10,7 +10,7 @@ const keyword = { type: "keyword" };
 const text = { type: "text" };
 const date = { type: "date" };
 
-export async function ensureMaterialIndices() {
+export async function ensureMaterialIndices(signal?: AbortSignal) {
   await Promise.all([
     createIndexIfMissing(DOCUMENTS_INDEX, {
       mappings: {
@@ -27,7 +27,7 @@ export async function ensureMaterialIndices() {
           processed_at: date,
         },
       },
-    }),
+    }, signal),
     createIndexIfMissing(CHUNKS_INDEX, {
       mappings: {
         properties: {
@@ -46,7 +46,7 @@ export async function ensureMaterialIndices() {
           created_at: date,
         },
       },
-    }),
+    }, signal),
     createIndexIfMissing(EMBEDDINGS_INDEX, {
       mappings: {
         properties: {
@@ -71,7 +71,7 @@ export async function ensureMaterialIndices() {
           created_at: date,
         },
       },
-    }),
+    }, signal),
   ]);
 }
 
@@ -88,9 +88,9 @@ export async function deleteMaterialFromElastic(documentId: string, userId: stri
   };
 
   await Promise.all([
-    deleteByQuery(DOCUMENTS_INDEX, query).catch(() => null),
-    deleteByQuery(CHUNKS_INDEX, query).catch(() => null),
-    deleteByQuery(EMBEDDINGS_INDEX, query).catch(() => null),
+    deleteByQuery(DOCUMENTS_INDEX, query),
+    deleteByQuery(CHUNKS_INDEX, query),
+    deleteByQuery(EMBEDDINGS_INDEX, query),
   ]);
 }
 
@@ -98,8 +98,9 @@ export async function indexMaterialInElastic(params: {
   material: MaterialRow;
   chunks: Array<MaterialChunk & { embedding: number[] }>;
   summary: string;
+  signal?: AbortSignal;
 }) {
-  await ensureMaterialIndices();
+  await ensureMaterialIndices(params.signal);
   await deleteMaterialFromElastic(params.material.id, params.material.user_id);
 
   const now = new Date().toISOString();
@@ -115,9 +116,10 @@ export async function indexMaterialInElastic(params: {
     storage_path: params.material.storage_path,
     created_at: params.material.created_at,
     processed_at: now,
-  });
+  }, params.signal);
 
   for (const chunk of params.chunks) {
+    if (params.signal?.aborted) throw new Error("Document indexing was cancelled.");
     const chunkDoc = {
       user_id: chunk.userId,
       document_id: chunk.documentId,
@@ -136,29 +138,28 @@ export async function indexMaterialInElastic(params: {
     };
 
     await Promise.all([
-      indexDocument(CHUNKS_INDEX, chunk.id, chunkDoc),
+      indexDocument(CHUNKS_INDEX, chunk.id, chunkDoc, params.signal),
       indexDocument(EMBEDDINGS_INDEX, chunk.id, {
         ...chunkDoc,
         embedding: chunk.embedding,
-      }),
+      }, params.signal),
     ]);
   }
 
-  await Promise.all([refreshIndex(DOCUMENTS_INDEX), refreshIndex(CHUNKS_INDEX), refreshIndex(EMBEDDINGS_INDEX)]);
+  await Promise.all([refreshIndex(DOCUMENTS_INDEX, params.signal), refreshIndex(CHUNKS_INDEX, params.signal), refreshIndex(EMBEDDINGS_INDEX, params.signal)]);
 }
 
-function mapHit(hit: any): RetrievedMaterialChunk | null {
-  const source = hit?._source;
-  if (!source?.chunk_text || !source?.document_id || !source?.chunk_id) {
-    return null;
-  }
+function mapHit(hit: unknown): RetrievedMaterialChunk | null {
+  if (!hit || typeof hit !== "object" || !("_source" in hit) || !hit._source || typeof hit._source !== "object" || Array.isArray(hit._source)) return null;
+  const source = hit._source as Record<string, unknown>;
+  if (typeof source.chunk_text !== "string" || typeof source.document_id !== "string" || typeof source.chunk_id !== "string" || typeof source.user_id !== "string") return null;
 
   return {
     id: source.chunk_id,
     documentId: source.document_id,
-    documentName: source.document_name ?? "Uploaded material",
+    documentName: typeof source.document_name === "string" ? source.document_name : "Uploaded material",
     userId: source.user_id,
-    sessionId: source.session_id ?? null,
+    sessionId: typeof source.session_id === "string" ? source.session_id : null,
     index: Number(source.chunk_index ?? 0),
     text: source.chunk_text,
     tokenEstimate: Number(source.token_estimate ?? 0),
@@ -166,7 +167,7 @@ function mapHit(hit: any): RetrievedMaterialChunk | null {
     slide: typeof source.slide === "number" ? source.slide : undefined,
     chapter: typeof source.chapter === "string" ? source.chapter : undefined,
     section: typeof source.section === "string" ? source.section : undefined,
-    score: Number(hit?._score ?? 0),
+    score: "_score" in hit && typeof hit._score === "number" && Number.isFinite(hit._score) ? hit._score : 0,
   };
 }
 
@@ -177,7 +178,7 @@ export async function searchMaterialEmbeddings(params: {
   limit?: number;
   documentIds?: string[];
 }) {
-  await ensureMaterialIndices();
+  if (params.documentIds !== undefined && params.documentIds.length === 0) return [];
 
   const filters: unknown[] = [
     { term: { user_id: params.userId } },
@@ -186,7 +187,8 @@ export async function searchMaterialEmbeddings(params: {
 
   if (params.documentIds && params.documentIds.length > 0) {
     filters.push({ terms: { document_id: params.documentIds } });
-  } else if (params.sessionId) {
+  }
+  if (params.sessionId) {
     filters.push({ term: { session_id: params.sessionId } });
   }
 
@@ -214,5 +216,9 @@ export async function searchMaterialEmbeddings(params: {
     ],
   });
 
-  return ((response as any)?.hits?.hits ?? []).map(mapHit).filter(Boolean) as RetrievedMaterialChunk[];
+  const hits = (response.hits?.hits ?? []).map(mapHit).filter(Boolean) as RetrievedMaterialChunk[];
+  return hits.filter((chunk) => chunk.userId === params.userId
+    && (!params.documentIds || params.documentIds.includes(chunk.documentId))
+    && (!params.sessionId || chunk.sessionId === params.sessionId)
+    && chunk.text.length <= 12_000).slice(0, Math.min(params.limit ?? 5, 10));
 }

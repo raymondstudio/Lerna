@@ -1,63 +1,76 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, useRef, useCallback, type ReactNode } from "react";
 import type { AuthChangeEvent, Session } from "@supabase/supabase-js";
 import { usePathname, useRouter } from "next/navigation";
 
 import { AuthContext, type AuthCredentials, type SignUpCredentials } from "@/context/auth-context";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { getAppUrl } from "@/lib/supabase/config";
+import type { ProfileWithAliases } from "@/lib/profile";
 import { buildOAuthRedirectUrl } from "@/lib/auth/oauth";
-import { normalizeProfile } from "@/lib/profile";
+import { confirmUnsavedWorkBeforeSignOut } from "@/lib/study-sessions/unsaved-work";
 
 export function AuthProvider({ children, initialSession }: { children: ReactNode; initialSession?: Session | null }) {
   const router = useRouter();
   const pathname = usePathname();
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const [session, setSession] = useState<Session | null>(initialSession ?? null);
-  const [loading, setLoading] = useState(!initialSession);
-  const [error, setError] = useState<string | null>(null);
-  const [profile, setProfile] = useState<any | null>(null);
+  const [loading, setLoading] = useState(Boolean(supabase) && !initialSession);
+  const [error, setError] = useState<string | null>(supabase ? null : "Supabase is not configured. Set the public Supabase env vars to enable authentication.");
+  const [profile, setProfile] = useState<ProfileWithAliases | null>(null);
+  const currentUserId = useRef(session?.user?.id);
+  const authRevision = useRef(0);
+  useEffect(() => {
+    currentUserId.current = session?.user?.id;
+  }, [session?.user?.id]);
 
-  const refreshProfile = async () => {
-    if (!supabase || !session?.user) {
-      setProfile(null);
-      return;
-    }
-    try {
-      const [profileResult, subscriptionResult, roleResult] = await Promise.all([
-        supabase.from("profiles").select("*").eq("id", session.user.id).single(),
-        supabase.from("subscriptions").select("plan, status, billing_cycle, subscription_status").eq("user_id", session.user.id).single(),
-        supabase.from("user_roles").select("role").eq("user_id", session.user.id).maybeSingle(),
-      ]);
-
-      const flatProfile = normalizeProfile(profileResult.data, subscriptionResult.data, roleResult.data);
-
-      if (flatProfile) {
-        setProfile(flatProfile as any);
+  const userId = session?.user.id;
+  const acceptProfile = useCallback(async (response: Response, result: { success?: boolean; code?: string; data?: ProfileWithAliases }, requestedUserId: string) => {
+    if (currentUserId.current !== requestedUserId) return;
+    if (!response.ok || !result.success) {
+      if (result.code === "ACCOUNT_INACTIVE" && supabase) {
+        await supabase.auth.signOut({ scope: "local" });
+        currentUserId.current = undefined;
+        setSession(null);
+        setProfile(null);
+        router.replace("/?auth=login&error=Account%20unavailable.%20Contact%20support.");
       }
-    } catch (err) {
-      console.warn("[auth:provider] Failed to fetch profile:", err);
+      throw new Error("Your profile could not be loaded. Please retry.");
     }
-  };
+    if (result.data?.id !== requestedUserId) throw new Error("Profile identity did not match.");
+    setProfile(result.data);
+  }, [router, supabase]);
+  const refreshProfile = useCallback(async () => {
+    if (!supabase || !userId || pathname === "/auth/reset-password") return;
+    try {
+      const response = await fetch("/api/auth/profile", { cache: "no-store" });
+      await acceptProfile(response, await response.json(), userId);
+    } catch {
+      if (currentUserId.current === userId) setError("Your profile could not be loaded. Please retry.");
+    }
+  }, [supabase, userId, pathname, acceptProfile]);
 
   useEffect(() => {
-    void refreshProfile();
-  }, [session, supabase]);
+    if (!supabase || !userId || pathname === "/auth/reset-password") return;
+    const abort = new AbortController();
+    // Profile state changes only after the external request settles.
+    void fetch("/api/auth/profile", { cache: "no-store", signal: abort.signal })
+      .then(async response => { await acceptProfile(response, await response.json(), userId); })
+      .catch(() => { if (!abort.signal.aborted && currentUserId.current === userId) setError("Your profile could not be loaded. Please retry."); });
+    return () => abort.abort();
+  }, [supabase, userId, pathname, acceptProfile]);
 
   useEffect(() => {
-    if (!supabase) {
-      setError("Supabase is not configured. Set the public Supabase env vars to enable authentication.");
-      setLoading(false);
-      return;
-    }
+    if (!supabase) return;
 
     let isMounted = true;
+    const startingRevision = authRevision.current;
 
     void (async () => {
       const { data: userData, error: userError } = await supabase.auth.getUser();
 
-      if (!isMounted) {
+      if (!isMounted || authRevision.current !== startingRevision) {
         return;
       }
 
@@ -69,7 +82,15 @@ export function AuthProvider({ children, initialSession }: { children: ReactNode
 
       const { data, error: sessionError } = await supabase.auth.getSession();
 
-      if (!isMounted) {
+      if (!isMounted || authRevision.current !== startingRevision) {
+        return;
+      }
+
+      if (data.session?.user?.id !== userData.user.id) {
+        setError("Your session changed while it was being restored. Please sign in again.");
+        currentUserId.current = undefined;
+        setSession(null);
+        setLoading(false);
         return;
       }
 
@@ -93,6 +114,8 @@ export function AuthProvider({ children, initialSession }: { children: ReactNode
         return;
       }
 
+      authRevision.current += 1;
+      currentUserId.current = nextSession?.user?.id;
       console.info("[auth:provider] auth state changed", {
         hasSession: Boolean(nextSession),
         userId: nextSession?.user?.id,
@@ -111,57 +134,13 @@ export function AuthProvider({ children, initialSession }: { children: ReactNode
   useEffect(() => {
     if (!supabase || !session?.user) return;
 
-    let active = true;
-    void (async () => {
-      try {
-        const { data: prof } = await supabase
-          .from("profiles")
-          .select("onboarding_completed, is_suspended, is_deleted")
-          .eq("id", session.user.id)
-          .single();
-
-        if (active && prof) {
-          if (prof.is_deleted) {
-            console.warn("[auth:provider] user account is soft-deleted, logging out");
-            await supabase.auth.signOut();
-            setSession(null);
-            setProfile(null);
-            router.push("/?auth=login&error=This account has been deleted.");
-            return;
-          }
-
-          if (prof.is_suspended) {
-            console.warn("[auth:provider] user is suspended, logging out");
-            await supabase.auth.signOut();
-            setSession(null);
-            setProfile(null);
-            router.push("/?auth=login&error=Your account has been suspended by an administrator.");
-            return;
-          }
-
-          const isIgnoredRoute = 
-            pathname === "/onboarding" || 
-            pathname === "/" || 
-            pathname.startsWith("/auth/") ||
-            pathname === "/welcome";
-
-          if (!isIgnoredRoute && !prof.onboarding_completed) {
-            const skipped = typeof window !== "undefined" && window.sessionStorage?.getItem("onboarding_skipped") === "true";
-            if (!skipped) {
-              console.info("[auth:provider] onboarding incomplete, redirecting to welcome screen");
-              router.push("/welcome");
-            }
-          }
-        }
-      } catch (err) {
-        console.warn("[auth:provider] failed to verify onboarding completion:", err);
-      }
-    })();
-
-    return () => {
-      active = false;
-    };
-  }, [session, pathname, supabase, router]);
+    if (!profile || profile.id !== session.user.id) return;
+    const ignored = pathname === "/onboarding" || pathname === "/" || pathname.startsWith("/auth/") || pathname === "/welcome";
+    if (!ignored && !profile.onboardingCompleted) {
+      const skipped = window.sessionStorage?.getItem("onboarding_skipped") === "true";
+      if (!skipped) router.push("/welcome");
+    }
+  }, [session, pathname, supabase, router, profile]);
 
   const value = {
     user: session?.user ?? null,
@@ -169,7 +148,7 @@ export function AuthProvider({ children, initialSession }: { children: ReactNode
     loading,
     ready: Boolean(supabase),
     error,
-    profile,
+    profile: profile?.id === session?.user?.id ? profile : null,
     refreshProfile,
     signIn: async ({ email, password }: AuthCredentials) => {
       if (!supabase) {
@@ -234,52 +213,29 @@ export function AuthProvider({ children, initialSession }: { children: ReactNode
         throw new Error("Supabase is not configured.");
       }
 
+      if (!await confirmUnsavedWorkBeforeSignOut()) throw new Error("Sign-out cancelled. Your notes are still open.");
       setError(null);
-
       const { error: signOutError } = await supabase.auth.signOut();
 
       if (signOutError) {
         throw signOutError;
       }
 
+      currentUserId.current = undefined;
       setSession(null);
     },
     signInWithProvider: async (provider: string, redirectTo?: string) => {
+      if (provider !== "google") throw new Error("Choose a supported sign-in provider.");
       if (!supabase) {
         throw new Error("Supabase is not configured.");
       }
 
       setError(null);
 
-      let builtRedirectTo: string;
-      try {
-        builtRedirectTo = buildOAuthRedirectUrl(redirectTo ?? "/chat");
-      } catch (urlError) {
-        console.error("[auth:provider] buildOAuthRedirectUrl FAILED", { urlError });
-        throw urlError;
-      }
-
-      console.info("[auth:provider] signInWithOAuth starting", {
-        provider,
-        redirectTo: builtRedirectTo,
-        supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL ?? "(not set)",
-        hasAnonKey: Boolean(
-          process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
-          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-        ),
-      });
-
-      const { data: oauthData, error: oauthError } = await supabase.auth.signInWithOAuth({
-        provider: provider as any,
+      const builtRedirectTo = buildOAuthRedirectUrl(redirectTo ?? "/chat");
+      const { error: oauthError } = await supabase.auth.signInWithOAuth({
+        provider: "google",
         options: { redirectTo: builtRedirectTo },
-      });
-
-      console.info("[auth:provider] signInWithOAuth response", {
-        hasUrl: Boolean(oauthData?.url),
-        oauthUrl: oauthData?.url ?? "(no URL returned — CRITICAL)",
-        errorMessage: oauthError?.message ?? null,
-        errorStatus: (oauthError as any)?.status ?? null,
-        errorName: oauthError?.name ?? null,
       });
 
       if (oauthError) {

@@ -3,6 +3,11 @@ import { NextResponse } from "next/server";
 import { parseAdminAnalyticsRange } from "@/lib/admin/analytics-range";
 import { AdminApiError, requireAdminApi } from "@/lib/auth/require-admin-api";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { authApiErrorResponse } from "@/lib/auth/require-active-user-api";
+import { createActivityExport } from "@/lib/activity/export";
+import { activityCsvCell } from "@/lib/activity/csv";
+import { appendActivityEvent } from "@/lib/repositories/activity";
+import { createHash } from "node:crypto";
 
 export const dynamic = "force-dynamic";
 
@@ -29,10 +34,7 @@ function isDataset(value: string | null): value is DatasetKey {
 }
 
 function safeCsvCell(value: unknown) {
-  if (value === null || value === undefined) return "";
-  let text = typeof value === "object" ? JSON.stringify(value) : String(value);
-  if (/^[=+\-@]/.test(text)) text = `'${text}`;
-  return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+  return activityCsvCell(value);
 }
 
 function toCsv(rows: Record<string, unknown>[]) {
@@ -56,6 +58,7 @@ async function fetchDataset(dataset: Exclude<DatasetKey, "summary">, startAt: st
       .gte(definition.timestamp, startAt)
       .lt(definition.timestamp, endAt)
       .order(definition.timestamp, { ascending: true })
+      .order(dataset === "marketing" ? "user_id" : "id", { ascending: true })
       .range(offset, offset + PAGE_SIZE - 1);
     if (error) throw error;
     const page = (data ?? []) as unknown as Record<string, unknown>[];
@@ -68,8 +71,9 @@ async function fetchDataset(dataset: Exclude<DatasetKey, "summary">, startAt: st
 
 export async function GET(request: Request) {
   try {
-    const { supabase } = await requireAdminApi();
     const url = new URL(request.url);
+    if (url.searchParams.get("dataset") === "user_activity") return createActivityExport(request);
+    const { supabase, user } = await requireAdminApi({ requireMfa: true });
     const datasetParam = url.searchParams.get("dataset") ?? "summary";
     const format = url.searchParams.get("format") ?? "csv";
     if (!isDataset(datasetParam)) {
@@ -104,6 +108,14 @@ export async function GET(request: Request) {
       ({ rows, truncated } = await fetchDataset(datasetParam, range.startAt, range.endAt));
     }
 
+    // A long paged export can outlive an admin demotion, suspension or AAL2
+    // session. Recheck immediately before the audit record and data release.
+    const current = await requireAdminApi({ requireMfa: true });
+    if (current.user.id !== user.id) {
+      return NextResponse.json({ success: false, error: "The export identity changed. Start a new export." }, { status: 403 });
+    }
+    await appendActivityEvent({ user_id: current.user.id, event_type: "admin.activity.export", category: "admin", outcome: "succeeded",
+      properties: { filter_hash: createHash("sha256").update(JSON.stringify({ dataset: datasetParam, range })).digest("hex"), format, rows: rows.length, truncated }, dedup_key: `export:${crypto.randomUUID()}` });
     const stamp = new Date().toISOString().slice(0, 10);
     const filename = `lerna-${datasetParam}-${stamp}.${format}`;
     const commonHeaders = {
@@ -131,12 +143,12 @@ export async function GET(request: Request) {
     });
   } catch (error) {
     if (error instanceof AdminApiError) {
-      return NextResponse.json({ success: false, error: error.message }, { status: error.status });
+      return authApiErrorResponse(error);
     }
     if (error instanceof Error && /range|timezone|start_at|end_at/i.test(error.message)) {
       return NextResponse.json({ success: false, error: error.message }, { status: 400 });
     }
-    console.error("[api:admin:exports] export failed", error);
-    return NextResponse.json({ success: false, error: "Unable to generate export." }, { status: 500 });
+    console.error("[api:admin:exports] export failed");
+    return NextResponse.json({ success: false, error: "Unable to generate export." }, { status: 503 });
   }
 }

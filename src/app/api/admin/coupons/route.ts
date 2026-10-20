@@ -1,28 +1,12 @@
+import { authorizeAdminApi } from "@/lib/auth/require-admin-api";
 import { NextResponse } from "next/server";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
-// Helper check
-async function checkAdminAuth(supabase: any) {
-  const { data: userData } = await supabase.auth.getUser();
-  if (!userData?.user) return false;
-
-  const { data: isAdmin } = await supabase.rpc("is_admin", { user_id: userData.user.id });
-  const adminEmails = process.env.ADMIN_EMAILS
-    ? process.env.ADMIN_EMAILS.split(",").map((e: string) => e.trim())
-    : ["msuraymond@gmail.com"];
-  const isFallbackAdmin = userData.user.email && adminEmails.includes(userData.user.email);
-  const isRoleAdmin = userData.user.app_metadata?.role === "admin";
-
-  return !!(isAdmin || isFallbackAdmin || isRoleAdmin);
-}
-
 export async function GET() {
-  const supabase = await createSupabaseServerClient();
-  if (!(await checkAdminAuth(supabase))) {
-    return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 403 });
-  }
+  const authorization = await authorizeAdminApi();
+  if (!authorization.ok) return authorization.response;
+  const { supabase } = authorization;
 
   try {
     const { data, error } = await supabase
@@ -43,10 +27,9 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  const supabase = await createSupabaseServerClient();
-  if (!(await checkAdminAuth(supabase))) {
-    return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 403 });
-  }
+  const authorization = await authorizeAdminApi({ requireMfa: true });
+  if (!authorization.ok) return authorization.response;
+  const { supabase, user } = authorization;
 
   try {
     const body = await req.json();
@@ -72,7 +55,6 @@ export async function POST(req: Request) {
     if (error) throw error;
 
     // Log to audit log
-    const { data: { user } } = await supabase.auth.getUser();
     await supabase.from("audit_logs").insert({
       user_id: user?.id,
       action: "coupon_created",
@@ -90,10 +72,9 @@ export async function POST(req: Request) {
 }
 
 export async function DELETE(req: Request) {
-  const supabase = await createSupabaseServerClient();
-  if (!(await checkAdminAuth(supabase))) {
-    return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 403 });
-  }
+  const authorization = await authorizeAdminApi({ requireMfa: true });
+  if (!authorization.ok) return authorization.response;
+  const { supabase, user } = authorization;
 
   try {
     const { searchParams } = new URL(req.url);
@@ -114,7 +95,6 @@ export async function DELETE(req: Request) {
     if (error) throw error;
 
     // Log to audit log
-    const { data: { user } } = await supabase.auth.getUser();
     await supabase.from("audit_logs").insert({
       user_id: user?.id,
       action: "coupon_disabled",

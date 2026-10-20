@@ -1,102 +1,69 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { getSupabaseKey, getSupabaseUrl } from "@/lib/supabase/config";
 
 type CookieToSet = { name: string; value: string; options: Record<string, unknown> };
-
-const PROTECTED_PATHS = ["/chat", "/materials", "/schedule", "/progress", "/courses", "/study", "/quiz"];
-const AUTH_PATHS = ["/login", "/signup"];
-
-// NOTE: /auth/* must NEVER be session-checked. If middleware intercepts
-// /auth/callback before exchangeCodeForSession runs, OAuth will always fail.
-const EXCLUDED_PREFIXES = ["/auth/"];
-
-function isExcludedPath(pathname: string) {
-  return EXCLUDED_PREFIXES.some((prefix) => pathname.startsWith(prefix));
-}
-
-function isProtectedPath(pathname: string) {
-  return PROTECTED_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`));
-}
-
-function isAuthPath(pathname: string) {
-  return AUTH_PATHS.includes(pathname);
-}
+const PROTECTED_PATHS = ["/chat", "/materials", "/schedule", "/progress", "/courses", "/study", "/quiz", "/account", "/admin", "/onboarding", "/welcome"];
+const isProtectedPath = (pathname: string) => PROTECTED_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`));
+const noStore = (response: NextResponse) => {
+  response.headers.set("Cache-Control", "private, no-store");
+  return response;
+};
 
 export async function proxy(request: NextRequest) {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-  const pathname = request.nextUrl.pathname;
-
-  // ── DIAGNOSTIC: confirm whether this middleware fires at all ─────────────────
-  // IMPORTANT: Because this file is named proxy.ts and NOT middleware.ts, Next.js
-  // does NOT execute it as edge middleware. If you never see "[auth:proxy]" in
-  // your server logs, that confirms the middleware is entirely bypassed — and is
-  // NOT the cause of the OAuth failure.
-  console.info("[auth:proxy] middleware fired", {
-    pathname,
-    isExcluded: isExcludedPath(pathname),
-    hasSupabaseUrl: Boolean(supabaseUrl),
-    hasAnonKey: Boolean(supabaseAnonKey),
-  });
-  // ─────────────────────────────────────────────────────────────────────────────
-
-  // Always pass /auth/* through without a session check.
-  if (isExcludedPath(pathname)) {
-    const passThrough = NextResponse.next({ request: { headers: request.headers } });
-    passThrough.headers.set("Cache-Control", "private, no-store");
-    return passThrough;
+  let response = noStore(NextResponse.next({ request }));
+  const finish = (target: NextResponse) => {
+    response.cookies.getAll().forEach((cookie) => target.cookies.set(cookie));
+    return noStore(target);
+  };
+  const supabaseUrl = getSupabaseUrl();
+  const key = getSupabaseKey();
+  if (!supabaseUrl || !key) {
+    return finish(NextResponse.json({ error: "Authentication is temporarily unavailable." }, { status: 503 }));
   }
 
-  if (!supabaseUrl || !supabaseAnonKey) {
-    const response = NextResponse.next({
-      request: { headers: request.headers },
-    });
-    response.headers.set("Cache-Control", "private, no-store");
-    return response;
-  }
-
-  const response = NextResponse.next({
-    request: {
-      headers: request.headers,
-    },
-  });
-
-  response.headers.set("Cache-Control", "private, no-store");
-
-  const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
+  const supabase = createServerClient(supabaseUrl, key, {
     cookies: {
-      getAll() {
-        return request.cookies.getAll();
-      },
-      setAll(cookiesToSet: CookieToSet[]) {
-        cookiesToSet.forEach(({ name, value, options }) => {
-          response.cookies.set({ name, value, ...options });
-        });
+      getAll: () => request.cookies.getAll(),
+      setAll(cookies: CookieToSet[]) {
+        const priorCookies = response.cookies.getAll();
+        cookies.forEach(({ name, value }) => request.cookies.set(name, value));
+        response = noStore(NextResponse.next({ request }));
+        priorCookies.forEach((cookie) => response.cookies.set(cookie));
+        cookies.forEach(({ name, value, options }) => response.cookies.set({ name, value, ...options }));
       },
     },
   });
 
-  const { data } = await supabase.auth.getUser();
-  const user = data.user;
-
-  if (isProtectedPath(pathname) && !user) {
-    const loginUrl = new URL("/", request.url);
-    loginUrl.searchParams.set("auth", "login");
-    loginUrl.searchParams.set("redirectTo", pathname);
-    const redirectResponse = NextResponse.redirect(loginUrl);
-    redirectResponse.headers.set("Cache-Control", "private, no-store");
-    return redirectResponse;
+  try {
+    // getUser validates identity with Auth; cookie contents alone never authorize.
+    const { data, error } = await supabase.auth.getUser();
+    const user = error ? null : data.user;
+    const pathname = request.nextUrl.pathname;
+    if (isProtectedPath(pathname) && !user) {
+      const login = new URL("/", request.url);
+      login.searchParams.set("auth", "login");
+      login.searchParams.set("redirectTo", `${pathname}${request.nextUrl.search}`);
+      return finish(NextResponse.redirect(login));
+    }
+    if (isProtectedPath(pathname) && user) {
+      const { data: active, error: activeError } = await supabase.rpc("is_active_user", { user_id: user.id });
+      if (activeError) return finish(NextResponse.json({ error: "Account verification is temporarily unavailable." }, { status: 503 }));
+      if (active !== true) {
+        const login = new URL("/", request.url);
+        login.searchParams.set("auth", "login");
+        login.searchParams.set("error", "Account unavailable. Contact support.");
+        return finish(NextResponse.redirect(login));
+      }
+    }
+    if (["/login", "/signup"].includes(pathname) && user) return finish(NextResponse.redirect(new URL("/chat", request.url)));
+    return response;
+  } catch {
+    return finish(NextResponse.json({ error: "Authentication is temporarily unavailable." }, { status: 503 }));
   }
-
-  if (isAuthPath(pathname) && user) {
-    const redirectResponse = NextResponse.redirect(new URL("/chat", request.url));
-    redirectResponse.headers.set("Cache-Control", "private, no-store");
-    return redirectResponse;
-  }
-
-  return response;
 }
 
+// Auth callback, recovery and MFA perform their own validation; never intercept PKCE.
 export const config = {
-  matcher: ["/chat/:path*", "/materials/:path*", "/schedule/:path*", "/progress/:path*", "/courses/:path*", "/study/:path*", "/quiz/:path*", "/login", "/signup"],
+  matcher: ["/chat/:path*", "/materials/:path*", "/schedule/:path*", "/progress/:path*", "/courses/:path*", "/study/:path*", "/quiz/:path*", "/account/:path*", "/admin/:path*", "/onboarding/:path*", "/welcome/:path*", "/login", "/signup"],
 };

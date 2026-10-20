@@ -7,12 +7,13 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint src tests",
-    "typecheck": "tsc --noEmit --incremental false",
+    "typecheck": "next typegen && tsc --noEmit --incremental false",
     "test": "npm run test:node && npm run test:unit",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
+    "test:provision": "node scripts/provision-local-fixtures.mjs",
     "bootstrap-admin": "node scripts/bootstrap-admin.js",
-    "test:node": "node --test tests/*.test.cjs tests/*.test.mjs",
+    "test:node": "node --test tests/*.test.mjs",
     "test:unit": "vitest run"
   },
   "dependencies": {

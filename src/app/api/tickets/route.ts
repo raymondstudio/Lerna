@@ -1,51 +1,43 @@
 import { NextResponse } from "next/server";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { authorizeActiveUserApi } from "@/lib/auth/require-active-user-api";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const supabase = await createSupabaseServerClient();
-  const { data: userData } = await supabase.auth.getUser();
-
-  if (!userData?.user) {
-    return NextResponse.json({ success: false, error: "Unauthenticated" }, { status: 401 });
-  }
+  const auth = await authorizeActiveUserApi();
+  if (!auth.ok) return auth.response;
 
   try {
-    const { data: tickets, error } = await supabase
+    const { data: tickets, error } = await auth.supabase
       .from("support_tickets")
       .select("id, subject, message, status, created_at")
-      .eq("user_id", userData.user.id)
+      .eq("user_id", auth.user.id)
       .order("created_at", { ascending: false });
 
     if (error) throw error;
 
     return NextResponse.json({ success: true, data: tickets });
-  } catch (err) {
-    console.error("[api:tickets:GET] Exception:", err);
-    return NextResponse.json({ success: false, error: String(err) }, { status: 500 });
+  } catch {
+    console.error("[api:tickets:GET] fetch failed");
+    return NextResponse.json({ success: false, error: "Tickets could not be loaded." }, { status: 503 });
   }
 }
 
 export async function POST(req: Request) {
-  const supabase = await createSupabaseServerClient();
-  const { data: userData } = await supabase.auth.getUser();
-
-  if (!userData?.user) {
-    return NextResponse.json({ success: false, error: "Unauthenticated" }, { status: 401 });
-  }
+  const auth = await authorizeActiveUserApi();
+  if (!auth.ok) return auth.response;
 
   try {
     const { subject, message } = await req.json();
 
-    if (!subject?.trim() || !message?.trim()) {
+    if (typeof subject !== "string" || typeof message !== "string" || !subject.trim() || !message.trim() || subject.length > 200 || message.length > 10000) {
       return NextResponse.json({ success: false, error: "Subject and message are required parameters." }, { status: 400 });
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await auth.supabase
       .from("support_tickets")
       .insert({
-        user_id: userData.user.id,
+        user_id: auth.user.id,
         subject: subject.trim(),
         message: message.trim(),
         status: "open",
@@ -56,15 +48,15 @@ export async function POST(req: Request) {
     if (error) throw error;
 
     // Log action to audit logs
-    await supabase.from("audit_logs").insert({
-      user_id: userData.user.id,
+    await auth.supabase.from("audit_logs").insert({
+      user_id: auth.user.id,
       action: "ticket_created",
-      details: { ticket_id: data.id, subject: data.subject }
+      details: { ticket_id: data.id }
     });
 
     return NextResponse.json({ success: true, data });
-  } catch (err) {
-    console.error("[api:tickets:POST] Exception:", err);
-    return NextResponse.json({ success: false, error: String(err) }, { status: 500 });
+  } catch {
+    console.error("[api:tickets:POST] save failed");
+    return NextResponse.json({ success: false, error: "Ticket could not be saved." }, { status: 503 });
   }
 }

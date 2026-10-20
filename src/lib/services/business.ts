@@ -1,4 +1,4 @@
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getBudgetSnapshot, getOwnedSubscription } from "@/lib/repositories/budget";
 import { planHasFeature, FeatureName } from "./features";
 
 export const PLAN_LIMITS = {
@@ -70,22 +70,7 @@ export function getPlanLimits(plan: string) {
 }
 
 export async function getUserSubscription(userId: string) {
-  const supabase = await createSupabaseServerClient();
-  const { data, error } = await supabase
-    .from("subscriptions")
-    .select("*")
-    .eq("user_id", userId)
-    .single();
-
-  if (error || !data) {
-    return {
-      plan: "free",
-      status: "active",
-      billingCycle: "monthly",
-      gracePeriodUntil: null,
-      subscriptionStatus: "active",
-    };
-  }
+  const data = await getOwnedSubscription(userId);
 
   return {
     plan: data.plan,
@@ -104,100 +89,7 @@ export async function getUserSubscription(userId: string) {
 }
 
 export async function getUserQuotaUsage(userId: string) {
-  const supabase = await createSupabaseServerClient();
-  
-  // 1. Get plan
-  const sub = await getUserSubscription(userId);
-  const plan = sub.plan || "free";
-
-  // 2. Fetch storage usage & document counts
-  const { data: uploads } = await supabase
-    .from("uploaded_materials")
-    .select("file_size")
-    .eq("user_id", userId)
-    .is("deleted_at", null);
-
-  const totalUploadsCount = uploads?.length || 0;
-  const totalStorageBytes = uploads?.reduce((sum, item) => sum + (item.file_size || 0), 0) || 0;
-
-  // 3. Fetch monthly AI requests
-  const startOfMonth = new Date();
-  startOfMonth.setDate(1);
-  startOfMonth.setHours(0, 0, 0, 0);
-
-  const { count: aiCount } = await supabase
-    .from("ai_requests")
-    .select("*", { count: "exact", head: true })
-    .eq("user_id", userId)
-    .gte("created_at", startOfMonth.toISOString());
-
-  // 4. Fetch monthly quiz generations
-  const { count: quizCount } = await supabase
-    .from("quizzes")
-    .select("*", { count: "exact", head: true })
-    .eq("user_id", userId)
-    .gte("created_at", startOfMonth.toISOString());
-
-  // 5. Fetch monthly flashcard generations from events telemetry
-  const { count: flashcardCount } = await supabase
-    .from("events")
-    .select("*", { count: "exact", head: true })
-    .eq("user_id", userId)
-    .eq("event_type", "Generated flashcards")
-    .gte("created_at", startOfMonth.toISOString());
-
-  // 6. Fetch daily AI requests limits
-  const startOfToday = new Date();
-  startOfToday.setHours(0, 0, 0, 0);
-
-  const { count: dailyAiCount } = await supabase
-    .from("ai_requests")
-    .select("*", { count: "exact", head: true })
-    .eq("user_id", userId)
-    .gte("created_at", startOfToday.toISOString());
-
-  // 7. Fetch OCR and voice usage from daily cache subscription_usage for the month
-  const { data: usageCache } = await supabase
-    .from("subscription_usage")
-    .select("ocr_pages, voice_usage_seconds, ai_requests, quizzes, flashcards, uploads")
-    .eq("user_id", userId)
-    .gte("usage_date", startOfMonth.toISOString().slice(0, 10));
-
-  let cachedOcr = 0;
-  let cachedVoice = 0;
-  
-  if (usageCache && usageCache.length > 0) {
-    cachedOcr = usageCache.reduce((sum, item) => sum + (item.ocr_pages || 0), 0);
-    cachedVoice = usageCache.reduce((sum, item) => sum + (item.voice_usage_seconds || 0), 0);
-  }
-
-  // Configure plan limits dynamically
-  const limits = getPlanLimits(plan);
-
-  return {
-    plan,
-    usage: {
-      storageBytes: totalStorageBytes,
-      uploadsCount: totalUploadsCount,
-      aiRequests: aiCount || 0,
-      quizzes: quizCount || 0,
-      flashcards: flashcardCount || 0,
-      dailyAiRequests: dailyAiCount || 0,
-      ocrPages: cachedOcr,
-      voiceSeconds: cachedVoice,
-    },
-    limits,
-    remaining: {
-      storageBytes: Math.max(0, limits.storage - totalStorageBytes),
-      uploadsCount: Math.max(0, limits.uploads - totalUploadsCount),
-      aiRequests: Math.max(0, limits.aiRequests - (aiCount || 0)),
-      quizzes: Math.max(0, limits.quizzes - (quizCount || 0)),
-      flashcards: Math.max(0, limits.flashcards - (flashcardCount || 0)),
-      dailyRequests: Math.max(0, limits.dailyRequests - (dailyAiCount || 0)),
-      ocrPages: Math.max(0, limits.ocrPages - cachedOcr),
-      voiceSeconds: Math.max(0, limits.voiceSeconds - cachedVoice),
-    }
-  };
+  return getBudgetSnapshot(userId);
 }
 
 export async function getRemainingQuota(userId: string) {

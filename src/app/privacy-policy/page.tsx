@@ -153,7 +153,7 @@ export default function PrivacyPolicyPage() {
             </section>
 
             <section>
-              <h2 className="text-2xl sm:text-3xl border-b border-white/5 pb-4 mb-6">10. Children's Privacy</h2>
+              <h2 className="text-2xl sm:text-3xl border-b border-white/5 pb-4 mb-6">10. Children&apos;s Privacy</h2>
               <p>
                 Lerna AI is designed for college and university students. Our services are not intended for or directed toward children under the age of 13 (or the minimum legal age in your jurisdiction). We do not knowingly collect personal information from children without appropriate parental consent. If we become aware that we have inadvertently collected such information, we will take reasonable steps to delete it promptly.
               </p>
@@ -169,7 +169,7 @@ export default function PrivacyPolicyPage() {
             <section>
               <h2 className="text-2xl sm:text-3xl border-b border-white/5 pb-4 mb-6">12. Changes to This Policy</h2>
               <p>
-                We may update this Privacy Policy from time to time to reflect changes in our practices, technology, or legal requirements. We will notify you of any material changes by updating the "Effective Date" at the top of this page or by sending a direct communication. Your continued use of Lerna AI after such updates constitutes acceptance of the revised policy.
+                We may update this Privacy Policy from time to time to reflect changes in our practices, technology, or legal requirements. We will notify you of any material changes by updating the &ldquo;Effective Date&rdquo; at the top of this page or by sending a direct communication. Your continued use of Lerna AI after such updates constitutes acceptance of the revised policy.
               </p>
             </section>
 

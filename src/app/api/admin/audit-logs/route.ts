@@ -1,27 +1,12 @@
+import { authorizeAdminApi } from "@/lib/auth/require-admin-api";
 import { NextResponse } from "next/server";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(req: Request) {
-  const supabase = await createSupabaseServerClient();
-  const { data: userData } = await supabase.auth.getUser();
-
-  if (!userData?.user) {
-    return NextResponse.json({ success: false, error: "Unauthenticated" }, { status: 401 });
-  }
-
-  const { data: isAdmin } = await supabase.rpc("is_admin", { user_id: userData.user.id });
-  
-  const adminEmails = process.env.ADMIN_EMAILS
-    ? process.env.ADMIN_EMAILS.split(",").map((e) => e.trim())
-    : ["msuraymond@gmail.com"];
-  const isFallbackAdmin = userData.user.email && adminEmails.includes(userData.user.email);
-  const isRoleAdmin = userData.user.app_metadata?.role === "admin";
-
-  if (!isAdmin && !isFallbackAdmin && !isRoleAdmin) {
-    return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 403 });
-  }
+export async function GET() {
+  const authorization = await authorizeAdminApi();
+  if (!authorization.ok) return authorization.response;
+  const { supabase } = authorization;
 
   try {
     const { data: logs, error } = await supabase
@@ -42,14 +27,17 @@ export async function GET(req: Request) {
 
     if (error) throw error;
 
-    const formatted = logs.map((l: any) => ({
+    const formatted = logs.map((l) => {
+      const profile = Array.isArray(l.profiles) ? l.profiles[0] : l.profiles;
+      return {
       id: l.id,
       action: l.action,
       details: l.details,
       created_at: l.created_at,
-      user_email: l.profiles?.email || "system",
-      user_name: l.profiles ? `${l.profiles.first_name || ""} ${l.profiles.last_name || ""}`.trim() : "System"
-    }));
+      user_email: profile?.email || "system",
+      user_name: profile ? `${profile.first_name || ""} ${profile.last_name || ""}`.trim() : "System"
+      };
+    });
 
     return NextResponse.json({ success: true, data: formatted });
   } catch (err) {

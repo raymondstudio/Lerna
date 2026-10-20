@@ -84,6 +84,7 @@ export function StudyWorkspace() {
   const [error, setError] = useState<string | null>(null);
   const [chatReference, setChatReference] = useState<ChatReferenceSelection | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const transcriptRef = useRef<HTMLDivElement>(null);
@@ -250,6 +251,7 @@ export function StudyWorkspace() {
       cancelled = true;
     };
   }, [ready, user, activeSessionId]);
+
 
   const scrollToBottom = (behavior: "smooth" | "auto" = "smooth") => {
     messagesEndRef.current?.scrollIntoView({ behavior, block: "end" });

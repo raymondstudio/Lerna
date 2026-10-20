@@ -1,47 +1,21 @@
 import { NextResponse } from "next/server";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { getRecentEvents, getAverageAiLatency } from "@/lib/services/analytics";
-
+import { requireAdminApi } from "@/lib/auth/require-admin-api";
+import { activityEnvironment } from "@/lib/activity/environment";
+import { parseActivityFilters } from "@/lib/activity/query";
+import { readActivity, readActivitySummary } from "@/lib/activity/sources";
+import { appendActivityEvent } from "@/lib/repositories/activity";
+import { filterHash } from "@/lib/activity/cursor";
+import { activityFailure } from "@/lib/activity/http";
 export const dynamic = "force-dynamic";
-
 export async function GET(request: Request) {
-  const supabase = await createSupabaseServerClient();
-  const { data: userData } = await supabase.auth.getUser();
-
-  if (!userData?.user) {
-    return NextResponse.json({ success: false, error: "Unauthenticated" }, { status: 401 });
-  }
-
-  const { data: isAdmin } = await supabase.rpc("is_admin", { user_id: userData.user.id });
-  
-  const adminEmails = process.env.ADMIN_EMAILS
-    ? process.env.ADMIN_EMAILS.split(",").map((e) => e.trim())
-    : ["msuraymond@gmail.com"];
-  const isFallbackAdmin = userData.user.email && adminEmails.includes(userData.user.email);
-  const isRoleAdmin = userData.user.app_metadata?.role === "admin";
-
-  if (!isAdmin && !isFallbackAdmin && !isRoleAdmin) {
-    return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 403 });
-  }
-
   try {
-    const { searchParams } = new URL(request.url);
-    const limit = Number(searchParams.get("limit")) || 20;
-
-    const [events, avgLatency] = await Promise.all([
-      getRecentEvents(limit),
-      getAverageAiLatency()
-    ]);
-
-    return NextResponse.json({
-      success: true,
-      data: {
-        events,
-        avgLatency
-      }
-    });
-  } catch (err) {
-    console.error("[api:admin:events] GET Exception:", err);
-    return NextResponse.json({ success: false, error: String(err) }, { status: 500 });
-  }
+    const { user } = await requireAdminApi();
+    const params = new URL(request.url).searchParams;
+    const filters = parseActivityFilters(params, activityEnvironment());
+    const auditFilters = { ...filters, startAt: new Date(Math.floor(Date.parse(filters.startAt) / 900000) * 900000).toISOString(), endAt: new Date(Math.floor(Date.parse(filters.endAt) / 900000) * 900000).toISOString() };
+    const hash = filterHash(auditFilters);
+    await appendActivityEvent({ event_type: "admin.activity.read", user_id: user.id, category: "admin", outcome: "attempted", properties: { filter_hash: hash }, dedup_key: `activity-read:${user.id}:${hash}:${Math.floor(Date.now() / 900000)}` });
+    const [page, summary] = await Promise.all([readActivity(filters), params.get("summary") === "true" ? readActivitySummary(filters) : Promise.resolve(undefined)]);
+    return NextResponse.json({ success: true, data: { ...page, summary } }, { headers: { "Cache-Control": "private, no-store" } });
+  } catch (error) { return activityFailure(error); }
 }

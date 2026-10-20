@@ -1,15 +1,20 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { HelpCircle, Check, Loader2, RefreshCw, User, Shield, AlertTriangle, Search, MessageSquare, Send, X, Clock } from "lucide-react";
+import { HelpCircle, Loader2, RefreshCw, User, Search, MessageSquare, Send, X } from "lucide-react";
+import { useVisibleRefresh } from "./use-visible-refresh";
+import { useAdminData } from "./use-admin-data";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/use-auth";
 
+type Ticket = { id: string; user_name: string | null; user_email: string | null; created_at: string; subject: string; message: string; category: string; priority: string; status: string; assigned_to: string | null; assignee_email: string | null; resolution_notes: string | null };
+type Reply = { id: string; message: string; created_at: string; sender_name: string; sender_email: string };
+type TicketUpdate = Partial<Pick<Ticket, 'status' | 'category' | 'priority' | 'assigned_to' | 'resolution_notes'>>;
 export function SupportTab() {
   const { user } = useAuth();
-  const [tickets, setTickets] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: rows, setData: setTickets, loading, error, reload: fetchTickets } = useAdminData<Ticket[]>("/api/admin/tickets");
+  const tickets = rows ?? [];
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [resolutionInput, setResolutionInput] = useState<{ [key: string]: string }>({});
 
@@ -20,56 +25,15 @@ export function SupportTab() {
   const [categoryFilter, setCategoryFilter] = useState("all");
 
   // Thread dialog state
-  const [selectedTicket, setSelectedTicket] = useState<any | null>(null);
-  const [replies, setReplies] = useState<any[]>([]);
+  const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
+  const [replies, setReplies] = useState<Reply[]>([]);
   const [loadingReplies, setLoadingReplies] = useState(false);
   const [replyText, setReplyText] = useState("");
   const [sendingReply, setSendingReply] = useState(false);
 
-  const fetchTickets = async () => {
-    try {
-      setLoading(true);
-      const res = await fetch("/api/admin/tickets");
-      const json = await res.json();
-      if (json.success && Array.isArray(json.data)) {
-        setTickets(json.data);
-        const inputs: { [key: string]: string } = {};
-        json.data.forEach((t: any) => {
-          inputs[t.id] = t.resolution_notes || "";
-        });
-        setResolutionInput(inputs);
-      }
-    } catch (err) {
-      console.error("[support-tab] Error fetching tickets:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  useVisibleRefresh(fetchTickets);
 
-  useEffect(() => {
-    void fetchTickets();
-
-    const { createSupabaseBrowserClient } = require("@/lib/supabase/client");
-    const supabase = createSupabaseBrowserClient();
-    if (!supabase) return;
-
-    const channel = supabase
-      .channel("support_tickets_realtime_sync")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "support_tickets" },
-        () => {
-          void fetchTickets();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      void supabase.removeChannel(channel);
-    };
-  }, []);
-
-  const handleUpdateTicket = async (ticketId: string, fields: any) => {
+  const handleUpdateTicket = async (ticketId: string, fields: TicketUpdate) => {
     try {
       setUpdatingId(ticketId);
       const res = await fetch("/api/admin/tickets", {
@@ -79,9 +43,9 @@ export function SupportTab() {
       });
       const json = await res.json();
       if (json.success) {
-        setTickets(prev => prev.map(t => t.id === ticketId ? { ...t, ...fields } : t));
+        setTickets(prev => (prev ?? []).map(t => t.id === ticketId ? { ...t, ...fields } : t));
         if (selectedTicket && selectedTicket.id === ticketId) {
-          setSelectedTicket((prev: any) => ({ ...prev, ...fields }));
+          setSelectedTicket(prev => prev ? { ...prev, ...fields } : null);
         }
       } else {
         alert(json.error || "Failed to update ticket.");
@@ -109,7 +73,7 @@ export function SupportTab() {
     }
   };
 
-  const handleOpenThread = (ticket: any) => {
+  const handleOpenThread = (ticket: Ticket) => {
     setSelectedTicket(ticket);
     void fetchReplies(ticket.id);
   };
@@ -164,6 +128,7 @@ export function SupportTab() {
     return matchesSearch && matchesStatus && matchesPriority && matchesCategory;
   });
 
+  if (error) return <p role="alert" className="p-4 text-xs text-red-300">{error}</p>;
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center gap-4">
@@ -252,7 +217,6 @@ export function SupportTab() {
             </thead>
             <tbody className="divide-y divide-white/5 text-slate-300">
               {filteredTickets.map((t) => {
-                const isAssignedToMe = user && t.assigned_to === user.id;
                 return (
                   <tr key={t.id} className="hover:bg-white/[0.01] transition-colors align-top">
                     <td className="p-4 whitespace-nowrap">
@@ -317,13 +281,13 @@ export function SupportTab() {
                       <textarea
                         rows={2}
                         placeholder="Log resolution steps taken..."
-                        value={resolutionInput[t.id] || ""}
+                        value={resolutionInput[t.id] ?? t.resolution_notes ?? ""}
                         onChange={(e) => setResolutionInput(prev => ({ ...prev, [t.id]: e.target.value }))}
                         className="w-full p-2 rounded-lg border border-white/10 bg-[#0d0f12] text-[11px] text-slate-300 focus:outline-none focus:border-cyan-500/40"
                       />
                       <Button
                         size="sm"
-                        onClick={() => handleUpdateTicket(t.id, { resolution_notes: resolutionInput[t.id] || "" })}
+                        onClick={() => handleUpdateTicket(t.id, { resolution_notes: resolutionInput[t.id] ?? t.resolution_notes ?? "" })}
                         disabled={updatingId === t.id}
                         className="h-7 px-2.5 bg-white/5 hover:bg-white/10 text-white border border-white/10 text-[10px]"
                       >

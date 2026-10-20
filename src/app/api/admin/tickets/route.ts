@@ -1,27 +1,14 @@
+import { authorizeAdminApi } from "@/lib/auth/require-admin-api";
+import { readBoundedJson } from "@/lib/http/bounded-json";
+import { OperationError } from "@/lib/repositories/operations";
 import { NextResponse } from "next/server";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(req: Request) {
-  const supabase = await createSupabaseServerClient();
-  const { data: userData } = await supabase.auth.getUser();
-
-  if (!userData?.user) {
-    return NextResponse.json({ success: false, error: "Unauthenticated" }, { status: 401 });
-  }
-
-  const { data: isAdmin } = await supabase.rpc("is_admin", { user_id: userData.user.id });
-  
-  const adminEmails = process.env.ADMIN_EMAILS
-    ? process.env.ADMIN_EMAILS.split(",").map((e) => e.trim())
-    : ["msuraymond@gmail.com"];
-  const isFallbackAdmin = userData.user.email && adminEmails.includes(userData.user.email);
-  const isRoleAdmin = userData.user.app_metadata?.role === "admin";
-
-  if (!isAdmin && !isFallbackAdmin && !isRoleAdmin) {
-    return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 403 });
-  }
+export async function GET() {
+  const authorization = await authorizeAdminApi();
+  if (!authorization.ok) return authorization.response;
+  const { supabase } = authorization;
 
   try {
     const { data: tickets, error } = await supabase
@@ -52,7 +39,10 @@ export async function GET(req: Request) {
     if (error) throw error;
 
     // Format profiles join safely
-    const formatted = tickets.map((t: any) => ({
+    const formatted = tickets.map((t) => {
+      const profile = Array.isArray(t.profiles) ? t.profiles[0] : t.profiles;
+      const assignee = Array.isArray(t.assignee) ? t.assignee[0] : t.assignee;
+      return {
       id: t.id,
       subject: t.subject,
       message: t.message,
@@ -62,57 +52,50 @@ export async function GET(req: Request) {
       assigned_to: t.assigned_to,
       resolution_notes: t.resolution_notes || "",
       created_at: t.created_at,
-      user_email: t.profiles?.email || "unknown",
-      user_name: t.profiles ? `${t.profiles.first_name || ""} ${t.profiles.last_name || ""}`.trim() : "Unknown User",
-      assignee_email: t.assignee?.email || "Unassigned",
-      assignee_name: t.assignee ? `${t.assignee.first_name || ""} ${t.assignee.last_name || ""}`.trim() : "Unassigned"
-    }));
+      user_email: profile?.email || "unknown",
+      user_name: profile ? `${profile.first_name || ""} ${profile.last_name || ""}`.trim() : "Unknown User",
+      assignee_email: assignee?.email || "Unassigned",
+      assignee_name: assignee ? `${assignee.first_name || ""} ${assignee.last_name || ""}`.trim() : "Unassigned"
+      };
+    });
 
     return NextResponse.json({ success: true, data: formatted });
-  } catch (err) {
-    console.error("[api:admin:tickets:GET] Exception:", err);
-    return NextResponse.json({ success: false, error: String(err) }, { status: 500 });
+  } catch {
+    console.error("[api:admin:tickets:GET] failed");
+    return NextResponse.json({ success: false, error: "Tickets could not be loaded." }, { status: 503 });
   }
 }
 
 export async function PUT(req: Request) {
-  const supabase = await createSupabaseServerClient();
-  const { data: userData } = await supabase.auth.getUser();
-
-  if (!userData?.user) {
-    return NextResponse.json({ success: false, error: "Unauthenticated" }, { status: 401 });
-  }
-
-  const { data: isAdmin } = await supabase.rpc("is_admin", { user_id: userData.user.id });
-  
-  const adminEmails = process.env.ADMIN_EMAILS
-    ? process.env.ADMIN_EMAILS.split(",").map((e) => e.trim())
-    : ["msuraymond@gmail.com"];
-  const isFallbackAdmin = userData.user.email && adminEmails.includes(userData.user.email);
-  const isRoleAdmin = userData.user.app_metadata?.role === "admin";
-
-  if (!isAdmin && !isFallbackAdmin && !isRoleAdmin) {
-    return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 403 });
-  }
+  const authorization = await authorizeAdminApi();
+  if (!authorization.ok) return authorization.response;
+  const { supabase } = authorization;
 
   try {
-    const { ticketId, status, priority, category, assigned_to, resolution_notes } = await req.json();
+    const input = await readBoundedJson(req, 16_384);
+    if (!input || typeof input !== "object" || Array.isArray(input)) return NextResponse.json({ success: false, error: "Invalid ticket update." }, { status: 400 });
+    const { ticketId, status, priority, category, assigned_to, resolution_notes } = input as Record<string, unknown>;
 
-    if (!ticketId) {
-      return NextResponse.json({ success: false, error: "Ticket ID is required." }, { status: 400 });
+    const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    if (typeof ticketId !== "string" || !uuid.test(ticketId)
+      || (status !== undefined && (typeof status !== "string" || !["open", "pending", "resolved", "closed"].includes(status)))
+      || (priority !== undefined && (typeof priority !== "string" || !["low", "medium", "high", "urgent"].includes(priority)))
+      || (category !== undefined && (typeof category !== "string" || !["Technical", "Billing", "Account", "Other"].includes(category)))
+      || (assigned_to !== undefined && assigned_to !== null && (typeof assigned_to !== "string" || !uuid.test(assigned_to)))
+      || (resolution_notes !== undefined && (typeof resolution_notes !== "string" || resolution_notes.length > 10_000))) {
+      return NextResponse.json({ success: false, error: "Invalid ticket update." }, { status: 400 });
     }
 
-    const updatePayload: any = {};
+    const updatePayload: Record<string, unknown> = {};
     if (status !== undefined) updatePayload.status = status;
     if (priority !== undefined) updatePayload.priority = priority;
     if (category !== undefined) updatePayload.category = category;
     if (assigned_to !== undefined) updatePayload.assigned_to = assigned_to;
     if (resolution_notes !== undefined) {
       updatePayload.resolution_notes = resolution_notes;
-      if (status === "resolved" || status === "closed") {
-        updatePayload.closed_at = new Date().toISOString();
-      }
     }
+    if (status === "resolved" || status === "closed") updatePayload.closed_at = new Date().toISOString();
+    if (Object.keys(updatePayload).length === 0) return NextResponse.json({ success: false, error: "Choose a ticket field to update." }, { status: 400 });
     updatePayload.updated_at = new Date().toISOString();
 
     const { data, error } = await supabase
@@ -124,16 +107,13 @@ export async function PUT(req: Request) {
 
     if (error) throw error;
 
-    // Log update action to audit logs
-    await supabase.from("audit_logs").insert({
-      user_id: userData.user.id,
-      action: "ticket_updated",
-      details: { ticket_id: ticketId, updates: updatePayload }
-    });
+    // The database trigger writes the content-free v1 staff event in the same
+    // transaction. Legacy audit rows must not copy resolution note content.
 
     return NextResponse.json({ success: true, data });
-  } catch (err) {
-    console.error("[api:admin:tickets:PUT] Exception:", err);
-    return NextResponse.json({ success: false, error: String(err) }, { status: 500 });
+  } catch (error) {
+    if (error instanceof OperationError && error.status >= 400 && error.status < 500) return NextResponse.json({ success: false, error: error.message }, { status: error.status });
+    console.error("[api:admin:tickets:PUT] failed");
+    return NextResponse.json({ success: false, error: "Ticket could not be updated." }, { status: 503 });
   }
 }

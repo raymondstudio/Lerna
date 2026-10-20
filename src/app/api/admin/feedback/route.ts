@@ -1,27 +1,12 @@
+import { authorizeAdminApi } from "@/lib/auth/require-admin-api";
 import { NextResponse } from "next/server";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(req: Request) {
-  const supabase = await createSupabaseServerClient();
-  const { data: userData } = await supabase.auth.getUser();
-
-  if (!userData?.user) {
-    return NextResponse.json({ success: false, error: "Unauthenticated" }, { status: 401 });
-  }
-
-  const { data: isAdmin } = await supabase.rpc("is_admin", { user_id: userData.user.id });
-  
-  const adminEmails = process.env.ADMIN_EMAILS
-    ? process.env.ADMIN_EMAILS.split(",").map((e) => e.trim())
-    : ["msuraymond@gmail.com"];
-  const isFallbackAdmin = userData.user.email && adminEmails.includes(userData.user.email);
-  const isRoleAdmin = userData.user.app_metadata?.role === "admin";
-
-  if (!isAdmin && !isFallbackAdmin && !isRoleAdmin) {
-    return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 403 });
-  }
+export async function GET() {
+  const authorization = await authorizeAdminApi();
+  if (!authorization.ok) return authorization.response;
+  const { supabase } = authorization;
 
   try {
     const { data: feedbacks, error } = await supabase
@@ -44,7 +29,9 @@ export async function GET(req: Request) {
 
     if (error) throw error;
 
-    const formatted = feedbacks.map((f: any) => ({
+    const formatted = feedbacks.map((f) => {
+      const profile = Array.isArray(f.profiles) ? f.profiles[0] : f.profiles;
+      return {
       id: f.id,
       type: f.type,
       message: f.message,
@@ -52,9 +39,10 @@ export async function GET(req: Request) {
       status: f.status || "under-review",
       admin_notes: f.admin_notes || "",
       created_at: f.created_at,
-      user_email: f.profiles?.email || "unknown",
-      user_name: f.profiles ? `${f.profiles.first_name || ""} ${f.profiles.last_name || ""}`.trim() : "Unknown User"
-    }));
+      user_email: profile?.email || "unknown",
+      user_name: profile ? `${profile.first_name || ""} ${profile.last_name || ""}`.trim() : "Unknown User"
+      };
+    });
 
     return NextResponse.json({ success: true, data: formatted });
   } catch (err) {
@@ -64,24 +52,9 @@ export async function GET(req: Request) {
 }
 
 export async function PUT(req: Request) {
-  const supabase = await createSupabaseServerClient();
-  const { data: userData } = await supabase.auth.getUser();
-
-  if (!userData?.user) {
-    return NextResponse.json({ success: false, error: "Unauthenticated" }, { status: 401 });
-  }
-
-  const { data: isAdmin } = await supabase.rpc("is_admin", { user_id: userData.user.id });
-  
-  const adminEmails = process.env.ADMIN_EMAILS
-    ? process.env.ADMIN_EMAILS.split(",").map((e) => e.trim())
-    : ["msuraymond@gmail.com"];
-  const isFallbackAdmin = userData.user.email && adminEmails.includes(userData.user.email);
-  const isRoleAdmin = userData.user.app_metadata?.role === "admin";
-
-  if (!isAdmin && !isFallbackAdmin && !isRoleAdmin) {
-    return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 403 });
-  }
+  const authorization = await authorizeAdminApi();
+  if (!authorization.ok) return authorization.response;
+  const { supabase } = authorization;
 
   try {
     const { feedbackId, status, adminNotes } = await req.json();
@@ -90,7 +63,7 @@ export async function PUT(req: Request) {
       return NextResponse.json({ success: false, error: "Feedback ID is required." }, { status: 400 });
     }
 
-    const updatePayload: any = {};
+    const updatePayload: Record<string, unknown> = {};
     if (status !== undefined) updatePayload.status = status;
     if (adminNotes !== undefined) updatePayload.admin_notes = adminNotes;
     updatePayload.updated_at = new Date().toISOString();

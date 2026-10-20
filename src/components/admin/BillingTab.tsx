@@ -1,14 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Loader2, Ticket, Check, AlertCircle, CreditCard, Users, Coins, Sparkles, Plus, Trash2 } from "lucide-react";
+import { useState } from "react";
+import { Loader2, AlertCircle, CreditCard, Users, Coins, Sparkles, Plus, Trash2 } from "lucide-react";
+import { useAdminData } from "./use-admin-data";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
+type BillingData = {
+  stats: { distribution: Record<string, number>; transactions: { pending: number; successful: number; failed: number; totalAmount: number }; mrr: number | null; arr: number | null; arpu: number | null; usageTotals: { aiRequests: number; uploads: number; quizzes: number; flashcards: number; ocrPages: number; voiceSeconds: number } };
+  coupons: Array<{ id: string; code: string; discount_value: number; discount_type: string; redemption_count: number; max_redemptions: number | null; is_active: boolean }>;
+  recentHistory: Array<{ id: string; old_plan: string | null; new_plan: string; reason: string | null; created_at: string; profiles: { email: string } | null }>;
+};
 export function BillingTab() {
-  const [data, setData] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { data, loading, error, reload: loadBillingData } = useAdminData<BillingData>("/api/admin/billing", null);
 
   // Coupon Creation Form state
   const [code, setCode] = useState("");
@@ -19,29 +23,6 @@ export function BillingTab() {
   const [creatingCoupon, setCreatingCoupon] = useState(false);
   const [couponMessage, setCouponMessage] = useState<string | null>(null);
   const [couponError, setCouponError] = useState<string | null>(null);
-
-  const loadBillingData = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const res = await fetch("/api/admin/billing");
-      const json = await res.json();
-      if (json.success) {
-        setData(json);
-      } else {
-        setError(json.error || "Failed to load admin billing data.");
-      }
-    } catch (err) {
-      console.error(err);
-      setError("Network connection error.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    void loadBillingData();
-  }, []);
 
   const handleCreateCoupon = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -75,7 +56,7 @@ export function BillingTab() {
       } else {
         setCouponError(json.error || "Failed to create coupon.");
       }
-    } catch (err) {
+    } catch {
       setCouponError("Network error creating coupon.");
     } finally {
       setCreatingCoupon(false);
@@ -124,7 +105,8 @@ export function BillingTab() {
     );
   }
 
-  const { stats, coupons, recentHistory } = data || {};
+  if (error || !data) return <p role="alert" className="p-4 text-xs text-red-300">{error || "Billing data is unavailable."}</p>;
+  const { stats, coupons, recentHistory } = data;
 
   return (
     <div className="space-y-6">
@@ -136,9 +118,9 @@ export function BillingTab() {
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         {[
-          { label: "Estimated MRR", value: `$${stats?.mrr || 0}`, desc: "Active plans multiplier", icon: Coins, color: "text-emerald-400" },
-          { label: "ARR Projection", value: `$${stats?.arr || 0}`, desc: "Annualized current run rate", icon: Sparkles, color: "text-cyan-400" },
-          { label: "Average ARPU", value: `$${stats?.arpu || 0}`, desc: "Monthly revenue per user", icon: Users, color: "text-purple-400" },
+          { label: "Estimated MRR", value: stats.mrr == null ? "N/A" : `$${stats.mrr}`, desc: "Active plans multiplier", icon: Coins, color: "text-emerald-400" },
+          { label: "ARR Projection", value: stats.arr == null ? "N/A" : `$${stats.arr}`, desc: "Annualized current run rate", icon: Sparkles, color: "text-cyan-400" },
+          { label: "Average ARPU", value: stats.arpu == null ? "N/A" : `$${stats.arpu}`, desc: "Monthly revenue per user", icon: Users, color: "text-purple-400" },
           { label: "SaaS Sales Vol", value: `$${stats?.transactions?.totalAmount || 0}`, desc: `Successful payments: ${stats?.transactions?.successful || 0}`, icon: CreditCard, color: "text-yellow-400" }
         ].map((kpi, idx) => (
           <div key={idx} className="p-4 rounded-xl border border-white/5 bg-[#14161a] space-y-1.5">
@@ -166,7 +148,7 @@ export function BillingTab() {
               { label: "Team Plan", count: stats?.distribution?.team || 0 },
               { label: "Enterprise Plan", count: stats?.distribution?.enterprise || 0 }
             ].map((p, idx) => {
-              const total = Object.values(stats?.distribution || {}).reduce((a: any, b: any) => a + b, 0) as number;
+              const total = Object.values(stats?.distribution || {}).reduce((a, b) => a + b, 0);
               const pct = total > 0 ? Math.round((p.count / total) * 100) : 0;
               return (
                 <div key={idx} className="space-y-1.5 text-[11px]">
@@ -261,7 +243,7 @@ export function BillingTab() {
             <p className="text-xs text-slate-500 italic">No coupons registered yet.</p>
           ) : (
             <div className="max-h-[220px] overflow-y-auto pr-1 space-y-2 text-[10px]">
-              {coupons?.map((c: any) => (
+              {coupons?.map((c) => (
                 <div key={c.id} className="p-2.5 rounded border border-white/5 bg-[#0d0f12] flex justify-between items-center">
                   <div className="space-y-1">
                     <span className="font-mono font-bold text-cyan-400 block">{c.code}</span>
@@ -294,7 +276,7 @@ export function BillingTab() {
             <p className="text-xs text-slate-500 italic">No subscription logs found.</p>
           ) : (
             <div className="max-h-[220px] overflow-y-auto pr-1 space-y-2 text-[10px]">
-              {recentHistory?.map((h: any) => (
+              {recentHistory?.map((h) => (
                 <div key={h.id} className="p-2.5 rounded border border-white/5 bg-[#0d0f12] space-y-1">
                   <div className="flex justify-between font-medium">
                     <span className="text-slate-200 capitalize">{h.profiles?.email || "Unknown User"}</span>
