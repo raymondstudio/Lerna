@@ -25,10 +25,10 @@ const bodyFont = localFont({
 export const metadata: Metadata = {
   metadataBase: new URL("https://www.uselerna.app"),
   title: {
-    default: "Lerna AI | Smart Learning & AI Tutoring",
+    default: "Lerna AI | Understand your materials. Keep what you learn.",
     template: "%s | Lerna AI"
   },
-  description: "The most intuitive AI tutoring platform built for actual studying. Ask questions, upload PDFs, and build smart revision plans.",
+  description: "Ask questions about your learning materials, save notes with study sessions, and reopen your work when you are ready to continue.",
   keywords: ["AI tutor", "Lerna", "smart learning", "study app", "AI education", "PDF learning", "revision plans", "AI study buddy"],
   authors: [{ name: "Raymond Iorliam" }],
   creator: "Raymond Iorliam",
@@ -42,23 +42,22 @@ export const metadata: Metadata = {
     locale: "en_US",
     url: "https://www.uselerna.app",
     title: "Lerna AI | Understand your materials. Keep what you learn.",
-    description: "Experience the most intuitive AI tutoring platform built for actual studying. Upload your lecture materials and get instant, structured guidance.",
+    description: "Ask questions about your learning materials and keep notes with your study sessions.",
     siteName: "Lerna AI",
     images: [
       {
         url: "/dashboard-mockup.png",
-        width: 1200,
-        height: 630,
-        alt: "Lerna Dashboard Mockup",
+        width: 2914,
+        height: 1736,
+        alt: "Lerna study workspace preview",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Lerna AI | Smart Learning & AI Tutoring",
-    description: "Experience the most intuitive AI tutoring platform built for actual studying.",
+    title: "Lerna AI | Understand your materials. Keep what you learn.",
+    description: "Ask questions about your learning materials and keep notes with your study sessions.",
     images: ["/dashboard-mockup.png"],
-    creator: "@RaymondIorliam",
   },
   alternates: {
     canonical: "https://www.uselerna.app",
