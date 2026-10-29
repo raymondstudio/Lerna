@@ -52,3 +52,19 @@ supabase/.branches/
 .stabilization-local/
 prd
 prd2
+
+# Generated complete skill adapters; canonical source is .agents/skills
+/.claude/skills/graphify/
+/.claude/skills/vercel-react-best-practices/
+/.claude/skills/web-design-guidelines/
+/.claude/skills/security-best-practices/
+/.claude/skills/playwright/
+/.claude/skills/supabase/
+/.claude/skills/supabase-postgres-best-practices/
+/.cline/skills/graphify/
+/.cline/skills/vercel-react-best-practices/
+/.cline/skills/web-design-guidelines/
+/.cline/skills/security-best-practices/
+/.cline/skills/playwright/
+/.cline/skills/supabase/
+/.cline/skills/supabase-postgres-best-practices/

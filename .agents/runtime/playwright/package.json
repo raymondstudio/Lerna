@@ -1,0 +1,9 @@
+{
+  "name": "lerna-agent-browser-runtime",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Isolated agent tooling only; separate from Lerna application dependencies",
+  "dependencies": {
+    "@playwright/cli": "0.1.22"
+  }
+}

@@ -1,0 +1,5 @@
+---
+description: Lerna portable skill routing
+alwaysApply: true
+---
+Read AGENTS.md, .agents/AGENTS.md and docs/AGENT_SKILL_ROUTING.md. Use only task-relevant canonical .agents/skills bundles.
