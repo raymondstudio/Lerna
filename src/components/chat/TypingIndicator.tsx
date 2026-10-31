@@ -1,31 +1,55 @@
 "use client";
 
-import { motion } from "framer-motion";
-import { Brain } from "lucide-react";
+import { useEffect, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+
+const THINKING_STAGES = [
+  "Thinking…",
+  "Analyzing context…",
+  "Synthesizing response…",
+  "Formulating explanation…",
+];
 
 export function TypingIndicator() {
+  const [stageIndex, setStageIndex] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setStageIndex((prev) => (prev + 1) % THINKING_STAGES.length);
+    }, 2400);
+
+    return () => clearInterval(interval);
+  }, []);
+
   return (
-    <motion.div 
-      initial={{ opacity: 0, y: 5 }}
+    <motion.div
+      initial={{ opacity: 0, y: 4 }}
       animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: 5 }}
-      transition={{ duration: 0.25 }}
-      className="flex w-full gap-4 group px-2 sm:px-0"
+      exit={{ opacity: 0, y: -4 }}
+      transition={{ duration: 0.2 }}
+      className="flex w-full flex-col items-start my-2.5"
     >
-      <div className="flex-shrink-0 flex flex-col items-center">
-        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-cyan-500 text-slate-950 shadow-[0_0_15px_rgba(6,182,212,0.4)]">
-          <Brain className="h-5 w-5" />
-        </div>
-      </div>
-      
-      <div className="flex-1 min-w-0 pt-1">
-        <div className="font-semibold text-slate-400 text-sm mb-1">
-          Lerna
-        </div>
-        <div className="rounded-2xl border border-white/5 bg-white/[0.04] px-4 py-3 flex items-center gap-1.5 w-fit">
-          <span className="h-1.5 w-1.5 bg-cyan-400 rounded-full animate-bounce [animation-delay:-0.3s]"></span>
-          <span className="h-1.5 w-1.5 bg-cyan-400 rounded-full animate-bounce [animation-delay:-0.15s]"></span>
-          <span className="h-1.5 w-1.5 bg-cyan-400 rounded-full animate-bounce"></span>
+      <div className="flex items-center gap-2.5 py-1 text-slate-400 select-none">
+        {/* Subtle pulsing indicator */}
+        <span className="relative flex h-2 w-2">
+          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-50" />
+          <span className="relative inline-flex rounded-full h-2 w-2 bg-cyan-400" />
+        </span>
+
+        {/* Thought state text */}
+        <div className="h-5 flex items-center overflow-hidden">
+          <AnimatePresence mode="wait">
+            <motion.span
+              key={stageIndex}
+              initial={{ opacity: 0, y: 3 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -3 }}
+              transition={{ duration: 0.22, ease: "easeOut" }}
+              className="italic text-slate-400 font-normal text-sm md:text-[15px] tracking-wide"
+            >
+              {THINKING_STAGES[stageIndex]}
+            </motion.span>
+          </AnimatePresence>
         </div>
       </div>
     </motion.div>

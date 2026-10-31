@@ -127,3 +127,37 @@
   letter-spacing: 0.01em;
   line-height: 1.4;
 }
+
+/* ── KaTeX / Math display formatting ──────────────────────────────── */
+.katex-display {
+  display: block;
+  overflow-x: auto;
+  overflow-y: hidden;
+  margin: 1.25rem 0;
+  padding: 0.75rem 0;
+  text-align: center;
+}
+
+.katex-display > .katex {
+  display: block;
+  font-size: 1.1em;
+}
+
+.math.math-display {
+  display: block;
+}
+
+.katex {
+  font-size: 1em;
+}
+
+/* Inline math stays in flow */
+.math.math-inline .katex {
+  font-size: 0.95em;
+}
+
+/* Ensure code block pre does not wrap math */
+.markdown-content .katex-display {
+  margin: 1rem 0;
+  padding: 0.5rem 0.25rem;
+}

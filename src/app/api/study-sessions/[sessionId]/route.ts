@@ -29,6 +29,10 @@ function mapStudySessionRow(session: any): StudySessionRecord {
   };
 }
 
+export function invalidateSessionServerCache(_userId?: string, _sessionId?: string) {
+  // No-op: dynamic requests directly query the authoritative database state
+}
+
 export async function GET(
   _req: Request,
   context: { params: Promise<{ sessionId: string }> }
@@ -64,6 +68,9 @@ export async function GET(
       .maybeSingle();
 
     if (error || !session) {
+      if (error) {
+        console.error("[api:study-sessions:id] supabase query error", { requestId, sessionId, userId: user.id, error });
+      }
       return NextResponse.json(
         {
           success: false,
@@ -77,13 +84,24 @@ export async function GET(
       );
     }
 
-    return NextResponse.json({
-      success: true,
-      requestId,
-      data: {
-        session: mapStudySessionRow(session),
+    const mapped = mapStudySessionRow(session);
+
+    return NextResponse.json(
+      {
+        success: true,
+        requestId,
+        data: {
+          session: mapped,
+        },
       },
-    });
+      {
+        headers: {
+          "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+          "Pragma": "no-cache",
+          "Expires": "0",
+        },
+      }
+    );
   } catch (error) {
     return NextResponse.json(
       {
@@ -256,6 +274,8 @@ export async function DELETE(_req: Request, context: { params: Promise<{ session
         { status: 404 },
       );
     }
+
+    invalidateSessionServerCache(user.id, sessionId);
 
     return NextResponse.json({
       success: true,

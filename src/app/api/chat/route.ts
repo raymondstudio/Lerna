@@ -5,6 +5,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { DEFAULT_STUDY_SESSION_TITLE, generateStudySessionTitle } from "@/lib/study-sessions/title";
 import type { StudySessionRecord } from "@/lib/study-sessions/types";
 import { emitAnalyticsEvent } from "@/lib/analytics/events";
+import { invalidateSessionServerCache } from "@/app/api/study-sessions/[sessionId]/route";
 
 function getLastUserMessage(messages: ChatMessage[]) {
   return [...messages].reverse().find((message) => message?.role === "user" && message?.content?.trim());
@@ -337,6 +338,8 @@ export async function POST(req: Request) {
       content: aiMessage.content,
       sources: aiMessage.sources ?? [],
     });
+
+    invalidateSessionServerCache(user.id, session.id);
 
     if (!assistantMessageError && aiMessage.usage) {
       try {
