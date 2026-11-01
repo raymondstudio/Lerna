@@ -15,19 +15,29 @@ occurred. The original main checkout remains untouched.
 | `644a80b` | M6a landing/source metadata authored in isolated design worktree, reviewed by lead; five-width static fixture | Hydrated local browser passed in the integrated follow-up; auth entry and performance comparison remain open |
 | `c1300ed` | Integrated source candidate; targeted independent reviews and corrections; 82 Node/117 Vitest, lint, typecheck and production build pass | Overall milestone acceptance, full integrated re-audit and real provider/browser gates remain open |
 | `fb0f192` | Documentation/evidence checkpoint and independent review log | Full M8 acceptance remains open |
+| `e4bb054` | Local candidate manifest and framework guidance | Full M8 acceptance remains open |
+| `1aa101d` | Portable project skills and isolated Graphify (`0.9.97`) + Playwright (`0.1.22`) tooling | Tooling smoke/fixtures passed; zero app changes |
 
 The [workboard](STABILIZATION_WORKBOARD.md) is the authoritative list as more
 reviewed commits land. Integrated security, persistence, authentication,
 observability and shared-component source is preserved in `c1300ed` after
-targeted independent review. Full integrated re-audit and milestone acceptance
-remain open; do not deploy this candidate. The baseline audit's
-5 passing/11 failing secure expectations remain historical evidence. The
-old dependency-mocked runner is incompatible with several revised module
-boundaries (3 pass/13 harness errors on current replay), so it cannot certify
-the new branch. Current application checks passed 82 Node and 117 Vitest tests;
-the ordered SQL chain passed 30 synthetic controls, including deletion
-pseudonymization, administrative transaction rollback and the final quiz save
-slot. This is not live Supabase or browser evidence.
+targeted independent review, and extended on 29 October 2026 with additive
+audit repairs (`supabase/migrations/20261029120000_stabilization_audit_repairs.sql`,
+admin/learner route hardening, `/privacy-policy` canonical fix) and durable
+audit knowledge (`docs/audit/*`, `scripts/audit_knowledge.py`). Full integrated
+re-audit of the 29 October repairs and live container/milestone acceptance
+remain open; do not deploy this candidate. The baseline audit's 5 passing/11
+failing secure expectations remain historical evidence; on 29 October 2026 the
+offline VM harness in `docs/security/security-boundary-tests.mjs` and
+`docs/security/parser-render-tests.mjs` was repaired to resolve first-party
+`@/lib/*` modules and `node:worker_threads`, passing **16/16** `--secure`
+assertions and all parser/render checks. Current application checks pass **86
+Node** and **118 Vitest** tests; the ordered SQL chain passes **34 synthetic
+controls**, including feedback own-read/admin-update, broadcast/coupon/institution
+role and MFA boundaries, hardened legacy admin RPC AAL2/target/v0 controls,
+`audit_logs` PII removal and deletion pseudonymization, administrative
+transaction rollback, the final quiz save slot, and v1 upload/recovery lifecycle
+events. This is not live Supabase or browser evidence.
 Final test/lint/typecheck/build logs are retained under the ignored
 `.stabilization-local/evidence/final-*-20261020.log` paths. An unrestricted
 concurrent Vitest run hit Windows `spawn EPERM`; two isolated workers passed

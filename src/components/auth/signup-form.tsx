@@ -553,7 +553,7 @@ export function SignupForm({
             />
             <span className="text-xs text-slate-400 group-hover:text-slate-300 transition-colors font-medium">
               I agree to the{" "}
-              <a href="#" className="text-white hover:text-cyan-400 transition-colors font-semibold" onClick={(e) => e.preventDefault()}>
+              <a href="/privacy-policy" target="_blank" rel="noopener noreferrer" className="text-white hover:text-cyan-400 transition-colors font-semibold">
                 Privacy Policy
               </a>
             </span>

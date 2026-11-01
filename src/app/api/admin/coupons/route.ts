@@ -1,4 +1,6 @@
 import { authorizeAdminApi } from "@/lib/auth/require-admin-api";
+import { readBoundedJson } from "@/lib/http/bounded-json";
+import { OperationError } from "@/lib/repositories/operations";
 import { NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
@@ -19,24 +21,31 @@ export async function GET() {
     return NextResponse.json({
       success: true,
       coupons: data || [],
-    });
-  } catch (err) {
-    console.error("[api:admin:coupons:GET] Error:", err);
-    return NextResponse.json({ success: false, error: String(err) }, { status: 500 });
+    }, { headers: { "Cache-Control": "private, no-store" } });
+  } catch {
+    console.error("[api:admin:coupons:GET] failed");
+    return NextResponse.json({ success: false, error: "Coupons could not be loaded." }, { status: 503, headers: { "Cache-Control": "private, no-store" } });
   }
 }
 
 export async function POST(req: Request) {
   const authorization = await authorizeAdminApi({ requireMfa: true });
   if (!authorization.ok) return authorization.response;
-  const { supabase, user } = authorization;
+  const { supabase } = authorization;
 
   try {
-    const body = await req.json();
-    const { code, discountType, discountValue, maxRedemptions, expiresAt } = body;
+    const body = await readBoundedJson(req, 4096);
+    if (!body || typeof body !== "object" || Array.isArray(body)) {
+      return NextResponse.json({ success: false, error: "Invalid coupon payload." }, { status: 400, headers: { "Cache-Control": "private, no-store" } });
+    }
+    const { code, discountType, discountValue, maxRedemptions, expiresAt } = body as Record<string, unknown>;
 
-    if (!code || !discountType || discountValue === undefined) {
-      return NextResponse.json({ success: false, error: "Missing required fields" }, { status: 400 });
+    if (typeof code !== "string" || !/^[A-Za-z0-9_-]{2,64}$/.test(code.trim())
+      || (discountType !== "percentage" && discountType !== "fixed")
+      || typeof discountValue !== "number" || !Number.isFinite(discountValue) || discountValue <= 0
+      || (discountType === "percentage" && discountValue > 100)
+      || (maxRedemptions !== undefined && maxRedemptions !== null && (typeof maxRedemptions !== "number" || !Number.isInteger(maxRedemptions) || maxRedemptions < 1))) {
+      return NextResponse.json({ success: false, error: "Provide a valid coupon code, discount type, and value." }, { status: 400, headers: { "Cache-Control": "private, no-store" } });
     }
 
     const { data, error } = await supabase
@@ -45,8 +54,8 @@ export async function POST(req: Request) {
         code: code.toUpperCase().trim(),
         discount_type: discountType,
         discount_value: Number(discountValue),
-        max_redemptions: maxRedemptions ? Number(maxRedemptions) : null,
-        expires_at: expiresAt || null,
+        max_redemptions: typeof maxRedemptions === "number" ? maxRedemptions : null,
+        expires_at: typeof expiresAt === "string" && expiresAt.trim() ? expiresAt.trim() : null,
         is_active: true,
       })
       .select()
@@ -54,59 +63,48 @@ export async function POST(req: Request) {
 
     if (error) throw error;
 
-    // Log to audit log
-    await supabase.from("audit_logs").insert({
-      user_id: user?.id,
-      action: "coupon_created",
-      details: { code: code.toUpperCase(), discountType, discountValue }
-    });
-
+    // Database trigger stabilization_coupon_audit writes the transactional v1 event.
     return NextResponse.json({
       success: true,
       coupon: data,
-    });
-  } catch (err) {
-    console.error("[api:admin:coupons:POST] Error:", err);
-    return NextResponse.json({ success: false, error: String(err) }, { status: 500 });
+    }, { headers: { "Cache-Control": "private, no-store" } });
+  } catch (error) {
+    if (error instanceof OperationError && error.status >= 400 && error.status < 500) {
+      return NextResponse.json({ success: false, error: error.message }, { status: error.status, headers: { "Cache-Control": "private, no-store" } });
+    }
+    console.error("[api:admin:coupons:POST] failed");
+    return NextResponse.json({ success: false, error: "Coupon could not be created." }, { status: 503, headers: { "Cache-Control": "private, no-store" } });
   }
 }
 
 export async function DELETE(req: Request) {
   const authorization = await authorizeAdminApi({ requireMfa: true });
   if (!authorization.ok) return authorization.response;
-  const { supabase, user } = authorization;
+  const { supabase } = authorization;
 
   try {
     const { searchParams } = new URL(req.url);
-    const code = searchParams.get("code");
+    const code = searchParams.get("code")?.trim();
 
-    if (!code) {
-      return NextResponse.json({ success: false, error: "Coupon code is required" }, { status: 400 });
+    if (!code || !/^[A-Za-z0-9_-]{2,64}$/.test(code)) {
+      return NextResponse.json({ success: false, error: "Coupon code is required" }, { status: 400, headers: { "Cache-Control": "private, no-store" } });
     }
 
-    // Soft delete by updating is_active to false
     const { data, error } = await supabase
       .from("coupon_codes")
       .update({ is_active: false })
-      .eq("code", code.toUpperCase().trim())
+      .eq("code", code.toUpperCase())
       .select()
       .single();
 
     if (error) throw error;
 
-    // Log to audit log
-    await supabase.from("audit_logs").insert({
-      user_id: user?.id,
-      action: "coupon_disabled",
-      details: { code: code.toUpperCase() }
-    });
-
     return NextResponse.json({
       success: true,
       coupon: data,
-    });
-  } catch (err) {
-    console.error("[api:admin:coupons:DELETE] Error:", err);
-    return NextResponse.json({ success: false, error: String(err) }, { status: 500 });
+    }, { headers: { "Cache-Control": "private, no-store" } });
+  } catch {
+    console.error("[api:admin:coupons:DELETE] failed");
+    return NextResponse.json({ success: false, error: "Coupon could not be disabled." }, { status: 503, headers: { "Cache-Control": "private, no-store" } });
   }
 }

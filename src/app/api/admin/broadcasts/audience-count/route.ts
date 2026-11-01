@@ -39,9 +39,9 @@ export async function GET(req: Request) {
 
     if (error) throw error;
 
-    return NextResponse.json({ success: true, count: count || 0 });
-  } catch (err) {
-    console.error("[api:admin:broadcasts:audience-count] Exception:", err);
-    return NextResponse.json({ success: false, error: String(err) }, { status: 500 });
+    return NextResponse.json({ success: true, count: count || 0 }, { headers: { "Cache-Control": "private, no-store" } });
+  } catch {
+    console.error("[api:admin:broadcasts:audience-count] failed");
+    return NextResponse.json({ success: false, error: "Audience count is temporarily unavailable." }, { status: 503, headers: { "Cache-Control": "private, no-store" } });
   }
 }

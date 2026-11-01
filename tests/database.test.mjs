@@ -422,3 +422,78 @@ test('stale provider holds become unknown rather than released or successful, on
   assert.equal((await sql('select public.reconcile_stale_operations(100) n')).rows[0].n,0);
   assert.equal((await adminSql('select state from private.operation_reservations where id=$1',[id])).rows[0].state,'unknown');
 });
+
+test('learner feedback own-read and admin feedback/broadcast/coupon/institution mutations enforce role and MFA boundaries', async () => {
+  await role('authenticated', A);
+  const fbId = (await sql("insert into public.feedback(user_id,type,message,rating) values($1,'general','Synthetic feedback',5) returning id", [A])).rows[0].id;
+  assert.equal((await sql('select count(*)::int n from public.feedback where id=$1', [fbId])).rows[0].n, 1);
+  assert.equal((await sql("update public.feedback set status='planned' where id=$1 returning id", [fbId])).rows.length, 0);
+  await role('authenticated', B);
+  assert.equal((await sql('select count(*)::int n from public.feedback where id=$1', [fbId])).rows[0].n, 0);
+  await rejectsSql("insert into public.broadcasts(title,content,created_by,status,target_audience) values('T','C',$1,'published','all')", [B], /row-level security|permission|denied/i);
+  await role('authenticated', ADMIN, 'aal1');
+  await sql("update public.feedback set status='planned',admin_notes='Reviewed' where id=$1", [fbId]);
+  const bId = (await sql("insert into public.broadcasts(title,content,created_by,status,target_audience) values('Synthetic','Body',$1,'published','all') returning id", [ADMIN])).rows[0].id;
+  assert.ok(bId);
+  await rejectsSql("insert into public.coupon_codes(code,discount_type,discount_value,is_active) values('SYNTHETIC10','percentage',10,true)", [], /MFA_REQUIRED/);
+  const instId = (await sql("insert into public.institutions(name,institution_type,is_verified) values('Synthetic Institute','University',false) returning id")).rows[0].id;
+  await rejectsSql('update public.institutions set is_verified=true where id=$1', [instId], /MFA_REQUIRED/);
+  await role('authenticated', ADMIN, 'aal2');
+  await sql("insert into public.coupon_codes(code,discount_type,discount_value,is_active) values('SYNTHETIC10','percentage',10,true)");
+  await sql("update public.coupon_codes set is_active=false where code='SYNTHETIC10'");
+  await sql('update public.institutions set is_verified=true where id=$1', [instId]);
+  await sql('delete from public.institutions where id=$1', [instId]);
+});
+
+test('hardened legacy admin RPCs enforce AAL2 on no-op and state-changing calls, reject missing targets and avoid legacy v0 event pollution', async () => {
+  await role('authenticated', ADMIN, 'aal1');
+  await rejectsSql('select public.admin_toggle_suspension($1,false)', [B], /MFA_REQUIRED/);
+  await rejectsSql('select public.admin_toggle_soft_delete($1,false)', [B], /MFA_REQUIRED/);
+  await rejectsSql('select public.admin_delete_user($1)', [B], /MFA_REQUIRED/);
+  await rejectsSql("select public.admin_assign_plan($1,'pro','active',false)", [B], /MFA_REQUIRED/);
+  await role('authenticated', ADMIN, 'aal2');
+  await rejectsSql('select public.admin_toggle_suspension($1,true)', [randomUUID()], /TARGET_NOT_FOUND/);
+  await rejectsSql('select public.admin_toggle_soft_delete($1,true)', [randomUUID()], /TARGET_NOT_FOUND/);
+  await rejectsSql("select public.admin_assign_plan($1,'pro','active',false)", [randomUUID()], /TARGET_NOT_FOUND/);
+  await rejectsSql("select public.admin_assign_plan($1,'invalid_plan','active',false)", [B], /INVALID_PLAN/);
+  await rejectsSql("select public.admin_assign_plan($1,'pro','invalid_status',false)", [B], /INVALID_PLAN_STATUS/);
+  const v0Before = (await adminSql('select count(*)::int n from public.events where schema_version=0')).rows[0].n;
+  await role('authenticated', ADMIN, 'aal2');
+  await sql('select public.admin_delete_user($1)', [B]);
+  await sql('select public.admin_toggle_soft_delete($1,false)', [B]);
+  const v0After = (await adminSql('select count(*)::int n from public.events where schema_version=0')).rows[0].n;
+  assert.equal(v0After, v0Before);
+});
+
+
+
+test('profile update audit omits name PII and hard user deletion scrubs target identifiers from audit_logs', async () => {
+  const tempUser = randomUUID();
+  await adminSql('insert into auth.users(id,email) values($1,$2)', [tempUser, 'pii@fixture.invalid']);
+  await role('authenticated', tempUser);
+  await sql("update public.profiles set first_name='PrivateFirst',last_name='PrivateLast' where id=$1", [tempUser]);
+  const selfLog = (await adminSql("select details from public.audit_logs where user_id=$1 and action='profile_updated' order by created_at desc limit 1", [tempUser])).rows[0];
+  assert.equal(selfLog.details.old_name, undefined);
+  assert.equal(selfLog.details.new_name, undefined);
+  await role('authenticated', ADMIN, 'aal2');
+  await sql('select public.admin_toggle_suspension($1,true)', [tempUser]);
+  await adminSql('delete from auth.users where id=$1', [tempUser]);
+  const leaked = (await adminSql('select count(*)::int n from public.audit_logs where user_id=$1 or details::text like $2', [tempUser, `%${tempUser}%`])).rows[0].n;
+  assert.equal(leaked, 0);
+});
+
+test('upload reservations and recovery proof consumption emit v1 activity lifecycle events', async () => {
+  const upOp = randomUUID(), nonce = 'b'.repeat(64), browser = 'c'.repeat(64), email = 'd'.repeat(64), rate = 'e'.repeat(64), proof = '9'.repeat(64);
+  await role('service_role');
+  await sql("select public.reserve_operation($1,$2,'uploads',1,2048,null,'material_upload','live')", [upOp, A]);
+  await sql("select public.finish_operation($1,'succeeded','{}')", [upOp]);
+  await sql('select public.create_recovery_intent($1,$2,$3,$4)', [nonce, browser, email, rate]);
+  await sql('select public.authorize_recovery_intent($1,$2,$3,$4,$5,$6)', [nonce, browser, email, A, OP, proof]);
+  assert.equal((await sql('select public.consume_recovery_proof($1,$2,$3) ok', [proof, A, OP])).rows[0].ok, true);
+  const events = (await adminSql("select event_type,outcome from public.events where dedup_key in ($1,$2,$3) order by event_type", [`upload:start:${upOp}`, `upload:terminal:${upOp}`, `recovery:complete:${proof}`])).rows;
+  assert.deepEqual(events, [
+    { event_type: 'auth.recovery.completed', outcome: 'succeeded' },
+    { event_type: 'material.upload.completed', outcome: 'succeeded' },
+    { event_type: 'material.upload.started', outcome: 'pending' },
+  ]);
+});

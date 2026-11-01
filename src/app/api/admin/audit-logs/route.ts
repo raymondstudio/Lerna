@@ -39,9 +39,9 @@ export async function GET() {
       };
     });
 
-    return NextResponse.json({ success: true, data: formatted });
-  } catch (err) {
-    console.error("[api:admin:audit-logs:GET] Exception:", err);
-    return NextResponse.json({ success: false, error: String(err) }, { status: 500 });
+    return NextResponse.json({ success: true, data: formatted }, { headers: { "Cache-Control": "private, no-store" } });
+  } catch {
+    console.error("[api:admin:audit-logs:GET] failed");
+    return NextResponse.json({ success: false, error: "Audit logs could not be loaded." }, { status: 503, headers: { "Cache-Control": "private, no-store" } });
   }
 }

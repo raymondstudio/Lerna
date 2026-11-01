@@ -15,11 +15,16 @@ review coverage; it does not accept M1–M4 or establish real provider behavior.
 | Failed recovery browser proof forwarded exchanged Auth cookies | Failure responses forward only cookie removals, including completion failures after refresh. | Re-reviewed; injected positive-cookie denial controls pass |
 | Deleted actor remained identifiable through dedup keys/legacy metadata | Clear identifying data on deletion while preserving an unrelated staff actor. | Re-reviewed; synthetic deletion controls pass |
 | Pre-read investigation audit claimed success before source query | Record an attempted read before accessing the source. | Re-reviewed; failed-source controls pass |
+| Missing feedback/broadcast/coupon/institution privileges and policies (`LERNA-STAB-AUD-001`) | Added `feedback_select_own`, `feedback_admin_update`, and authenticated `INSERT`/`UPDATE`/`DELETE` grants on `broadcasts`, `coupon_codes`, and `institutions` in `20261029120000_stabilization_audit_repairs.sql`. | Repaired 29 Oct 2026; PGlite role/MFA controls pass; independent review pending |
+| Legacy `SECURITY DEFINER` admin RPCs (`admin_toggle_suspension`, `admin_toggle_soft_delete`, `admin_delete_user`, `admin_assign_plan`) bypassed AAL2 MFA on no-op/missing targets and emitted v0 events (`LERNA-STAB-AUD-002`) | Enforced entry-level `private.require_sensitive_admin()`, target existence checks, plan/status validation, and v1-only event emission in `20261029120000_stabilization_audit_repairs.sql`. | Repaired 29 Oct 2026; PGlite AAL1/target/v0 controls pass; independent review pending |
+| Unchecked client `audit_logs` inserts, broadcast title leakage, and `audit_logs` PII on profile edit/delete (`LERNA-STAB-AUD-003`, `LERNA-STAB-AUD-004`) | Removed failing client `audit_logs` writes in ticket/broadcast/coupon routes; removed name PII from `log_profile_update()`; extended `pseudonymize_deleted_actor()` to scrub `audit_logs.details`. | Repaired 29 Oct 2026; SQL and route controls pass; independent review pending |
+| Missing v1 upload/recovery completion events, admin error string leakage, stale privacy canonical, and VM boundary harness drift (`LERNA-STAB-AUD-005`..`007`) | Wired `material.upload.started`/`completed`/`failed` and `auth.recovery.completed` in SQL; sanitized admin route 500/503 responses + `no-store` headers; fixed `/privacy-policy` canonical; repaired VM module loader (`16/16` `--secure` pass). | Repaired 29 Oct 2026; 86 Node / 118 Vitest / 16 VM boundary controls pass; independent review pending |
 
-The final local run passed 82 Node tests and 117 Vitest assertions. The Node
-count includes 30 ordered-migration controls in PGlite synthetic provider
-schemas. Lint passed with 37 warnings; typecheck passed. Exact final build
-and log paths are in the workboard/handoff.
+On 29 October 2026, the local suite passed 86 Node tests (including 34 ordered-migration
+controls in PGlite synthetic provider schemas), 118 Vitest assertions, 16/16
+offline VM security boundary checks (`docs/security/security-boundary-tests.mjs --secure`),
+parser/render checks (`docs/security/parser-render-tests.mjs`), and Graphify
+audit-knowledge validation/self-tests (`scripts/audit_knowledge.py`).
 
 The source candidate is preserved in local commit `c1300ed`. Remaining
 acceptance work includes full integrated/untouched-boundary review,

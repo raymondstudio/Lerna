@@ -123,9 +123,9 @@ export async function GET() {
       },
       coupons: coupons || [],
       recentHistory: recentHistory || [],
-    });
-  } catch (err) {
-    console.error("[api:admin:billing] Exception:", err);
-    return NextResponse.json({ success: false, error: String(err) }, { status: 500 });
+    }, { headers: { "Cache-Control": "private, no-store" } });
+  } catch {
+    console.error("[api:admin:billing] failed");
+    return NextResponse.json({ success: false, error: "Billing overview could not be loaded." }, { status: 503, headers: { "Cache-Control": "private, no-store" } });
   }
 }

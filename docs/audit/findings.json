@@ -1,0 +1,1220 @@
+{
+  "schema_version": 1,
+  "project": "Lerna AI",
+  "branch": "security/stabilization",
+  "base_commit": "35914eb39c4f1fdb79666c5829d28ca4f17841f4",
+  "updated_at": "2026-10-29T15:30:00Z",
+  "epistemic_notice": "Records in this file document source, synthetic-SQL, and mocked-boundary evidence at the recorded commits. They do not certify live Supabase Auth/Storage/mailbox containers or production deployment.",
+  "findings": [
+    {
+      "id": "LERNA-SEC-001",
+      "title": "Historical Supabase service-role credential exposure in reachable Git history",
+      "severity": "High",
+      "category": "secrets",
+      "status": "open_external_containment",
+      "review_status": "reviewed_by_independent_specialist",
+      "reviewer": "security-specialist",
+      "introduced_commit": "9b37a7e8de96b09340ef4ecb5d0ded52840f5476",
+      "fixed_commit": null,
+      "reviewed_commit": "1aa101d82ed93aef91f43cb217934e01e0554837",
+      "resource_boundary": "provider_credentials",
+      "affected_files": [
+        "src/lib/supabase/admin.ts",
+        "docs/security/SECURITY_AUDIT.md"
+      ],
+      "affected_symbols": [
+        "createSupabaseAdminClient"
+      ],
+      "hypothesis": "A privileged service-role key committed in historical Git blobs can bypass RLS if still active on the hosted Supabase project.",
+      "reproduction": "Historical blob inspection documented in docs/security/SECURITY_AUDIT.md without printing or testing secret values.",
+      "positive_control": "Local tests use synthetic service-role keys only; scripts/provision-local-fixtures.mjs rejects non-loopback targets.",
+      "negative_control": "src/app/api/internal/test-readiness/route.ts returns 404 if NEXT_PUBLIC_SUPABASE_URL or ELASTICSEARCH_URL is non-loopback.",
+      "dependency_config_assumptions": "Requires owner-executed key rotation, server secret replacement, and provider access-log review outside this repository.",
+      "evidence_refs": [
+        "docs/security/SECURITY_AUDIT.md",
+        "docs/STABILIZATION_HANDOFF.md"
+      ],
+      "status_history": [
+        { "date": "2026-10-12", "status": "open_confirmed", "commit": "9b37a7e8de96b09340ef4ecb5d0ded52840f5476", "note": "Identified in reachable Git history." },
+        { "date": "2026-10-20", "status": "open_external_containment", "commit": "fb0f19280d79975d9a79dde4ae970ddf71892ee8", "note": "Tracked as owner-controlled provider containment gate." }
+      ]
+    },
+    {
+      "id": "LERNA-SEC-002",
+      "title": "Privileged usage RPC accepted arbitrary target users and signed increments",
+      "severity": "High",
+      "category": "authorization",
+      "status": "fixed_local_verified_unit_sql",
+      "review_status": "reviewed_by_independent_specialist",
+      "reviewer": "security-specialist",
+      "introduced_commit": "35914eb39c4f1fdb79666c5829d28ca4f17841f4",
+      "fixed_commit": "c1300ed6b95d5b81c131f0d9561464bd48ce50a2",
+      "reviewed_commit": "1aa101d82ed93aef91f43cb217934e01e0554837",
+      "resource_boundary": "database_rpc:increment_subscription_usage",
+      "affected_files": [
+        "supabase/migrations/20261017120100_stabilization_authorization.sql",
+        "supabase/migrations/20261017120300_stabilization_operations.sql",
+        "src/lib/repositories/operations.ts"
+      ],
+      "affected_symbols": [
+        "reserveOperation",
+        "reserveProviderOperation"
+      ],
+      "hypothesis": "Ordinary authenticated users could execute increment_subscription_usage with negative deltas or foreign user IDs.",
+      "reproduction": "Execute increment_subscription_usage as role authenticated in tests/database.test.mjs.",
+      "positive_control": "service_role reserve_operation and finish_operation atomically manage private.operation_reservations.",
+      "negative_control": "revoke execute on function public.increment_subscription_usage from public, anon, authenticated; verified in tests/database.test.mjs.",
+      "dependency_config_assumptions": "Requires applying ordered stabilization migrations to hosted Postgres.",
+      "evidence_refs": [
+        "tests/database.test.mjs",
+        "docs/security/security-boundary-tests.mjs"
+      ],
+      "status_history": [
+        { "date": "2026-10-12", "status": "open_confirmed", "commit": "9b37a7e8de96b09340ef4ecb5d0ded52840f5476", "note": "Migration granted SECURITY DEFINER mutator without caller checks." },
+        { "date": "2026-10-20", "status": "fixed_local_verified_unit_sql", "commit": "c1300ed6b95d5b81c131f0d9561464bd48ce50a2", "note": "Execution revoked from ordinary roles; replaced by service-only reserve_operation." }
+      ]
+    },
+    {
+      "id": "LERNA-SEC-003",
+      "title": "Admin demotion and database failure did not reliably revoke export or staff access",
+      "severity": "High",
+      "category": "authorization",
+      "status": "fixed_local_verified_unit_sql",
+      "review_status": "reviewed_by_independent_specialist",
+      "reviewer": "security-specialist",
+      "introduced_commit": "35914eb39c4f1fdb79666c5829d28ca4f17841f4",
+      "fixed_commit": "c1300ed6b95d5b81c131f0d9561464bd48ce50a2",
+      "reviewed_commit": "1aa101d82ed93aef91f43cb217934e01e0554837",
+      "resource_boundary": "api:/api/admin/*,database:public.is_admin",
+      "affected_files": [
+        "src/lib/auth/require-admin-api.ts",
+        "src/lib/auth/require-active-user-api.ts",
+        "src/app/api/admin/exports/route.ts",
+        "supabase/migrations/20261017120100_stabilization_authorization.sql"
+      ],
+      "affected_symbols": [
+        "requireAdminApi",
+        "authorizeAdminApi",
+        "requireActiveUserApi"
+      ],
+      "hypothesis": "Email allowlists, JWT metadata, or stale admin_users rows could grant staff access after user_roles demotion or DB failure.",
+      "reproduction": "ADMIN-01, ADMIN-02, ADMIN-03 in docs/security/security-boundary-tests.mjs and tests/auth-guards.test.ts.",
+      "positive_control": "Active user with user_roles role in ('admin', 'owner') succeeds; sensitive actions require AAL2 MFA.",
+      "negative_control": "Demoted, suspended, or DB-erroring admin requests fail closed with 403/503 before service-role queries or export release.",
+      "dependency_config_assumptions": "Requires owner preflight and 20261017120100_stabilization_authorization.sql on hosted Postgres.",
+      "evidence_refs": [
+        "tests/auth-guards.test.ts",
+        "tests/admin-export-boundary.test.ts",
+        "tests/database.test.mjs"
+      ],
+      "status_history": [
+        { "date": "2026-10-12", "status": "open_confirmed", "commit": "9b37a7e8de96b09340ef4ecb5d0ded52840f5476", "note": "Fallback to ADMIN_EMAILS and app_metadata on RPC error." },
+        { "date": "2026-10-20", "status": "fixed_local_verified_unit_sql", "commit": "c1300ed6b95d5b81c131f0d9561464bd48ce50a2", "note": "Canonical user_roles + active profile + MFA step-up enforced." }
+      ]
+    },
+    {
+      "id": "LERNA-SEC-004",
+      "title": "Expensive AI operations lacked authoritative quotas and distributed abuse limits",
+      "severity": "High",
+      "category": "cost_containment",
+      "status": "fixed_local_verified_unit_sql",
+      "review_status": "reviewed_by_independent_specialist",
+      "reviewer": "persistence-specialist",
+      "introduced_commit": "35914eb39c4f1fdb79666c5829d28ca4f17841f4",
+      "fixed_commit": "c1300ed6b95d5b81c131f0d9561464bd48ce50a2",
+      "reviewed_commit": "1aa101d82ed93aef91f43cb217934e01e0554837",
+      "resource_boundary": "provider:gemini,database:private.operation_reservations",
+      "affected_files": [
+        "src/lib/gemini/client.ts",
+        "src/lib/repositories/operations.ts",
+        "src/lib/services/quota.ts",
+        "src/app/api/demo-chat/route.ts",
+        "supabase/migrations/20261017120300_stabilization_operations.sql"
+      ],
+      "affected_symbols": [
+        "generateText",
+        "generateEmbedding",
+        "extractImageText",
+        "reserveProviderOperation",
+        "checkQuota"
+      ],
+      "hypothesis": "Process-local demo counters and fail-open quota checks allowed unbounded paid Gemini calls.",
+      "reproduction": "QUOTA-01 and COST-01 in docs/security/security-boundary-tests.mjs; tests/provider-operations.test.ts.",
+      "positive_control": "Authorized active user within plan limits reserves and finalizes provider operation.",
+      "negative_control": "Exhausted budget, replayed operation ID, or unavailable DB throws 429/409/503 before any provider call.",
+      "dependency_config_assumptions": "Provider spend caps and billing alerts remain separate operational controls.",
+      "evidence_refs": [
+        "tests/provider-operations.test.ts",
+        "tests/database.test.mjs",
+        "docs/security/security-boundary-tests.mjs"
+      ],
+      "status_history": [
+        { "date": "2026-10-12", "status": "open_confirmed", "commit": "9b37a7e8de96b09340ef4ecb5d0ded52840f5476", "note": "checkQuota failed open and demo limiter trusted X-Forwarded-For in memory." },
+        { "date": "2026-10-20", "status": "fixed_local_verified_unit_sql", "commit": "c1300ed6b95d5b81c131f0d9561464bd48ce50a2", "note": "Atomic DB reservations and distributed demo budget implemented." }
+      ]
+    },
+    {
+      "id": "LERNA-SEC-005",
+      "title": "Upload and reprocessing boundaries permitted uncontrolled parser and embedding work",
+      "severity": "High",
+      "category": "input_validation",
+      "status": "fixed_local_verified_unit_sql",
+      "review_status": "reviewed_by_independent_specialist",
+      "reviewer": "security-specialist",
+      "introduced_commit": "35914eb39c4f1fdb79666c5829d28ca4f17841f4",
+      "fixed_commit": "c1300ed6b95d5b81c131f0d9561464bd48ce50a2",
+      "reviewed_commit": "1aa101d82ed93aef91f43cb217934e01e0554837",
+      "resource_boundary": "api:/api/upload,api:/api/materials,worker:parser-worker.cjs",
+      "affected_files": [
+        "src/app/api/upload/route.ts",
+        "src/app/api/materials/route.ts",
+        "src/lib/materials/ingestion.ts",
+        "src/lib/materials/extract.ts",
+        "src/lib/uploads/validation.ts",
+        "supabase/migrations/20261017120500_stabilization_materials_practice.sql"
+      ],
+      "affected_symbols": [
+        "processMaterial",
+        "extractMaterialText",
+        "validateUploadMetadata",
+        "validateUploadBuffer",
+        "readBoundedBody"
+      ],
+      "hypothesis": "Direct storage registration, spoofed MIME types, ZIP bombs, or concurrent reprocess calls could exhaust memory or paid embeddings.",
+      "reproduction": "UPLOAD-01 in docs/security/security-boundary-tests.mjs; tests/security-parser-worker.test.ts; tests/security-ingestion.test.ts.",
+      "positive_control": "Valid owned<=20MiB PDF/DOCX/PPTX/TXT/image processes within worker limits and caches artifacts.",
+      "negative_control": "JSON registration at /api/materials returns 415; ZIP traversal/expansion bombs, HTML-as-TXT, and concurrent claims fail before embedding.",
+      "dependency_config_assumptions": "Requires 20261017120500 and 20261019120000 migrations.",
+      "evidence_refs": [
+        "tests/security-upload-validation.test.ts",
+        "tests/security-parser-worker.test.ts",
+        "tests/security-ingestion.test.ts"
+      ],
+      "status_history": [
+        { "date": "2026-10-12", "status": "open_confirmed", "commit": "9b37a7e8de96b09340ef4ecb5d0ded52840f5476", "note": "Unbounded body/archive parsing and unverified storage path registration." },
+        { "date": "2026-10-20", "status": "fixed_local_verified_unit_sql", "commit": "c1300ed6b95d5b81c131f0d9561464bd48ce50a2", "note": "Bounded stream reader, magic-byte checks, isolated worker, and DB processing claims." }
+      ]
+    },
+    {
+      "id": "LERNA-SEC-006",
+      "title": "Child writes were not consistently tied to an owned parent resource",
+      "severity": "Medium",
+      "category": "authorization",
+      "status": "fixed_local_verified_unit_sql",
+      "review_status": "reviewed_by_independent_specialist",
+      "reviewer": "persistence-specialist",
+      "introduced_commit": "35914eb39c4f1fdb79666c5829d28ca4f17841f4",
+      "fixed_commit": "c1300ed6b95d5b81c131f0d9561464bd48ce50a2",
+      "reviewed_commit": "1aa101d82ed93aef91f43cb217934e01e0554837",
+      "resource_boundary": "database:study_sessions,notes,study_messages,uploaded_materials,quizzes",
+      "affected_files": [
+        "src/app/api/study-sessions/[sessionId]/route.ts",
+        "src/app/api/chat/route.ts",
+        "src/lib/repositories/study-sessions.ts",
+        "supabase/migrations/20261017120100_stabilization_authorization.sql",
+        "supabase/migrations/20261017120600_stabilization_boundaries_maintenance.sql"
+      ],
+      "affected_symbols": [
+        "getOwnedSession",
+        "saveOwnedNotes",
+        "validate_learning_parents"
+      ],
+      "hypothesis": "Child rows or note projections could be inserted referencing another user's session, course, or material UUID.",
+      "reproduction": "BOLA-01 and BOLA-02 in docs/security/security-boundary-tests.mjs; tests/chat-references-boundary.test.ts; tests/database.test.mjs.",
+      "positive_control": "Owner writes to owned session/course/material succeed.",
+      "negative_control": "Foreign parent UUIDs are rejected before side effects in API routes and by stabilization_parent_owner triggers + restrictive RLS.",
+      "dependency_config_assumptions": "Requires 20261017120100 and 20261017120600 migrations.",
+      "evidence_refs": [
+        "tests/database.test.mjs",
+        "tests/chat-references-boundary.test.ts",
+        "docs/security/security-boundary-tests.mjs"
+      ],
+      "status_history": [
+        { "date": "2026-10-12", "status": "open_confirmed", "commit": "9b37a7e8de96b09340ef4ecb5d0ded52840f5476", "note": "PATCH notes upserted into notes table before checking study_sessions ownership." },
+        { "date": "2026-10-20", "status": "fixed_local_verified_unit_sql", "commit": "c1300ed6b95d5b81c131f0d9561464bd48ce50a2", "note": "Transactional save_session_notes and parent validation triggers enforced." }
+      ]
+    },
+    {
+      "id": "LERNA-SEC-007",
+      "title": "Protected profile moderation and plan columns were writable by ordinary profile update policies",
+      "severity": "High",
+      "category": "authorization",
+      "status": "fixed_local_verified_unit_sql",
+      "review_status": "reviewed_by_independent_specialist",
+      "reviewer": "security-specialist",
+      "introduced_commit": "35914eb39c4f1fdb79666c5829d28ca4f17841f4",
+      "fixed_commit": "c1300ed6b95d5b81c131f0d9561464bd48ce50a2",
+      "reviewed_commit": "1aa101d82ed93aef91f43cb217934e01e0554837",
+      "resource_boundary": "database:public.profiles,api:/api/account/profile",
+      "affected_files": [
+        "src/app/api/account/profile/route.ts",
+        "src/lib/repositories/account.ts",
+        "src/lib/account/profile-input.ts",
+        "supabase/migrations/20261017120100_stabilization_authorization.sql"
+      ],
+      "affected_symbols": [
+        "updateAccountProfile",
+        "accountProfileUpdate",
+        "protect_profile_fields"
+      ],
+      "hypothesis": "An authenticated user could update their own profile row to clear is_suspended/is_deleted or escalate role/plan.",
+      "reproduction": "Ordinary role UPDATE on profiles.plan / is_suspended in tests/database.test.mjs.",
+      "positive_control": "Learner can update allowed academic/preference fields via updateAccountProfile.",
+      "negative_control": "private.protect_profile_fields() trigger blocks changes to is_suspended, is_deleted, role, plan, email, admin_notes without AAL2 admin.",
+      "dependency_config_assumptions": "Requires 20261017120100_stabilization_authorization.sql.",
+      "evidence_refs": [
+        "tests/database.test.mjs",
+        "tests/active-api-routes.test.ts"
+      ],
+      "status_history": [
+        { "date": "2026-10-12", "status": "open_confirmed", "commit": "9b37a7e8de96b09340ef4ecb5d0ded52840f5476", "note": "profiles_update_own allowed updating all columns on own row." },
+        { "date": "2026-10-20", "status": "fixed_local_verified_unit_sql", "commit": "c1300ed6b95d5b81c131f0d9561464bd48ce50a2", "note": "Protected column trigger + strict allowlist in accountProfileUpdate." }
+      ]
+    },
+    {
+      "id": "LERNA-SEC-008",
+      "title": "Auth callback trusted unvalidated next return URLs and mixed origins",
+      "severity": "Medium",
+      "category": "authentication",
+      "status": "fixed_local_verified_unit_sql",
+      "review_status": "reviewed_by_independent_specialist",
+      "reviewer": "security-specialist",
+      "introduced_commit": "35914eb39c4f1fdb79666c5829d28ca4f17841f4",
+      "fixed_commit": "c1300ed6b95d5b81c131f0d9561464bd48ce50a2",
+      "reviewed_commit": "1aa101d82ed93aef91f43cb217934e01e0554837",
+      "resource_boundary": "api:/auth/callback",
+      "affected_files": [
+        "src/app/auth/callback/route.ts",
+        "src/lib/auth/return-path.ts",
+        "src/lib/supabase/config.ts"
+      ],
+      "affected_symbols": [
+        "sanitizeAuthReturnPath",
+        "getAuthRequestOrigin"
+      ],
+      "hypothesis": "An attacker-supplied next parameter on /auth/callback could redirect post-login users to an external domain.",
+      "reproduction": "OAUTH-01 and OAUTH-03 in docs/security/security-boundary-tests.mjs; tests/auth-callback.test.ts.",
+      "positive_control": "Relative local paths (/study?fixture=1) redirect on the verified request origin.",
+      "negative_control": "External URLs, protocol-relative //, and backslash paths fall back to /chat.",
+      "dependency_config_assumptions": "Supabase dashboard Redirect URLs must also restrict allowed origins.",
+      "evidence_refs": [
+        "tests/auth-callback.test.ts",
+        "docs/security/security-boundary-tests.mjs"
+      ],
+      "status_history": [
+        { "date": "2026-10-12", "status": "open_confirmed", "commit": "9b37a7e8de96b09340ef4ecb5d0ded52840f5476", "note": "sanitizeAuthReturnPath existed but was not called in /auth/callback." },
+        { "date": "2026-10-20", "status": "fixed_local_verified_unit_sql", "commit": "c1300ed6b95d5b81c131f0d9561464bd48ce50a2", "note": "Enforced sanitizeAuthReturnPath and getAuthRequestOrigin in /auth/callback." }
+      ]
+    },
+    {
+      "id": "LERNA-SEC-009",
+      "title": "Auth callback logged raw authorization codes and provider error strings",
+      "severity": "Medium",
+      "category": "logging_privacy",
+      "status": "fixed_local_verified_unit_sql",
+      "review_status": "reviewed_by_independent_specialist",
+      "reviewer": "security-specialist",
+      "introduced_commit": "35914eb39c4f1fdb79666c5829d28ca4f17841f4",
+      "fixed_commit": "c1300ed6b95d5b81c131f0d9561464bd48ce50a2",
+      "reviewed_commit": "1aa101d82ed93aef91f43cb217934e01e0554837",
+      "resource_boundary": "api:/auth/callback",
+      "affected_files": [
+        "src/app/auth/callback/route.ts"
+      ],
+      "affected_symbols": [
+        "GET"
+      ],
+      "hypothesis": "Logging full callback URLs or PKCE codes in server logs could leak sensitive auth artifacts.",
+      "reproduction": "OAUTH-02 in docs/security/security-boundary-tests.mjs; tests/auth-callback.test.ts.",
+      "positive_control": "Callback logs only opaque requestId and fixed status code.",
+      "negative_control": "Authorization code and error_description markers never appear in console output or redirect locations.",
+      "dependency_config_assumptions": "None.",
+      "evidence_refs": [
+        "tests/auth-callback.test.ts",
+        "docs/security/security-boundary-tests.mjs"
+      ],
+      "status_history": [
+        { "date": "2026-10-12", "status": "open_confirmed", "commit": "9b37a7e8de96b09340ef4ecb5d0ded52840f5476", "note": "Callback logged full URL and query params." },
+        { "date": "2026-10-20", "status": "fixed_local_verified_unit_sql", "commit": "c1300ed6b95d5b81c131f0d9561464bd48ce50a2", "note": "Redacted callback logging and added Referrer-Policy: no-referrer." }
+      ]
+    },
+    {
+      "id": "LERNA-SEC-010",
+      "title": "Support ticket replies and broadcasts lacked strict sender and audience isolation",
+      "severity": "Medium",
+      "category": "authorization",
+      "status": "fixed_local_verified_unit_sql",
+      "review_status": "reviewed_by_independent_specialist",
+      "reviewer": "security-specialist",
+      "introduced_commit": "35914eb39c4f1fdb79666c5829d28ca4f17841f4",
+      "fixed_commit": "c1300ed6b95d5b81c131f0d9561464bd48ce50a2",
+      "reviewed_commit": "1aa101d82ed93aef91f43cb217934e01e0554837",
+      "resource_boundary": "api:/api/admin/tickets/replies,api:/api/admin/broadcasts",
+      "affected_files": [
+        "src/app/api/admin/tickets/replies/route.ts",
+        "src/app/api/admin/broadcasts/route.ts",
+        "src/lib/auth/broadcast-visibility.ts",
+        "src/lib/repositories/auth.ts",
+        "supabase/migrations/20261017120600_stabilization_boundaries_maintenance.sql"
+      ],
+      "affected_symbols": [
+        "insertTicketReply",
+        "selectBroadcasts",
+        "isBroadcastVisibleToLearner"
+      ],
+      "hypothesis": "A learner could forge sender user_id on support_ticket_replies or read unpublished draft/targeted broadcasts.",
+      "reproduction": "tests/auth-broadcasts.test.ts and tests/database.test.mjs reply sender/broadcast visibility controls.",
+      "positive_control": "Ticket owner and admin can reply with their own auth.uid(); learners see only published broadcasts matching their audience.",
+      "negative_control": "stabilization_reply_sender restrictive RLS blocks forged user_id; stabilization_broadcast_read hides drafts and mismatched audiences.",
+      "dependency_config_assumptions": "Requires 20261017120600_stabilization_boundaries_maintenance.sql.",
+      "evidence_refs": [
+        "tests/auth-broadcasts.test.ts",
+        "tests/database.test.mjs"
+      ],
+      "status_history": [
+        { "date": "2026-10-12", "status": "open_confirmed", "commit": "9b37a7e8de96b09340ef4ecb5d0ded52840f5476", "note": "broadcasts_select_all used true; replies_insert_own did not check user_id = auth.uid()." },
+        { "date": "2026-10-20", "status": "fixed_local_verified_unit_sql", "commit": "c1300ed6b95d5b81c131f0d9561464bd48ce50a2", "note": "Enforced sender binding and audience/schedule filtering in API and SQL." }
+      ]
+    },
+    {
+      "id": "LERNA-SEC-011",
+      "title": "Public telemetry tables accepted unauthenticated/ordinary inserts and fabricated KPI success",
+      "severity": "Medium",
+      "category": "telemetry_integrity",
+      "status": "fixed_local_verified_unit_sql",
+      "review_status": "reviewed_by_independent_specialist",
+      "reviewer": "activity-specialist",
+      "introduced_commit": "35914eb39c4f1fdb79666c5829d28ca4f17841f4",
+      "fixed_commit": "c1300ed6b95d5b81c131f0d9561464bd48ce50a2",
+      "reviewed_commit": "1aa101d82ed93aef91f43cb217934e01e0554837",
+      "resource_boundary": "database:public.events,public.ai_requests,api:/api/analytics/activity",
+      "affected_files": [
+        "src/lib/activity/contracts.ts",
+        "src/lib/activity/ingest.ts",
+        "src/lib/repositories/activity.ts",
+        "supabase/migrations/20261017120000_stabilization_activity.sql",
+        "supabase/migrations/20261017120700_stabilization_metric_outcomes.sql"
+      ],
+      "affected_symbols": [
+        "validateMetadata",
+        "normalizeRoute",
+        "ingestActivity",
+        "appendActivityEvent"
+      ],
+      "hypothesis": "Public insert policies on telemetry tables allowed forged events and conflated simulated/failed AI calls with live success.",
+      "reproduction": "tests/activity.test.mjs and tests/database.test.mjs event forgery and BI outcome controls.",
+      "positive_control": "Server/database producers write v1 events via private.append_event; browser ingestion accepts only bounded page.viewed and study_session.opened.",
+      "negative_control": "Direct INSERT into public.events or public.ai_requests by anon/authenticated is denied.",
+      "dependency_config_assumptions": "Requires private.activity_runtime row configured per environment.",
+      "evidence_refs": [
+        "tests/activity.test.mjs",
+        "tests/database.test.mjs"
+      ],
+      "status_history": [
+        { "date": "2026-10-12", "status": "open_confirmed", "commit": "9b37a7e8de96b09340ef4ecb5d0ded52840f5476", "note": "Public insert policies on telemetry tables and hardcoded BI revenue/success." },
+        { "date": "2026-10-20", "status": "fixed_local_verified_unit_sql", "commit": "c1300ed6b95d5b81c131f0d9561464bd48ce50a2", "note": "Revoked direct telemetry writes; implemented v1 activity contract and truthful BI outcomes." }
+      ]
+    },
+    {
+      "id": "LERNA-SEC-012",
+      "title": "Material deletion could succeed while searchable text remained retrievable on dependency failure",
+      "severity": "Medium",
+      "category": "data_lifecycle",
+      "status": "fixed_local_verified_unit_sql",
+      "review_status": "reviewed_by_independent_specialist",
+      "reviewer": "persistence-specialist",
+      "introduced_commit": "35914eb39c4f1fdb79666c5829d28ca4f17841f4",
+      "fixed_commit": "c1300ed6b95d5b81c131f0d9561464bd48ce50a2",
+      "reviewed_commit": "1aa101d82ed93aef91f43cb217934e01e0554837",
+      "resource_boundary": "api:/api/materials/[id],search:elastic,database:private.material_cleanup_jobs",
+      "affected_files": [
+        "src/app/api/materials/[id]/route.ts",
+        "src/lib/materials/retrieval.ts",
+        "src/lib/materials/elastic.ts",
+        "src/lib/repositories/materials.ts",
+        "supabase/migrations/20261017120500_stabilization_materials_practice.sql"
+      ],
+      "affected_symbols": [
+        "deleteMaterialFromElastic",
+        "retrieveMaterialContext",
+        "selectReadyOwnedMaterialIds",
+        "tombstoneMaterialAndQueueCleanup"
+      ],
+      "hypothesis": "Swallowed Elastic delete errors and empty documentIds fallback allowed deleted materials to enter RAG prompts.",
+      "reproduction": "DELETE-01, RAG-01, RAG-02 in docs/security/security-boundary-tests.mjs; tests/security-rag.test.ts.",
+      "positive_control": "Active ready owned materials are retrieved and reverified in SQL after search.",
+      "negative_control": "Tombstoned materials are excluded before and after vector search; failed storage/index cleanup returns 202 and stays queued in private.material_cleanup_jobs.",
+      "dependency_config_assumptions": "Requires scheduled execution of lease_material_cleanup_jobs in production.",
+      "evidence_refs": [
+        "tests/security-rag.test.ts",
+        "tests/security-elastic-materials.test.ts",
+        "tests/database.test.mjs"
+      ],
+      "status_history": [
+        { "date": "2026-10-12", "status": "open_confirmed", "commit": "9b37a7e8de96b09340ef4ecb5d0ded52840f5476", "note": "deleteMaterialFromElastic swallowed errors after 3 retries and documentIds=[] fell back to all user docs." },
+        { "date": "2026-10-20", "status": "fixed_local_verified_unit_sql", "commit": "c1300ed6b95d5b81c131f0d9561464bd48ce50a2", "note": "Atomic SQL tombstone + revisioned cleanup queue + post-search SQL revalidation." }
+      ]
+    },
+    {
+      "id": "LERNA-SEC-013",
+      "title": "Saved quiz scores and answers were trusted from client input without validation or source labeling",
+      "severity": "Medium",
+      "category": "business_logic",
+      "status": "fixed_local_verified_unit_sql",
+      "review_status": "reviewed_by_independent_specialist",
+      "reviewer": "security-specialist",
+      "introduced_commit": "35914eb39c4f1fdb79666c5829d28ca4f17841f4",
+      "fixed_commit": "c1300ed6b95d5b81c131f0d9561464bd48ce50a2",
+      "reviewed_commit": "1aa101d82ed93aef91f43cb217934e01e0554837",
+      "resource_boundary": "api:/api/quiz,database:public.save_practice_quiz",
+      "affected_files": [
+        "src/app/api/quiz/route.ts",
+        "src/lib/quiz/practice-validation.ts",
+        "src/lib/repositories/practice.ts",
+        "src/lib/repositories/admin-report.ts",
+        "supabase/migrations/20261017120500_stabilization_materials_practice.sql"
+      ],
+      "affected_symbols": [
+        "validatePracticeSubmission",
+        "savePracticeQuiz",
+        "getAdminReport"
+      ],
+      "hypothesis": "Clients could submit impossible scores (e.g. 999) or mutate quiz records directly via Data API.",
+      "reproduction": "QUIZ-01 in docs/security/security-boundary-tests.mjs; tests/security-practice.test.ts; tests/database.test.mjs.",
+      "positive_control": "Consistent practice submissions save atomically via save_practice_quiz with result_source='client_reported_practice'.",
+      "negative_control": "Inconsistent scores/answers fail in both Zod validation and save_practice_quiz SQL; direct INSERT/UPDATE on quizzes/quiz_questions is revoked.",
+      "dependency_config_assumptions": "Practice results remain labeled client_reported_practice until server-graded assessments are introduced.",
+      "evidence_refs": [
+        "tests/security-practice.test.ts",
+        "tests/database.test.mjs",
+        "docs/security/security-boundary-tests.mjs"
+      ],
+      "status_history": [
+        { "date": "2026-10-12", "status": "open_confirmed", "commit": "9b37a7e8de96b09340ef4ecb5d0ded52840f5476", "note": "Forged score=999 accepted in POST /api/quiz." },
+        { "date": "2026-10-20", "status": "fixed_local_verified_unit_sql", "commit": "c1300ed6b95d5b81c131f0d9561464bd48ce50a2", "note": "Strict score/answer consistency check + transactional save_practice_quiz + explicit self-reported labeling." }
+      ]
+    },
+    {
+      "id": "LERNA-SEC-014",
+      "title": "Unauthenticated email-existence endpoint and recovery route disclosed account membership",
+      "severity": "Low",
+      "category": "enumeration",
+      "status": "fixed_local_verified_unit_sql",
+      "review_status": "reviewed_by_independent_specialist",
+      "reviewer": "security-specialist",
+      "introduced_commit": "35914eb39c4f1fdb79666c5829d28ca4f17841f4",
+      "fixed_commit": "c1300ed6b95d5b81c131f0d9561464bd48ce50a2",
+      "reviewed_commit": "1aa101d82ed93aef91f43cb217934e01e0554837",
+      "resource_boundary": "api:/api/auth/check-email,api:/api/auth/recovery",
+      "affected_files": [
+        "src/app/api/auth/check-email/route.ts",
+        "src/lib/auth/recovery-server.ts",
+        "supabase/migrations/20261017120400_stabilization_recovery.sql"
+      ],
+      "affected_symbols": [
+        "POST",
+        "initiateRecovery",
+        "create_recovery_intent"
+      ],
+      "hypothesis": "Unauthenticated callers could enumerate registered learner email addresses via /api/auth/check-email or recovery responses.",
+      "reproduction": "tests/auth-recovery-proof.test.mjs non-disclosure and rate-limit controls.",
+      "positive_control": "/api/auth/check-email and /api/auth/recovery return uniform non-disclosing responses.",
+      "negative_control": "Rate-limited or non-existent emails receive the identical generic recovery message without revealing account existence.",
+      "dependency_config_assumptions": "None.",
+      "evidence_refs": [
+        "tests/auth-recovery-proof.test.mjs",
+        "tests/database.test.mjs"
+      ],
+      "status_history": [
+        { "date": "2026-10-12", "status": "open_confirmed", "commit": "9b37a7e8de96b09340ef4ecb5d0ded52840f5476", "note": "check-email queried profiles with service-role client and returned exists boolean." },
+        { "date": "2026-10-20", "status": "fixed_local_verified_unit_sql", "commit": "c1300ed6b95d5b81c131f0d9561464bd48ce50a2", "note": "Removed DB lookup in check-email and enforced non-disclosing recovery intent flow." }
+      ]
+    },
+    {
+      "id": "LERNA-SEC-015",
+      "title": "Administrative actions returned success without a durable, verified audit record",
+      "severity": "Medium",
+      "category": "audit_integrity",
+      "status": "fixed_local_verified_unit_sql",
+      "review_status": "reviewed_by_independent_specialist",
+      "reviewer": "activity-specialist",
+      "introduced_commit": "35914eb39c4f1fdb79666c5829d28ca4f17841f4",
+      "fixed_commit": "c1300ed6b95d5b81c131f0d9561464bd48ce50a2",
+      "reviewed_commit": "1aa101d82ed93aef91f43cb217934e01e0554837",
+      "resource_boundary": "database:public.events,public.audit_logs,api:/api/admin/*",
+      "affected_files": [
+        "supabase/migrations/20261017120100_stabilization_authorization.sql",
+        "supabase/migrations/20261017120600_stabilization_boundaries_maintenance.sql",
+        "supabase/migrations/20261020110000_stabilization_admin_account_actions.sql",
+        "src/app/api/admin/tickets/route.ts"
+      ],
+      "affected_symbols": [
+        "audit_sensitive_mutation",
+        "audit_staff_mutation",
+        "admin_reset_usage",
+        "admin_extend_subscription"
+      ],
+      "hypothesis": "Unchecked client-role audit_logs inserts silently failed while sensitive mutations committed.",
+      "reproduction": "tests/database.test.mjs trigger rollback controls when private.activity_runtime is deleted; tests/admin-ticket-audit-boundary.test.ts.",
+      "positive_control": "Database triggers write v1 security/admin events in the same transaction as role, profile, setting, ticket, broadcast, coupon, and institution mutations.",
+      "negative_control": "When private.activity_runtime is unavailable, the entire sensitive mutation rolls back.",
+      "dependency_config_assumptions": "Requires 20261017120100, 20261017120600, 20261020110000, and 20261029120000 migrations.",
+      "evidence_refs": [
+        "tests/database.test.mjs",
+        "tests/admin-ticket-audit-boundary.test.ts"
+      ],
+      "status_history": [
+        { "date": "2026-10-12", "status": "open_confirmed", "commit": "9b37a7e8de96b09340ef4ecb5d0ded52840f5476", "note": "Authenticated client inserts to audit_logs failed RLS silently." },
+        { "date": "2026-10-20", "status": "fixed_local_verified_unit_sql", "commit": "c1300ed6b95d5b81c131f0d9561464bd48ce50a2", "note": "Transactional DB audit triggers and fail-closed event writer enforced." }
+      ]
+    },
+    {
+      "id": "LERNA-SEC-016",
+      "title": "Outdated Next.js 16.2.6 / KaTeX dependencies and broken lint/typecheck/build baseline",
+      "severity": "High",
+      "category": "supply_chain",
+      "status": "fixed_local_verified_unit_sql",
+      "review_status": "reviewed_by_independent_specialist",
+      "reviewer": "security-specialist",
+      "introduced_commit": "35914eb39c4f1fdb79666c5829d28ca4f17841f4",
+      "fixed_commit": "16c94e646b6549bcdeb4b10c5acccf3485c03900",
+      "reviewed_commit": "1aa101d82ed93aef91f43cb217934e01e0554837",
+      "resource_boundary": "build:package.json,next.config.ts,eslint.config.mjs",
+      "affected_files": [
+        "package.json",
+        "package-lock.json",
+        "next.config.ts",
+        "eslint.config.mjs"
+      ],
+      "affected_symbols": [
+        "parserRuntimeFiles"
+      ],
+      "hypothesis": "Next 16.2.6 and older KaTeX had published security advisories, and missing React Query / ESLint 9 config prevented verification builds.",
+      "reproduction": "npm run lint, npm run typecheck, npm run build, and npm audit.",
+      "positive_control": "Next and eslint-config-next pinned to 16.4.1, KaTeX pinned to 0.19.0, local fonts bundled, and parser runtime closure traced.",
+      "negative_control": "Strict ESLint and TypeScript checks run without rule waivers.",
+      "dependency_config_assumptions": "Periodic advisory checks remain required before every release.",
+      "evidence_refs": [
+        "docs/STABILIZATION_TOOLING_EVIDENCE.md",
+        "package.json"
+      ],
+      "status_history": [
+        { "date": "2026-10-12", "status": "open_confirmed", "commit": "9b37a7e8de96b09340ef4ecb5d0ded52840f5476", "note": "Next 16.2.6 advisory match and failing build/lint/typecheck." },
+        { "date": "2026-10-19", "status": "fixed_local_verified_unit_sql", "commit": "16c94e646b6549bcdeb4b10c5acccf3485c03900", "note": "Upgraded to Next 16.4.1 and KaTeX 0.19.0; restored strict checks." }
+      ]
+    },
+    {
+      "id": "LERNA-STAB-AUD-001",
+      "title": "Missing table privileges and RLS policies on feedback, broadcasts, coupon_codes, and institutions broke learner own-feedback reads and admin mutations",
+      "severity": "Medium",
+      "category": "authorization",
+      "status": "fixed_local_verified_unit_sql",
+      "review_status": "unreviewed_by_independent_agent",
+      "reviewer": "pending-independent-reviewer",
+      "introduced_commit": "35914eb39c4f1fdb79666c5829d28ca4f17841f4",
+      "fixed_commit": "1aa101d82ed93aef91f43cb217934e01e0554837",
+      "reviewed_commit": "1aa101d82ed93aef91f43cb217934e01e0554837",
+      "resource_boundary": "database:public.feedback,broadcasts,coupon_codes,institutions",
+      "affected_files": [
+        "supabase/migrations/20261029120000_stabilization_audit_repairs.sql",
+        "src/app/api/feedback/route.ts",
+        "src/app/api/admin/feedback/route.ts",
+        "src/app/api/admin/broadcasts/route.ts",
+        "src/app/api/admin/coupons/route.ts",
+        "src/app/api/admin/institutions/verify/route.ts"
+      ],
+      "affected_symbols": [
+        "GET",
+        "POST",
+        "PUT",
+        "DELETE"
+      ],
+      "hypothesis": "Historical migrations omitted feedback_select_own, feedback_admin_update, and authenticated INSERT/UPDATE/DELETE grants on broadcasts, coupon_codes, and institutions.",
+      "reproduction": "Execute learner feedback SELECT and admin feedback/broadcast/coupon/institution mutations in tests/database.test.mjs.",
+      "positive_control": "Learners read own feedback; admins update feedback and create broadcasts; AAL2 admins manage coupons and institutions.",
+      "negative_control": "Learner B cannot read Learner A feedback; non-admins cannot update feedback or create broadcasts; AAL1 admins are denied coupon/institution mutations.",
+      "dependency_config_assumptions": "Requires 20261029120000_stabilization_audit_repairs.sql.",
+      "evidence_refs": [
+        "tests/database.test.mjs"
+      ],
+      "status_history": [
+        { "date": "2026-10-29", "status": "fixed_local_verified_unit_sql", "commit": "1aa101d82ed93aef91f43cb217934e01e0554837", "note": "Added missing policies and privileges in 20261029120000_stabilization_audit_repairs.sql." }
+      ]
+    },
+    {
+      "id": "LERNA-STAB-AUD-002",
+      "title": "Historical SECURITY DEFINER admin RPCs lacked entry-level AAL2 MFA enforcement, target existence checks, and emitted legacy v0 events",
+      "severity": "High",
+      "category": "authorization",
+      "status": "fixed_local_verified_unit_sql",
+      "review_status": "unreviewed_by_independent_agent",
+      "reviewer": "pending-independent-reviewer",
+      "introduced_commit": "35914eb39c4f1fdb79666c5829d28ca4f17841f4",
+      "fixed_commit": "1aa101d82ed93aef91f43cb217934e01e0554837",
+      "reviewed_commit": "1aa101d82ed93aef91f43cb217934e01e0554837",
+      "resource_boundary": "database:admin_toggle_suspension,admin_toggle_soft_delete,admin_delete_user,admin_assign_plan",
+      "affected_files": [
+        "supabase/migrations/20261029120000_stabilization_audit_repairs.sql",
+        "src/app/api/admin/users/[userId]/actions/route.ts"
+      ],
+      "affected_symbols": [
+        "admin_toggle_suspension",
+        "admin_toggle_soft_delete",
+        "admin_delete_user",
+        "admin_assign_plan"
+      ],
+      "hypothesis": "Calling legacy admin RPCs directly via Data API with a no-op state or missing target bypassed BEFORE UPDATE profile triggers and AAL2 MFA, and admin_toggle_soft_delete inserted schema_version=0 rows into public.events.",
+      "reproduction": "Invoke admin_toggle_suspension, admin_toggle_soft_delete, admin_delete_user, and admin_assign_plan as AAL1 admin in tests/database.test.mjs.",
+      "positive_control": "AAL2 admin mutates existing non-final-owner target and records v1 event + audit_logs row.",
+      "negative_control": "AAL1 admin, missing target UUID, invalid plan/status, or final-owner disablement is rejected; zero schema_version=0 rows are added.",
+      "dependency_config_assumptions": "Requires 20261029120000_stabilization_audit_repairs.sql.",
+      "evidence_refs": [
+        "tests/database.test.mjs"
+      ],
+      "status_history": [
+        { "date": "2026-10-29", "status": "fixed_local_verified_unit_sql", "commit": "1aa101d82ed93aef91f43cb217934e01e0554837", "note": "Hardened all four RPCs with entry-level require_sensitive_admin(), target/input validation, and v1-only event auditing." }
+      ]
+    },
+    {
+      "id": "LERNA-STAB-AUD-003",
+      "title": "Unchecked legacy audit_logs inserts and broadcast title content leakage in API routes",
+      "severity": "Medium",
+      "category": "logging_privacy",
+      "status": "fixed_local_verified_unit_sql",
+      "review_status": "unreviewed_by_independent_agent",
+      "reviewer": "pending-independent-reviewer",
+      "introduced_commit": "35914eb39c4f1fdb79666c5829d28ca4f17841f4",
+      "fixed_commit": "1aa101d82ed93aef91f43cb217934e01e0554837",
+      "reviewed_commit": "1aa101d82ed93aef91f43cb217934e01e0554837",
+      "resource_boundary": "api:/api/tickets,api:/api/admin/broadcasts,api:/api/admin/coupons",
+      "affected_files": [
+        "src/app/api/tickets/route.ts",
+        "src/app/api/admin/broadcasts/route.ts",
+        "src/app/api/admin/coupons/route.ts"
+      ],
+      "affected_symbols": [
+        "POST",
+        "DELETE"
+      ],
+      "hypothesis": "Routes attempted authenticated-client inserts into public.audit_logs (which has no INSERT policy/grant) and copied broadcast title content.",
+      "reproduction": "tests/active-api-routes.test.ts broadcast audit boundary test.",
+      "positive_control": "Database triggers stabilization_staff_audit and stabilization_coupon_audit record content-free v1 events transactionally.",
+      "negative_control": "Routes no longer call supabase.from('audit_logs').insert(...) or copy broadcast titles.",
+      "dependency_config_assumptions": "None.",
+      "evidence_refs": [
+        "tests/active-api-routes.test.ts"
+      ],
+      "status_history": [
+        { "date": "2026-10-29", "status": "fixed_local_verified_unit_sql", "commit": "1aa101d82ed93aef91f43cb217934e01e0554837", "note": "Removed redundant/denied client audit_logs inserts from ticket, broadcast, and coupon routes." }
+      ]
+    },
+    {
+      "id": "LERNA-STAB-AUD-004",
+      "title": "Profile update trigger recorded full-name PII in audit_logs and hard deletion left target UUIDs in audit_logs",
+      "severity": "Medium",
+      "category": "logging_privacy",
+      "status": "fixed_local_verified_unit_sql",
+      "review_status": "unreviewed_by_independent_agent",
+      "reviewer": "pending-independent-reviewer",
+      "introduced_commit": "35914eb39c4f1fdb79666c5829d28ca4f17841f4",
+      "fixed_commit": "1aa101d82ed93aef91f43cb217934e01e0554837",
+      "reviewed_commit": "1aa101d82ed93aef91f43cb217934e01e0554837",
+      "resource_boundary": "database:public.log_profile_update,private.pseudonymize_deleted_actor",
+      "affected_files": [
+        "supabase/migrations/20261029120000_stabilization_audit_repairs.sql"
+      ],
+      "affected_symbols": [
+        "log_profile_update",
+        "pseudonymize_deleted_actor"
+      ],
+      "hypothesis": "tr_log_profile_update copied old_name/new_name into audit_logs.details, and deleting auth.users left target_user_id in audit_logs.details.",
+      "reproduction": "tests/database.test.mjs profile update PII and hard user deletion audit_logs control.",
+      "positive_control": "Staff user_id and action remain on audit_logs after target deletion.",
+      "negative_control": "old_name, new_name, and deleted target_user_id are absent from public.audit_logs.",
+      "dependency_config_assumptions": "Requires 20261029120000_stabilization_audit_repairs.sql.",
+      "evidence_refs": [
+        "tests/database.test.mjs"
+      ],
+      "status_history": [
+        { "date": "2026-10-29", "status": "fixed_local_verified_unit_sql", "commit": "1aa101d82ed93aef91f43cb217934e01e0554837", "note": "Sanitized log_profile_update and extended pseudonymize_deleted_actor to scrub audit_logs.details." }
+      ]
+    },
+    {
+      "id": "LERNA-STAB-AUD-005",
+      "title": "Missing v1 activity event producers for material upload lifecycle and completed password recovery",
+      "severity": "Low",
+      "category": "telemetry_integrity",
+      "status": "fixed_local_verified_unit_sql",
+      "review_status": "unreviewed_by_independent_agent",
+      "reviewer": "pending-independent-reviewer",
+      "introduced_commit": "c1300ed6b95d5b81c131f0d9561464bd48ce50a2",
+      "fixed_commit": "1aa101d82ed93aef91f43cb217934e01e0554837",
+      "reviewed_commit": "1aa101d82ed93aef91f43cb217934e01e0554837",
+      "resource_boundary": "database:reserve_operation,finish_operation,consume_recovery_proof",
+      "affected_files": [
+        "supabase/migrations/20261029120000_stabilization_audit_repairs.sql",
+        "src/lib/activity/contracts.ts"
+      ],
+      "affected_symbols": [
+        "reserve_operation",
+        "finish_operation",
+        "consume_recovery_proof",
+        "validateMetadata"
+      ],
+      "hypothesis": "material.upload.started/completed/failed and auth.recovery.completed were declared in contracts.ts and private.append_event but not emitted by operation/recovery RPCs.",
+      "reproduction": "tests/database.test.mjs upload reservation and recovery proof consumption lifecycle event control.",
+      "positive_control": "Upload reservation/settlement and recovery proof consumption atomically append deduplicated v1 events.",
+      "negative_control": "Unconsumed or expired recovery proofs emit no completion event.",
+      "dependency_config_assumptions": "Requires 20261029120000_stabilization_audit_repairs.sql.",
+      "evidence_refs": [
+        "tests/database.test.mjs"
+      ],
+      "status_history": [
+        { "date": "2026-10-29", "status": "fixed_local_verified_unit_sql", "commit": "1aa101d82ed93aef91f43cb217934e01e0554837", "note": "Wired v1 upload and recovery completion events in SQL RPCs." }
+      ]
+    },
+    {
+      "id": "LERNA-STAB-AUD-006",
+      "title": "Admin API routes leaked raw error strings, lacked bounded JSON/pagination checks and no-store headers, and privacy policy had stale canonical URL",
+      "severity": "Low",
+      "category": "input_validation",
+      "status": "fixed_local_verified_unit_sql",
+      "review_status": "unreviewed_by_independent_agent",
+      "reviewer": "pending-independent-reviewer",
+      "introduced_commit": "35914eb39c4f1fdb79666c5829d28ca4f17841f4",
+      "fixed_commit": "1aa101d82ed93aef91f43cb217934e01e0554837",
+      "reviewed_commit": "1aa101d82ed93aef91f43cb217934e01e0554837",
+      "resource_boundary": "api:/api/admin/*,ui:/privacy-policy",
+      "affected_files": [
+        "src/app/api/admin/users/route.ts",
+        "src/app/api/admin/users/[userId]/route.ts",
+        "src/app/api/admin/stats/route.ts",
+        "src/app/api/admin/billing/route.ts",
+        "src/app/api/admin/transactions/route.ts",
+        "src/app/api/admin/audit-logs/route.ts",
+        "src/app/api/admin/feature-flags/route.ts",
+        "src/app/api/admin/feedback/route.ts",
+        "src/app/api/admin/coupons/route.ts",
+        "src/app/api/admin/broadcasts/route.ts",
+        "src/app/api/admin/broadcasts/audience-count/route.ts",
+        "src/app/api/admin/institutions/analytics/route.ts",
+        "src/app/privacy-policy/page.tsx",
+        "src/components/auth/signup-form.tsx"
+      ],
+      "affected_symbols": [
+        "GET",
+        "POST",
+        "PUT",
+        "DELETE",
+        "PrivacyPolicyPage",
+        "SignupForm"
+      ],
+      "hypothesis": "Admin endpoints returned String(err) / error.message on failures, omitted Cache-Control: private, no-store, and /privacy-policy used https://learn.app/privacy-policy.",
+      "reproduction": "Inspect route error handlers and tests/active-api-routes.test.ts.",
+      "positive_control": "Valid admin requests succeed with Cache-Control: private, no-store; /privacy-policy canonical is https://www.uselerna.app/privacy-policy.",
+      "negative_control": "Invalid UUIDs, oversized bodies, and backend errors return sanitized messages with 400/503 status.",
+      "dependency_config_assumptions": "None.",
+      "evidence_refs": [
+        "tests/active-api-routes.test.ts"
+      ],
+      "status_history": [
+        { "date": "2026-10-29", "status": "fixed_local_verified_unit_sql", "commit": "1aa101d82ed93aef91f43cb217934e01e0554837", "note": "Sanitized admin error responses, added bounded input/pagination validation and no-store headers, and fixed privacy canonical URL." }
+      ]
+    },
+    {
+      "id": "LERNA-STAB-AUD-007",
+      "title": "Historical VM security boundary and parser test harnesses failed on refactored first-party module imports and worker threads",
+      "severity": "Low",
+      "category": "test_harness",
+      "status": "fixed_local_verified_unit_sql",
+      "review_status": "unreviewed_by_independent_agent",
+      "reviewer": "pending-independent-reviewer",
+      "introduced_commit": "c1300ed6b95d5b81c131f0d9561464bd48ce50a2",
+      "fixed_commit": "1aa101d82ed93aef91f43cb217934e01e0554837",
+      "reviewed_commit": "1aa101d82ed93aef91f43cb217934e01e0554837",
+      "resource_boundary": "test_harness:docs/security/security-boundary-tests.mjs,docs/security/parser-render-tests.mjs",
+      "affected_files": [
+        "docs/security/security-boundary-tests.mjs",
+        "docs/security/parser-render-tests.mjs"
+      ],
+      "affected_symbols": [
+        "load",
+        "check"
+      ],
+      "hypothesis": "The 12 October VM runners threw 13 harness errors because their require whitelist did not resolve refactored first-party @/ modules or node:worker_threads.",
+      "reproduction": "Run node docs/security/security-boundary-tests.mjs --secure and node docs/security/parser-render-tests.mjs.",
+      "positive_control": "All 16 secure boundary assertions and all 4 parser + 3 markdown render checks pass offline with zero provider calls.",
+      "negative_control": "External/provider imports remain blocked unless explicitly mocked.",
+      "dependency_config_assumptions": "None.",
+      "evidence_refs": [
+        "docs/security/security-boundary-tests.mjs",
+        "docs/security/parser-render-tests.mjs"
+      ],
+      "status_history": [
+        { "date": "2026-10-20", "status": "open_confirmed", "commit": "fb0f19280d79975d9a79dde4ae970ddf71892ee8", "note": "Replay produced 3 pass / 13 harness errors due to revised module boundaries." },
+        { "date": "2026-10-29", "status": "fixed_local_verified_unit_sql", "commit": "1aa101d82ed93aef91f43cb217934e01e0554837", "note": "Repaired VM module resolution and UUID/precondition fixtures without weakening any assertion (16/16 pass)." }
+      ]
+    },
+    {
+      "id": "LERNA-DEP-001",
+      "title": "Transitive dev-only braces ReDoS advisory (GHSA-vfj7-8cjw-p6xm) in ESLint/Tailwind glob tooling",
+      "severity": "Low",
+      "category": "supply_chain",
+      "status": "open_tracked_dependency_advisory",
+      "review_status": "reviewed_by_independent_specialist",
+      "reviewer": "security-specialist",
+      "introduced_commit": "35914eb39c4f1fdb79666c5829d28ca4f17841f4",
+      "fixed_commit": null,
+      "reviewed_commit": "1aa101d82ed93aef91f43cb217934e01e0554837",
+      "resource_boundary": "devDependencies:eslint,tailwindcss",
+      "affected_files": [
+        "package.json",
+        "package-lock.json",
+        "next.config.ts"
+      ],
+      "affected_symbols": [
+        "parserRuntimeFiles"
+      ],
+      "hypothesis": "Unpatched braces 3.0.3 in dev-only ESLint/Tailwind micromatch chain is flagged by npm audit (7 high entries).",
+      "reproduction": "Run npm audit --json.",
+      "positive_control": "npm audit --omit=dev excludes all 7 braces entries; braces is not bundled in runtime server or browser code.",
+      "negative_control": "No untrusted user input reaches build-time ESLint/Tailwind glob patterns.",
+      "dependency_config_assumptions": "Re-evaluate when upstream ESLint/Tailwind/micromatch releases a non-breaking patched braces dependency.",
+      "evidence_refs": [
+        "docs/STABILIZATION_HANDOFF.md",
+        "package.json"
+      ],
+      "status_history": [
+        { "date": "2026-10-20", "status": "open_tracked_dependency_advisory", "commit": "fb0f19280d79975d9a79dde4ae970ddf71892ee8", "note": "Assessed unreachable in production runtime (--omit=dev)." }
+      ]
+    },
+    {
+      "id": "LERNA-DEP-002",
+      "title": "Transitive sprintf-js / argparse advisory (GHSA-hp3w-g68c-fv3c) in Mammoth unused CLI chain",
+      "severity": "Low",
+      "category": "supply_chain",
+      "status": "open_tracked_dependency_advisory",
+      "review_status": "reviewed_by_independent_specialist",
+      "reviewer": "security-specialist",
+      "introduced_commit": "35914eb39c4f1fdb79666c5829d28ca4f17841f4",
+      "fixed_commit": null,
+      "reviewed_commit": "1aa101d82ed93aef91f43cb217934e01e0554837",
+      "resource_boundary": "dependencies:mammoth",
+      "affected_files": [
+        "package.json",
+        "package-lock.json",
+        "src/lib/materials/parser-worker.cjs"
+      ],
+      "affected_symbols": [
+        "runWorker"
+      ],
+      "hypothesis": "Mammoth 1.12.0 declares argparse -> sprintf-js for its CLI binary, producing 3 moderate npm audit entries.",
+      "reproduction": "Run npm audit --omit=dev --json.",
+      "positive_control": "parser-worker.cjs invokes mammoth.extractRawText({ buffer }) programmatically in an isolated worker after ZIP validation; Mammoth's lib/index.js never imports argparse or sprintf-js.",
+      "negative_control": "No CLI argument parsing or sprintf-js formatting is reachable from document uploads.",
+      "dependency_config_assumptions": "Monitor Mammoth releases for removal or upgrade of argparse.",
+      "evidence_refs": [
+        "docs/STABILIZATION_HANDOFF.md",
+        "src/lib/materials/parser-worker.cjs"
+      ],
+      "status_history": [
+        { "date": "2026-10-20", "status": "open_tracked_dependency_advisory", "commit": "fb0f19280d79975d9a79dde4ae970ddf71892ee8", "note": "Verified unreachable in programmatic mammoth.extractRawText path." }
+      ]
+    },
+    {
+      "id": "LERNA-STAB-REV-001",
+      "title": "Split quiz quota and double charge on quiz question generation and practice completion",
+      "severity": "Medium",
+      "category": "cost_containment",
+      "status": "fixed_local_verified_unit_sql",
+      "review_status": "reviewed_by_independent_specialist",
+      "reviewer": "persistence-specialist",
+      "introduced_commit": "e9e13fd6646330edb8dfce0a6239e2d84cecfe25",
+      "fixed_commit": "c1300ed6b95d5b81c131f0d9561464bd48ce50a2",
+      "reviewed_commit": "1aa101d82ed93aef91f43cb217934e01e0554837",
+      "resource_boundary": "api:/api/quiz/generate,api:/api/quiz,database:reserve_operation,save_practice_quiz",
+      "affected_files": [
+        "src/lib/repositories/operations.ts",
+        "src/app/api/quiz/generate/route.ts",
+        "supabase/migrations/20261017120500_stabilization_materials_practice.sql"
+      ],
+      "affected_symbols": [
+        "reserveProviderOperation",
+        "save_practice_quiz"
+      ],
+      "hypothesis": "Charging both quiz question generation and practice result saving against the quizzes allowance blocked saving the final allowed quiz.",
+      "reproduction": "tests/quiz-generation-budget.test.ts and tests/database.test.mjs one-slot quiz generation + save control.",
+      "positive_control": "One remaining quiz slot allows generating questions (charged to aiRequests) and saving the completed practice quiz (charged to quizzes).",
+      "negative_control": "A subsequent practice save beyond the quiz limit is rejected with PT429.",
+      "dependency_config_assumptions": "None.",
+      "evidence_refs": [
+        "tests/quiz-generation-budget.test.ts",
+        "tests/database.test.mjs",
+        "docs/STABILIZATION_REVIEW_LOG.md"
+      ],
+      "status_history": [
+        { "date": "2026-10-20", "status": "fixed_local_verified_unit_sql", "commit": "c1300ed6b95d5b81c131f0d9561464bd48ce50a2", "note": "Separated AI generation budget from practice completion receipts; re-reviewed." }
+      ]
+    },
+    {
+      "id": "LERNA-STAB-REV-002",
+      "title": "Invalid or foreign chat references created orphan study sessions before parent validation",
+      "severity": "Medium",
+      "category": "authorization",
+      "status": "fixed_local_verified_unit_sql",
+      "review_status": "reviewed_by_independent_specialist",
+      "reviewer": "security-specialist",
+      "introduced_commit": "35914eb39c4f1fdb79666c5829d28ca4f17841f4",
+      "fixed_commit": "c1300ed6b95d5b81c131f0d9561464bd48ce50a2",
+      "reviewed_commit": "1aa101d82ed93aef91f43cb217934e01e0554837",
+      "resource_boundary": "api:/api/chat",
+      "affected_files": [
+        "src/app/api/chat/route.ts"
+      ],
+      "affected_symbols": [
+        "POST"
+      ],
+      "hypothesis": "Supplying a malformed or foreign sessionId, courseId, or materialId in POST /api/chat could create a new session or invoke Gemini before failing.",
+      "reproduction": "tests/chat-boundary.test.ts foreign session/course/deleted material controls.",
+      "positive_control": "Valid owned session/course/material proceeds to tutoring response.",
+      "negative_control": "Malformed, foreign, or deleted IDs return 400/404 before any session insert, message insert, or provider call.",
+      "dependency_config_assumptions": "None.",
+      "evidence_refs": [
+        "tests/chat-boundary.test.ts",
+        "docs/STABILIZATION_REVIEW_LOG.md"
+      ],
+      "status_history": [
+        { "date": "2026-10-20", "status": "fixed_local_verified_unit_sql", "commit": "c1300ed6b95d5b81c131f0d9561464bd48ce50a2", "note": "Validated UUID syntax and owned parents before session creation or provider calls; re-reviewed." }
+      ]
+    },
+    {
+      "id": "LERNA-STAB-REV-003",
+      "title": "Long-running paged exports lacked a final authorization and MFA recheck before data release",
+      "severity": "Medium",
+      "category": "authorization",
+      "status": "fixed_local_verified_unit_sql",
+      "review_status": "reviewed_by_independent_specialist",
+      "reviewer": "security-specialist",
+      "introduced_commit": "e9e13fd6646330edb8dfce0a6239e2d84cecfe25",
+      "fixed_commit": "c1300ed6b95d5b81c131f0d9561464bd48ce50a2",
+      "reviewed_commit": "1aa101d82ed93aef91f43cb217934e01e0554837",
+      "resource_boundary": "api:/api/admin/exports",
+      "affected_files": [
+        "src/app/api/admin/exports/route.ts",
+        "src/lib/activity/export.ts"
+      ],
+      "affected_symbols": [
+        "GET",
+        "createActivityExport"
+      ],
+      "hypothesis": "An admin demoted or suspended while a multi-page export was being collected could still receive the exported dataset.",
+      "reproduction": "tests/admin-export-boundary.test.ts and tests/activity-export-boundary.test.ts mid-export demotion controls.",
+      "positive_control": "Active AAL2 admin whose identity remains valid before release receives audited export.",
+      "negative_control": "Demotion or identity change before release returns 403 and withholds all rows without writing a false export success audit.",
+      "dependency_config_assumptions": "None.",
+      "evidence_refs": [
+        "tests/admin-export-boundary.test.ts",
+        "tests/activity-export-boundary.test.ts",
+        "docs/STABILIZATION_REVIEW_LOG.md"
+      ],
+      "status_history": [
+        { "date": "2026-10-20", "status": "fixed_local_verified_unit_sql", "commit": "c1300ed6b95d5b81c131f0d9561464bd48ce50a2", "note": "Added post-collection requireAdminApi({ requireMfa: true }) recheck before audit and response release." }
+      ]
+    },
+    {
+      "id": "LERNA-STAB-REV-004",
+      "title": "Denied anonymous demo requests incremented the daily counter and exhausted daily allowance",
+      "severity": "Medium",
+      "category": "cost_containment",
+      "status": "fixed_local_verified_unit_sql",
+      "review_status": "reviewed_by_independent_specialist",
+      "reviewer": "persistence-specialist",
+      "introduced_commit": "e9e13fd6646330edb8dfce0a6239e2d84cecfe25",
+      "fixed_commit": "c1300ed6b95d5b81c131f0d9561464bd48ce50a2",
+      "reviewed_commit": "1aa101d82ed93aef91f43cb217934e01e0554837",
+      "resource_boundary": "database:public.reserve_demo_operation",
+      "affected_files": [
+        "supabase/migrations/20261017120300_stabilization_operations.sql"
+      ],
+      "affected_symbols": [
+        "reserve_demo_operation"
+      ],
+      "hypothesis": "Incrementing demo_budget before checking both minute (10) and day (100) caps caused minute-rate-limited requests to burn the daily demo budget.",
+      "reproduction": "tests/database.test.mjs denied demo request control.",
+      "positive_control": "Up to 10 requests per minute and 100 per UTC day are accepted.",
+      "negative_control": "Minute-denied requests do not increment private.demo_budget.",
+      "dependency_config_assumptions": "Requires 20261017120300_stabilization_operations.sql.",
+      "evidence_refs": [
+        "tests/database.test.mjs",
+        "docs/STABILIZATION_REVIEW_LOG.md"
+      ],
+      "status_history": [
+        { "date": "2026-10-20", "status": "fixed_local_verified_unit_sql", "commit": "c1300ed6b95d5b81c131f0d9561464bd48ce50a2", "note": "Checked both day and minute counts under advisory lock before incrementing demo_budget." }
+      ]
+    },
+    {
+      "id": "LERNA-STAB-REV-005",
+      "title": "Legacy ticket update audit copied private resolution_notes content",
+      "severity": "Low",
+      "category": "logging_privacy",
+      "status": "fixed_local_verified_unit_sql",
+      "review_status": "reviewed_by_independent_specialist",
+      "reviewer": "activity-specialist",
+      "introduced_commit": "35914eb39c4f1fdb79666c5829d28ca4f17841f4",
+      "fixed_commit": "c1300ed6b95d5b81c131f0d9561464bd48ce50a2",
+      "reviewed_commit": "1aa101d82ed93aef91f43cb217934e01e0554837",
+      "resource_boundary": "api:/api/admin/tickets",
+      "affected_files": [
+        "src/app/api/admin/tickets/route.ts"
+      ],
+      "affected_symbols": [
+        "PUT"
+      ],
+      "hypothesis": "PUT /api/admin/tickets copied resolution_notes into a separate legacy audit_logs insert.",
+      "reproduction": "tests/admin-ticket-audit-boundary.test.ts.",
+      "positive_control": "Ticket updates commit with transactional content-free v1 event from stabilization_staff_audit.",
+      "negative_control": "No resolution_notes text is written to audit_logs or events.properties.",
+      "dependency_config_assumptions": "None.",
+      "evidence_refs": [
+        "tests/admin-ticket-audit-boundary.test.ts",
+        "docs/STABILIZATION_REVIEW_LOG.md"
+      ],
+      "status_history": [
+        { "date": "2026-10-20", "status": "fixed_local_verified_unit_sql", "commit": "c1300ed6b95d5b81c131f0d9561464bd48ce50a2", "note": "Removed content-bearing legacy audit insert in PUT /api/admin/tickets." }
+      ]
+    },
+    {
+      "id": "LERNA-STAB-REV-006",
+      "title": "Administrative usage reset lacked transactional audit and needed explicit legacy-counter scope",
+      "severity": "Low",
+      "category": "audit_integrity",
+      "status": "fixed_local_verified_unit_sql",
+      "review_status": "reviewed_by_independent_specialist",
+      "reviewer": "persistence-specialist",
+      "introduced_commit": "35914eb39c4f1fdb79666c5829d28ca4f17841f4",
+      "fixed_commit": "c1300ed6b95d5b81c131f0d9561464bd48ce50a2",
+      "reviewed_commit": "1aa101d82ed93aef91f43cb217934e01e0554837",
+      "resource_boundary": "database:admin_reset_usage,admin_extend_subscription,api:/api/admin/users/[userId]/actions",
+      "affected_files": [
+        "supabase/migrations/20261020110000_stabilization_admin_account_actions.sql",
+        "src/app/api/admin/users/[userId]/actions/route.ts"
+      ],
+      "affected_symbols": [
+        "admin_reset_usage",
+        "admin_extend_subscription",
+        "POST"
+      ],
+      "hypothesis": "Resetting subscription_usage directly in route handlers was non-transactional with audit logging and could be mistaken for durable quota replenishment.",
+      "reproduction": "tests/database.test.mjs admin_reset_usage and admin_extend_subscription rollback and budget-snapshot preservation controls.",
+      "positive_control": "AAL2 admin resets legacy daily cache in one transaction with audit_logs and v1 event while durable reservation usage stays intact.",
+      "negative_control": "AAL1 admin or audit-outage attempt rolls back.",
+      "dependency_config_assumptions": "Requires 20261020110000_stabilization_admin_account_actions.sql.",
+      "evidence_refs": [
+        "tests/database.test.mjs",
+        "docs/STABILIZATION_REVIEW_LOG.md"
+      ],
+      "status_history": [
+        { "date": "2026-10-20", "status": "fixed_local_verified_unit_sql", "commit": "c1300ed6b95d5b81c131f0d9561464bd48ce50a2", "note": "Implemented transactional admin_reset_usage and admin_extend_subscription RPCs." }
+      ]
+    },
+    {
+      "id": "LERNA-STAB-REV-007",
+      "title": "Failed recovery browser proof forwarded newly exchanged Auth session cookies",
+      "severity": "High",
+      "category": "authentication",
+      "status": "fixed_local_verified_unit_sql",
+      "review_status": "reviewed_by_independent_specialist",
+      "reviewer": "persistence-specialist",
+      "introduced_commit": "e9e13fd6646330edb8dfce0a6239e2d84cecfe25",
+      "fixed_commit": "c1300ed6b95d5b81c131f0d9561464bd48ce50a2",
+      "reviewed_commit": "1aa101d82ed93aef91f43cb217934e01e0554837",
+      "resource_boundary": "api:/auth/callback,api:/api/auth/recovery/complete",
+      "affected_files": [
+        "src/app/auth/callback/route.ts",
+        "src/lib/auth/recovery-server.ts"
+      ],
+      "affected_symbols": [
+        "GET",
+        "grantRecoveryProof",
+        "finishRecovery"
+      ],
+      "hypothesis": "If PKCE code exchange succeeded in /auth/callback but grantRecoveryProof failed (e.g. different browser), forwarding response cookies would sign the browser in without recovery proof.",
+      "reproduction": "tests/auth-callback.test.ts and tests/auth-recovery-proof.test.mjs positive-cookie suppression controls.",
+      "positive_control": "Valid browser + nonce + email + session receives lerna-recovery-proof cookie.",
+      "negative_control": "Failure responses in /auth/callback and finishRecovery forward only cookie removals (empty value or maxAge <= 0).",
+      "dependency_config_assumptions": "None.",
+      "evidence_refs": [
+        "tests/auth-callback.test.ts",
+        "tests/auth-recovery-proof.test.mjs",
+        "docs/STABILIZATION_REVIEW_LOG.md"
+      ],
+      "status_history": [
+        { "date": "2026-10-20", "status": "fixed_local_verified_unit_sql", "commit": "c1300ed6b95d5b81c131f0d9561464bd48ce50a2", "note": "Filtered failure cookies to retain only explicit removals; re-reviewed." }
+      ]
+    },
+    {
+      "id": "LERNA-STAB-REV-008",
+      "title": "Deleted actor remained identifiable through event dedup_key and legacy v0 properties",
+      "severity": "Medium",
+      "category": "logging_privacy",
+      "status": "fixed_local_verified_unit_sql",
+      "review_status": "reviewed_by_independent_specialist",
+      "reviewer": "activity-specialist",
+      "introduced_commit": "e9e13fd6646330edb8dfce0a6239e2d84cecfe25",
+      "fixed_commit": "c1300ed6b95d5b81c131f0d9561464bd48ce50a2",
+      "reviewed_commit": "1aa101d82ed93aef91f43cb217934e01e0554837",
+      "resource_boundary": "database:private.pseudonymize_deleted_actor",
+      "affected_files": [
+        "supabase/migrations/20261017120600_stabilization_boundaries_maintenance.sql",
+        "supabase/migrations/20261029120000_stabilization_audit_repairs.sql"
+      ],
+      "affected_symbols": [
+        "pseudonymize_deleted_actor"
+      ],
+      "hypothesis": "Nulling events.user_id on auth.users deletion left the user UUID embedded inside dedup_key or v0 properties.",
+      "reproduction": "tests/database.test.mjs hard deletion pseudonymization control.",
+      "positive_control": "Unrelated staff user_id on administrative actions is preserved.",
+      "negative_control": "Deleted user UUID is cleared from user_id, resource_id, dedup_key, v0 properties, and audit_logs.",
+      "dependency_config_assumptions": "Requires 20261017120600 and 20261029120000 migrations.",
+      "evidence_refs": [
+        "tests/database.test.mjs",
+        "docs/STABILIZATION_REVIEW_LOG.md"
+      ],
+      "status_history": [
+        { "date": "2026-10-20", "status": "fixed_local_verified_unit_sql", "commit": "c1300ed6b95d5b81c131f0d9561464bd48ce50a2", "note": "Cleared dedup_key and v0 properties on actor deletion; extended to audit_logs in 20261029120000." }
+      ]
+    },
+    {
+      "id": "LERNA-STAB-REV-009",
+      "title": "Pre-read activity investigation audit claimed succeeded outcome before querying source",
+      "severity": "Low",
+      "category": "audit_integrity",
+      "status": "fixed_local_verified_unit_sql",
+      "review_status": "reviewed_by_independent_specialist",
+      "reviewer": "activity-specialist",
+      "introduced_commit": "e9e13fd6646330edb8dfce0a6239e2d84cecfe25",
+      "fixed_commit": "c1300ed6b95d5b81c131f0d9561464bd48ce50a2",
+      "reviewed_commit": "1aa101d82ed93aef91f43cb217934e01e0554837",
+      "resource_boundary": "api:/api/admin/events,api:/api/internal/activity",
+      "affected_files": [
+        "src/app/api/admin/events/route.ts",
+        "src/app/api/internal/activity/route.ts"
+      ],
+      "affected_symbols": [
+        "GET"
+      ],
+      "hypothesis": "Recording admin.activity.read as succeeded before executing the source query misrepresented failed source reads as succeeded.",
+      "reproduction": "tests/activity-read-outcome.test.ts failed-source controls.",
+      "positive_control": "Pre-read audit event uses outcome='attempted' and fails closed if event storage is unavailable.",
+      "negative_control": "Source query failure returns 503 while leaving only the attempted read record.",
+      "dependency_config_assumptions": "None.",
+      "evidence_refs": [
+        "tests/activity-read-outcome.test.ts",
+        "docs/STABILIZATION_REVIEW_LOG.md"
+      ],
+      "status_history": [
+        { "date": "2026-10-20", "status": "fixed_local_verified_unit_sql", "commit": "c1300ed6b95d5b81c131f0d9561464bd48ce50a2", "note": "Changed pre-read audit outcome to attempted; re-reviewed." }
+      ]
+    }
+  ]
+}
