@@ -6,13 +6,17 @@ The original audit below remains a dated snapshot. The active integration checko
 is `security/stabilization` based on clean main `35914eb39c4f1fdb79666c5829d28ca4f17841f4`;
 the original `main` checkout remains untouched. Track current source, checks and
 review status in [STABILIZATION_WORKBOARD.md](STABILIZATION_WORKBOARD.md).
-Next 16.4.1, React Query and local fonts now build. The current source passes
-strict lint with warnings, typecheck, 76 Node checks including actual SQL files
-against synthetic Auth/Storage schemas, 94 Vitest assertions, and a production
-build. These are local application/source controls; Docker/Podman is unavailable,
-so real Supabase Auth, Postgres, Storage, mailbox and isolated search evidence is
-still blocked. Browser tests refuse to run unless the app reports local mocked
-providers and local Auth is healthy.
+Next 16.4.1, React Query and local fonts now build. As of 29 October 2026, the
+current source passes strict lint with warnings, typecheck, 86 Node checks
+including 34 ordered-migration SQL controls against synthetic Auth/Storage
+schemas, 118 Vitest assertions, 16/16 offline VM security boundary assertions
+(`docs/security/security-boundary-tests.mjs --secure`), bounded parser/render
+controls (`docs/security/parser-render-tests.mjs`), Graphify + audit-knowledge
+validation/self-tests (`scripts/audit_knowledge.py`), and a production build.
+These are local application/source controls; the Docker Linux engine daemon is
+not running, so real Supabase Auth, Postgres, Storage, mailbox and isolated
+search container evidence is still blocked. Browser tests refuse to run unless
+the app reports local mocked providers and local Auth is healthy.
 
 Canonical `user_roles` plus active-profile checks now form the intended runtime
 authorization boundary. Sessions retain `study_sessions.notes` as canonical with

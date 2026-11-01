@@ -58,6 +58,58 @@ in the next workboard update/handoff. Failing and blocked gates are never marked
 - `fb0f192`: documentation/evidence checkpoint with the activity contract,
   independent review log, current context/security reports and blocked-gate
   handoff. Documentation coverage is not full M8 acceptance.
+- `e4bb054`: local candidate manifest and framework guidance checkpoint.
+- `1aa101d`: portable project skills and isolated Graphify (`0.9.97`) + Playwright CLI (`0.1.22`) tooling.
+
+## Audit knowledge, Graphify scopes, and integrated audit repairs — 29 October 2026
+
+Bounded Graphify and portable-skill health checks passed with zero network or
+paid provider calls (`scripts/agent_skills.py validate`, `self-test`,
+`graphify_local.py status`, `smoke`, `query`, and `scripts/check_agent_skill_fixtures.py`
+in a fresh nonpersistent Chrome context). Docker CLI 29.9.1 is installed on this
+machine, but the Docker Linux engine daemon (`npipe:////./pipe/dockerDesktopLinuxEngine`)
+is not running, so live Supabase Auth/Storage/Mailpit container journeys remain
+blocked.
+
+A full diff and untouched-boundary audit across all 21 historical/stabilization
+SQL migrations, API routes, repositories, and test harnesses identified and
+repaired seven concrete issues (`LERNA-STAB-AUD-001` through `LERNA-STAB-AUD-007`):
+1. Added missing `feedback_select_own` and `feedback_admin_update` RLS policies
+   plus `authenticated` table privileges on `feedback`, `broadcasts`,
+   `coupon_codes`, and `institutions` (`supabase/migrations/20261029120000_stabilization_audit_repairs.sql`).
+2. Hardened legacy `SECURITY DEFINER` admin RPCs (`admin_toggle_suspension`,
+   `admin_toggle_soft_delete`, `admin_delete_user`, `admin_assign_plan`) with
+   `set search_path = ''`, entry-level `private.require_sensitive_admin()`
+   (`aal2` MFA even on no-op calls), target profile existence checks
+   (`TARGET_NOT_FOUND`), plan/status validation, and removal of the legacy
+   `schema_version = 0` event insert in `admin_toggle_soft_delete`.
+3. Removed failing/unchecked client-role `audit_logs` inserts from
+   `/api/tickets`, `/api/admin/broadcasts` (which also copied broadcast titles),
+   and `/api/admin/coupons`.
+4. Removed profile-name PII (`old_name`, `new_name`) from `log_profile_update()`
+   and extended `private.pseudonymize_deleted_actor()` to scrub deleted user
+   UUIDs and names from `public.audit_logs.details` while preserving staff actor
+   accountability.
+5. Wired v1 activity events (`material.upload.started`, `material.upload.completed`,
+   `material.upload.failed`, `auth.recovery.completed`) into `reserve_operation`,
+   `finish_operation`, and `consume_recovery_proof`.
+6. Sanitized 500/503 error payloads, enforced bounded JSON/pagination inputs
+   and `Cache-Control: private, no-store` across `/api/admin/*` routes, and
+   updated `/privacy-policy` canonical metadata to `https://www.uselerna.app/privacy-policy`.
+7. Repaired the offline VM module loader in `docs/security/security-boundary-tests.mjs`
+   and `docs/security/parser-render-tests.mjs` to resolve refactored `@/lib/*`
+   modules and `node:worker_threads`: all **16/16** `--secure` boundary assertions
+   and all parser/render checks now pass offline.
+
+Implemented the durable project-local audit knowledge layer (`docs/audit/README.md`,
+`docs/audit/coverage.json`, `docs/audit/findings.json`, `docs/audit/decisions.md`,
+and `scripts/audit_knowledge.py`) linked to bounded Graphify AST scopes and
+derived `.stabilization-local/audit/audit-overlay-graph.json`. Current application
+checks pass **86/86 Node tests** (including **34/34** ordered-migration PGlite
+controls), **118/118 Vitest assertions**, **16/16** VM security boundary checks,
+**6/6** `audit_knowledge.py self-test` negative controls, strict ESLint (0 errors),
+TypeScript typecheck, and Next 16.4.1 production build. Independent review of
+the 29 October repairs and live container/browser gates remain open.
 
 ## Integration progress — 20 October 2026
 

@@ -1,23 +1,29 @@
 # Security test matrix
 
-## Stabilization status — 20 October 2026
+## Stabilization status — 29 October 2026
 
-The rows below preserve the 12 October audit baseline; they are not current pass
-claims. The original dependency-mocked `security-boundary-tests.mjs --secure`
-runner recorded 5 secure assertions passing and 11 failing at baseline. Its old
-module mocks no longer load several revised routes (current replay: 3 PASS, 13
-test-harness ERROR), so a green result must not be inferred from that script.
-Current `npm test` passes 76 Node tests and 94 Vitest assertions, including
-25 actual-migration controls in synthetic Postgres/Auth/Storage schemas, ordinary
-A/B roles, positive owner access and negative foreign access. A subsequent coupon
-policy control raises the ordered-SQL count to 26; re-run the full suite after
-this and later changes. New tests cover role demotion, final-owner protection,
-suspension, parent ownership, note revision/receipt/rollback, practice shapes,
-operation idempotency, recovery proof and material cleanup revisions. They do
-not prove real local Supabase services, concurrent connections, browser Auth or
-hosted policies. Docker/Podman is unavailable, and the real integration gate
-remains blocked. Browser tests explicitly refuse live providers or nonlocal
-targets. The independent integrated security review is still open.
+The rows below preserve the 12 October audit baseline; they are not live hosted
+pass claims. At baseline on 12 October, `security-boundary-tests.mjs --secure`
+recorded 5 secure assertions passing and 11 failing, and later produced 3 PASS /
+13 harness errors when routes were refactored into `@/lib/*` repositories and
+worker threads. On 29 October 2026, the VM module loader in
+`docs/security/security-boundary-tests.mjs` and `docs/security/parser-render-tests.mjs`
+was repaired to resolve first-party TypeScript modules and `node:worker_threads`
+while keeping external/provider/network boundaries mocked: all **16/16** secure
+assertions (`--secure`) and all parser/render controls now pass offline.
+Current `npm test` passes **86 Node tests** and **118 Vitest assertions**, including
+**34 actual-migration controls** in synthetic Postgres/Auth/Storage schemas,
+ordinary A/B roles, positive owner access and negative foreign access. New
+controls cover learner own-feedback reads, admin feedback/broadcast/coupon/institution
+role and MFA boundaries, hardened `admin_toggle_suspension` / `admin_toggle_soft_delete` /
+`admin_delete_user` / `admin_assign_plan` entry-level AAL2 MFA and target checks,
+`audit_logs` PII removal and deletion pseudonymization, and v1 upload/recovery
+activity events, alongside durable audit knowledge in `docs/audit/` (`scripts/audit_knowledge.py`).
+They do not prove real local Supabase services, concurrent connections, browser
+Auth or hosted policies. The Docker Linux engine daemon is unavailable, and the
+real container integration gate remains blocked. Browser tests explicitly refuse
+live providers or nonlocal targets. Independent review of the 29 October audit
+repairs remains open.
 
 
 **Private — 12 October 2026, Africa/Lagos.** main @ 9b37a7e8de96b09340ef4ecb5d0ded52840f5476. Current code is unmodified. Scope is source review and dependency-mocked boundary tests; deployed and ordinary-role DB outcomes remain blocked. No tests are counted green merely because a route fails.

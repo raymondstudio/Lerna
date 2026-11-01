@@ -8,6 +8,7 @@ Read the relevant skill in `.agents/skills/<name>/SKILL.md`, including reference
 | React rendering and performance | `vercel-react-best-practices` |
 | UI accessibility and interaction review | `web-design-guidelines` |
 | Security review and secure implementation | `security-best-practices` plus relevant Supabase guidance |
+| Incremental audit knowledge and Graphify finding overlay | Read `docs/audit/README.md`, `docs/audit/decisions.md`, `docs/audit/findings.json`, `docs/audit/coverage.json`; query with `python -B scripts/audit_knowledge.py validate\|stale\|open\|file\|symbol` |
 | Supabase Auth, storage, policies, schema | Existing `supabase`; `supabase-postgres-best-practices` for SQL |
 | Browser reproduction and UI verification | `playwright`; project-local runner and disposable contexts |
 | Next.js APIs and architecture | Installed `node_modules/next/dist/docs/` (project baseline 16.4.1); root AGENTS.md |

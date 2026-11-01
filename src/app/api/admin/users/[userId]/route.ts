@@ -13,18 +13,21 @@ export async function GET(
 
   try {
     const { userId } = await params;
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(userId)) {
+      return NextResponse.json({ success: false, error: "Invalid account ID." }, { status: 400, headers: { "Cache-Control": "private, no-store" } });
+    }
 
     const { data, error } = await supabase.rpc("get_admin_user_details", {
       target_user_id: userId,
     });
 
     if (error) {
-      console.error("[api:admin:user-details] RPC failed:", error.message);
-      return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+      console.error("[api:admin:user-details] RPC failed");
+      return NextResponse.json({ success: false, error: "Account details could not be loaded." }, { status: 503, headers: { "Cache-Control": "private, no-store" } });
     }
 
     if (!data) {
-      return NextResponse.json({ success: false, error: "User not found" }, { status: 404 });
+      return NextResponse.json({ success: false, error: "User not found" }, { status: 404, headers: { "Cache-Control": "private, no-store" } });
     }
 
     // Load additional billing info
@@ -43,10 +46,10 @@ export async function GET(
         billingHistory,
         invoices
       },
-    });
-  } catch (err) {
-    console.error("[api:admin:user-details] Exception:", err);
-    return NextResponse.json({ success: false, error: String(err) }, { status: 500 });
+    }, { headers: { "Cache-Control": "private, no-store" } });
+  } catch {
+    console.error("[api:admin:user-details] failed");
+    return NextResponse.json({ success: false, error: "Account details could not be loaded." }, { status: 503, headers: { "Cache-Control": "private, no-store" } });
   }
 }
 

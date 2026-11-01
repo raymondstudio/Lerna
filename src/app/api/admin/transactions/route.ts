@@ -22,9 +22,9 @@ export async function GET() {
     return NextResponse.json({
       success: true,
       transactions: data || [],
-    });
-  } catch (err) {
-    console.error("[api:admin:transactions] Error:", err);
-    return NextResponse.json({ success: false, error: String(err) }, { status: 500 });
+    }, { headers: { "Cache-Control": "private, no-store" } });
+  } catch {
+    console.error("[api:admin:transactions] failed");
+    return NextResponse.json({ success: false, error: "Transactions could not be loaded." }, { status: 503, headers: { "Cache-Control": "private, no-store" } });
   }
 }

@@ -2,6 +2,8 @@ import { AuthApiError, authApiErrorResponse, requireActiveUserApi } from "@/lib/
 import { selectBroadcasts, selectAuthProfile } from "@/lib/repositories/auth";
 import { isBroadcastVisibleToLearner } from "@/lib/auth/broadcast-visibility";
 import { authorizeAdminApi } from "@/lib/auth/require-admin-api";
+import { readBoundedJson } from "@/lib/http/bounded-json";
+import { OperationError } from "@/lib/repositories/operations";
 import { NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
@@ -17,7 +19,7 @@ export async function GET() {
     return NextResponse.json({ success: true, data: visible }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
     if (error instanceof AuthApiError) return authApiErrorResponse(error);
-    return NextResponse.json({ success: false, error: "Announcements could not be loaded." }, { status: 500 });
+    return NextResponse.json({ success: false, error: "Announcements could not be loaded." }, { status: 500, headers: { "Cache-Control": "private, no-store" } });
   }
 }
 
@@ -25,35 +27,46 @@ export async function POST(req: Request) {
   const authorization = await authorizeAdminApi();
   if (!authorization.ok) return authorization.response;
   const { supabase, user } = authorization;
-  const userData = { user };
 
   try {
-    const { 
-      title, 
-      content, 
-      status, 
-      targetAudience, 
-      targetInstitution, 
-      targetDepartment, 
-      scheduledFor, 
-      expiresAt 
-    } = await req.json();
+    const raw = await readBoundedJson(req, 16_384);
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+      return NextResponse.json({ success: false, error: "Invalid announcement payload." }, { status: 400, headers: { "Cache-Control": "private, no-store" } });
+    }
+    const {
+      title,
+      content,
+      status,
+      targetAudience,
+      targetInstitution,
+      targetDepartment,
+      scheduledFor,
+      expiresAt,
+    } = raw as Record<string, unknown>;
 
-    if (!title?.trim() || !content?.trim()) {
-      return NextResponse.json({ success: false, error: "Title and content are required parameters." }, { status: 400 });
+    if (typeof title !== "string" || !title.trim() || title.length > 200 || typeof content !== "string" || !content.trim() || content.length > 10_000) {
+      return NextResponse.json({ success: false, error: "Title and content are required parameters." }, { status: 400, headers: { "Cache-Control": "private, no-store" } });
+    }
+    const resolvedStatus = typeof status === "string" && status.trim() ? status.trim() : "published";
+    if (!["draft", "published", "scheduled"].includes(resolvedStatus)) {
+      return NextResponse.json({ success: false, error: "Invalid announcement status." }, { status: 400, headers: { "Cache-Control": "private, no-store" } });
+    }
+    const resolvedAudience = typeof targetAudience === "string" && targetAudience.trim() ? targetAudience.trim().toLowerCase() : "all";
+    if (!["all", "students", "teachers", "free", "student", "premium", "pro", "team", "enterprise"].includes(resolvedAudience)) {
+      return NextResponse.json({ success: false, error: "Invalid target audience." }, { status: 400, headers: { "Cache-Control": "private, no-store" } });
     }
 
     const payload = {
       title: title.trim(),
       content: content.trim(),
-      created_by: userData.user.id,
-      status: status || "published",
-      target_audience: targetAudience || "all",
-      target_institution: targetInstitution?.trim() || null,
-      target_department: targetDepartment?.trim() || null,
-      scheduled_for: scheduledFor || null,
-      expires_at: expiresAt || null,
-      ...((status || "published") === "published" ? { sent_at: new Date().toISOString() } : {})
+      created_by: user.id,
+      status: resolvedStatus,
+      target_audience: resolvedAudience,
+      target_institution: typeof targetInstitution === "string" && targetInstitution.trim() ? targetInstitution.trim().slice(0, 240) : null,
+      target_department: typeof targetDepartment === "string" && targetDepartment.trim() ? targetDepartment.trim().slice(0, 240) : null,
+      scheduled_for: typeof scheduledFor === "string" && scheduledFor.trim() ? scheduledFor.trim() : null,
+      expires_at: typeof expiresAt === "string" && expiresAt.trim() ? expiresAt.trim() : null,
+      ...(resolvedStatus === "published" ? { sent_at: new Date().toISOString() } : {}),
     };
 
     const { data, error } = await supabase
@@ -64,16 +77,14 @@ export async function POST(req: Request) {
 
     if (error) throw error;
 
-    // Log action to audit logs
-    await supabase.from("audit_logs").insert({
-      user_id: userData.user.id,
-      action: "broadcast_created",
-      details: { broadcast_id: data.id, title: data.title, status: data.status }
-    });
-
-    return NextResponse.json({ success: true, data });
-  } catch (err) {
-    console.error("[api:admin:broadcasts:POST] Exception:", err);
-    return NextResponse.json({ success: false, error: String(err) }, { status: 500 });
+    // The database trigger (stabilization_staff_audit) records the content-free
+    // v1 event in the same transaction; never copy broadcast titles into legacy audit rows.
+    return NextResponse.json({ success: true, data }, { headers: { "Cache-Control": "private, no-store" } });
+  } catch (error) {
+    if (error instanceof OperationError && error.status >= 400 && error.status < 500) {
+      return NextResponse.json({ success: false, error: error.message }, { status: error.status, headers: { "Cache-Control": "private, no-store" } });
+    }
+    console.error("[api:admin:broadcasts:POST] failed");
+    return NextResponse.json({ success: false, error: "Announcement could not be saved." }, { status: 503, headers: { "Cache-Control": "private, no-store" } });
   }
 }

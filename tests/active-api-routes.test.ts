@@ -57,3 +57,34 @@ describe("older account and learner APIs use the active-account boundary", () =>
     expect(query.eq).toHaveBeenCalledWith("user_id", "user-a");
   });
 });
+
+describe("admin route error sanitization and broadcast audit boundary", () => {
+  it("does not copy broadcast title into a legacy audit_logs insert or leak raw errors", async () => {
+    const authorizeAdmin = vi.fn().mockResolvedValue({
+      ok: true,
+      user: { id: "11111111-1111-4111-8111-111111111111" },
+      supabase: {
+        from: vi.fn((table: string) => {
+          if (table === "audit_logs") throw new Error("Legacy audit_logs insert must not be called");
+          return {
+            insert: vi.fn().mockReturnValue({
+              select: vi.fn().mockReturnValue({
+                single: vi.fn().mockResolvedValue({ data: { id: "b-1", title: "Private Title", status: "published" }, error: null }),
+              }),
+            }),
+          };
+        }),
+      },
+    });
+    vi.doMock("@/lib/auth/require-admin-api", () => ({ authorizeAdminApi: authorizeAdmin }));
+    const { POST } = await import("@/app/api/admin/broadcasts/route");
+    const res = await POST(new NextRequest("http://127.0.0.1:3100/api/admin/broadcasts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title: "Private Title", content: "Body", status: "published", targetAudience: "all" }),
+    }));
+    expect(res.status).toBe(200);
+    expect(res.headers.get("cache-control")).toContain("no-store");
+  });
+});
+

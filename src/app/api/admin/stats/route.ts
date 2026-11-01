@@ -12,14 +12,14 @@ export async function GET() {
     const { data, error } = await supabase.rpc("get_admin_stats");
     
     if (error) {
-      console.error("[api:admin:stats] RPC failed:", error.message);
-      return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+      console.error("[api:admin:stats] RPC failed");
+      return NextResponse.json({ success: false, error: "Statistics could not be loaded." }, { status: 503, headers: { "Cache-Control": "private, no-store" } });
     }
 
-    return NextResponse.json({ success: true, data });
-  } catch (err) {
-    console.error("[api:admin:stats] Exception:", err);
-    return NextResponse.json({ success: false, error: String(err) }, { status: 500 });
+    return NextResponse.json({ success: true, data }, { headers: { "Cache-Control": "private, no-store" } });
+  } catch {
+    console.error("[api:admin:stats] failed");
+    return NextResponse.json({ success: false, error: "Statistics could not be loaded." }, { status: 503, headers: { "Cache-Control": "private, no-store" } });
   }
 }
 

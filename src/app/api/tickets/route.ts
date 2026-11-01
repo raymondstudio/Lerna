@@ -47,16 +47,9 @@ export async function POST(req: Request) {
 
     if (error) throw error;
 
-    // Log action to audit logs
-    await auth.supabase.from("audit_logs").insert({
-      user_id: auth.user.id,
-      action: "ticket_created",
-      details: { ticket_id: data.id }
-    });
-
-    return NextResponse.json({ success: true, data });
+    return NextResponse.json({ success: true, data }, { headers: { "Cache-Control": "private, no-store" } });
   } catch {
     console.error("[api:tickets:POST] save failed");
-    return NextResponse.json({ success: false, error: "Ticket could not be saved." }, { status: 503 });
+    return NextResponse.json({ success: false, error: "Ticket could not be saved." }, { status: 503, headers: { "Cache-Control": "private, no-store" } });
   }
 }

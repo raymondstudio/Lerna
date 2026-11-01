@@ -9,9 +9,9 @@ export async function GET() {
 
 
     const data = await getInstitutionAnalytics();
-    return NextResponse.json({ success: true, data });
-  } catch (err) {
-    console.error("[api:admin:institutions:analytics] Error:", err);
-    return NextResponse.json({ success: false, error: err instanceof Error ? err.message : "Institution analytics could not be loaded." }, { status: 500 });
+    return NextResponse.json({ success: true, data }, { headers: { "Cache-Control": "private, no-store" } });
+  } catch {
+    console.error("[api:admin:institutions:analytics] failed");
+    return NextResponse.json({ success: false, error: "Institution analytics could not be loaded." }, { status: 503, headers: { "Cache-Control": "private, no-store" } });
   }
 }

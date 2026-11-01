@@ -7,7 +7,7 @@ export const metadata: Metadata = {
   title: "Privacy Policy | Lerna AI",
   description: "Learn about how Lerna AI collects, uses, and protects your personal information.",
   alternates: {
-    canonical: "https://learn.app/privacy-policy",
+    canonical: "https://www.uselerna.app/privacy-policy",
   }
 };
 
