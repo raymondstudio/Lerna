@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { ArrowDown } from "lucide-react";
 
 import { ChatInput } from "./ChatInput";
 import { ChatMessage as ChatMessageComponent } from "./ChatMessage";
@@ -12,6 +13,8 @@ import type { ChatReferenceSelection } from "@/lib/chat/references";
 import type { StudySessionRecord } from "@/lib/study-sessions/types";
 import type { UploadedMaterialRecord } from "@/lib/uploads/types";
 import { useDashboard } from "@/context/dashboard-context";
+import { useSessionDetails, sessionQueryKey } from "@/hooks/use-study-sessions";
+import { useQueryClient } from "@tanstack/react-query";
 
 type ApiErrorResponse = {
   code: string;
@@ -65,6 +68,7 @@ export function StudyWorkspace() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const paramSessionId = searchParams.get("session");
+  const queryClient = useQueryClient();
   const { user, ready, loading: authLoading } = useAuth();
   const {
     sessions,
@@ -80,15 +84,16 @@ export function StudyWorkspace() {
   const [error, setError] = useState<string | null>(null);
   const [chatReference, setChatReference] = useState<ChatReferenceSelection | null>(null);
   const [isUploading, setIsUploading] = useState(false);
-  const [loadingActiveSession, setLoadingActiveSession] = useState(false);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const transcriptRef = useRef<HTMLDivElement>(null);
   const [isNearBottom, setIsNearBottom] = useState(true);
 
+  const materialsCache = useRef<Record<string, UploadedMaterialRecord[]>>({});
   const [activeSessionMaterials, setActiveSessionMaterials] = useState<UploadedMaterialRecord[]>([]);
-  const [, setLoadingMaterials] = useState(false);
 
+  const [optimisticSession, setOptimisticSession] = useState<StudySessionRecord | null>(null);
+  const currentSessionId = paramSessionId ?? optimisticSession?.id ?? null;
   const initialSyncRef = useRef(false);
 
   // Sync activeSessionId with search query param "session"
@@ -100,6 +105,9 @@ export function StudyWorkspace() {
         setActiveSessionId(paramSessionId);
       }
       initialSyncRef.current = true;
+      if (optimisticSession && paramSessionId === optimisticSession.id) {
+        setOptimisticSession(null);
+      }
     } else {
       if (!initialSyncRef.current) {
         if (sessions.length > 0) {
@@ -107,12 +115,66 @@ export function StudyWorkspace() {
         }
         initialSyncRef.current = true;
       } else {
-        if (activeSessionId !== null) {
+        if (activeSessionId !== null && !optimisticSession) {
           setActiveSessionId(null);
         }
       }
     }
-  }, [ready, authLoading, paramSessionId, activeSessionId, sessions, setActiveSessionId, router]);
+  }, [ready, authLoading, paramSessionId, activeSessionId, sessions, setActiveSessionId, router, optimisticSession]);
+
+  // Load session details via React Query with in-memory cache
+  const {
+    data: fetchedSession,
+    isLoading: sessionQueryLoading,
+    isFetching: sessionQueryFetching,
+  } = useSessionDetails(currentSessionId);
+
+  // Sync fetched session into context cache once resolved with messages
+  useEffect(() => {
+    if (fetchedSession && fetchedSession.messages && fetchedSession.messages.length > 0) {
+      upsertSession(fetchedSession);
+    }
+  }, [fetchedSession, upsertSession]);
+
+  // Compute active session from memory/cache with 0ms flash
+  const activeSession = useMemo(() => {
+    if (optimisticSession && (!currentSessionId || currentSessionId === optimisticSession.id)) {
+      return optimisticSession;
+    }
+    if (!currentSessionId) return null;
+    const contextSession = sessions.find((s) => s.id === currentSessionId);
+
+    // If fetchedSession has messages and matches currentSessionId, prefer it or whichever has more messages
+    if (fetchedSession && fetchedSession.id === currentSessionId && fetchedSession.messages.length > 0) {
+      if (contextSession && contextSession.messages.length > fetchedSession.messages.length) {
+        return contextSession;
+      }
+      return fetchedSession;
+    }
+
+    // If contextSession has messages in cache, use contextSession
+    if (contextSession && contextSession.messages.length > 0) {
+      return contextSession;
+    }
+
+    // If fetchedSession matches, use it
+    if (fetchedSession && fetchedSession.id === currentSessionId) {
+      return fetchedSession;
+    }
+
+    return contextSession ?? null;
+  }, [currentSessionId, fetchedSession, sessions, optimisticSession]);
+
+  const activeMessages = useMemo(() => sessionToMessages(activeSession), [activeSession]);
+  const hasMessages = activeMessages.length > 0;
+  const isExistingSession = Boolean(currentSessionId && !currentSessionId.startsWith("temp-"));
+
+  // True loading state: ONLY true when switching to an existing session whose messages are NOT yet in cache
+  const isSessionLoading = Boolean(
+    isExistingSession && 
+    !hasMessages &&
+    (sessionQueryLoading || sessionQueryFetching || loadingSessions)
+  );
 
   const refreshMaterials = useCallback(async (sessionId: string) => {
     try {
@@ -122,6 +184,7 @@ export function StudyWorkspace() {
       });
       const payload = await response.json();
       if (response.ok && payload.success && payload.data?.materials) {
+        materialsCache.current[sessionId] = payload.data.materials;
         setActiveSessionMaterials(payload.data.materials);
       }
     } catch (err) {
@@ -136,7 +199,11 @@ export function StudyWorkspace() {
         method: "DELETE",
       });
       if (response.ok) {
-        setActiveSessionMaterials((prev) => prev.filter((m) => m.id !== materialId));
+        setActiveSessionMaterials((prev) => {
+          const updated = prev.filter((m) => m.id !== materialId);
+          if (activeSessionId) materialsCache.current[activeSessionId] = updated;
+          return updated;
+        });
       } else {
         const payload = await response.json();
         throw new Error(payload.error?.message || "Failed to delete document");
@@ -147,18 +214,21 @@ export function StudyWorkspace() {
     }
   }, [activeSessionId]);
 
-  // Load materials when activeSessionId changes
+  // Load materials with cache-first strategy to prevent disappearing UI
   useEffect(() => {
-    // Clear previous materials immediately to avoid displaying stale data
-    setActiveSessionMaterials([]);
-
     if (!ready || !user || !activeSessionId) {
+      setActiveSessionMaterials([]);
       return;
     }
 
-    let cancelled = false;
-    setLoadingMaterials(true);
+    // Show cached materials immediately if available
+    if (materialsCache.current[activeSessionId]) {
+      setActiveSessionMaterials(materialsCache.current[activeSessionId]);
+    } else {
+      setActiveSessionMaterials([]);
+    }
 
+    let cancelled = false;
     void (async () => {
       try {
         const response = await fetch(`/api/materials?sessionId=${encodeURIComponent(activeSessionId)}`, {
@@ -168,12 +238,11 @@ export function StudyWorkspace() {
         const payload = await response.json();
         if (cancelled) return;
         if (response.ok && payload.success && payload.data?.materials) {
+          materialsCache.current[activeSessionId] = payload.data.materials;
           setActiveSessionMaterials(payload.data.materials);
         }
       } catch (err) {
         console.error("Failed to load materials for session", err);
-      } finally {
-        if (!cancelled) setLoadingMaterials(false);
       }
     })();
 
@@ -181,55 +250,6 @@ export function StudyWorkspace() {
       cancelled = true;
     };
   }, [ready, user, activeSessionId]);
-
-  const currentSessionId = paramSessionId ?? null;
-
-  const hasSessionRef = useRef(false);
-  hasSessionRef.current = sessions.some(s => s.id === currentSessionId);
-
-  useEffect(() => {
-    if (!ready || !user || !currentSessionId) {
-      setLoadingActiveSession(false);
-      return;
-    }
-
-    const controller = new AbortController();
-    
-    // Only show loading state if we don't already have this session locally.
-    // We still fetch to ensure we have the latest messages (stale-while-revalidate).
-    if (!hasSessionRef.current) {
-      setLoadingActiveSession(true);
-    }
-
-    void (async () => {
-      try {
-        const response = await fetch(`/api/study-sessions/${encodeURIComponent(currentSessionId)}`, {
-          signal: controller.signal,
-        });
-        const payload = (await response.json()) as SessionApiResponse;
-        if (!response.ok || !payload.success || !payload.data?.session) {
-          throw new Error(payload.error?.message || "Unable to load this conversation.");
-        }
-        upsertSession(payload.data.session);
-      } catch (loadError) {
-        if (controller.signal.aborted) return;
-        setError(loadError instanceof Error ? loadError.message : "Unable to load this conversation.");
-        router.replace("/chat");
-      } finally {
-        if (!controller.signal.aborted) setLoadingActiveSession(false);
-      }
-    })();
-
-    return () => controller.abort();
-  }, [currentSessionId, ready, router, upsertSession, user]);
-
-  const activeSession = useMemo(
-    () => (currentSessionId ? sessions.find((s) => s.id === currentSessionId) ?? null : null),
-    [sessions, currentSessionId]
-  );
-
-  const activeMessages = useMemo(() => sessionToMessages(activeSession), [activeSession]);
-  const hasMessages = activeMessages.length > 0;
 
   const scrollToBottom = (behavior: "smooth" | "auto" = "smooth") => {
     messagesEndRef.current?.scrollIntoView({ behavior, block: "end" });
@@ -267,25 +287,52 @@ export function StudyWorkspace() {
     setError(null);
     setSending(true);
 
+    const userMessage: ChatMessage = {
+      id: `user-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      role: "user",
+      content: trimmed,
+      timestamp: Date.now(),
+    };
+
     let sessionForRequest = activeSession;
     let isNewSession = false;
 
+    // OPTIMISTIC NEW SESSION: Show message immediately at millisecond 0
+    if (!sessionForRequest || sessionForRequest.id.startsWith("temp-")) {
+      isNewSession = true;
+      const tempId = `temp-${Date.now()}`;
+      const tempSession: StudySessionRecord = {
+        id: tempId,
+        title: trimmed.slice(0, 40),
+        topicCategory: "General",
+        lastMessage: trimmed,
+        messages: [{
+          id: userMessage.id,
+          role: "user",
+          content: trimmed,
+          createdAt: new Date(userMessage.timestamp).toISOString(),
+          sources: [],
+        }],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      setOptimisticSession(tempSession);
+    } else {
+      appendMessage(sessionForRequest.id, userMessage);
+    }
+
+    setIsNearBottom(true);
+
     try {
-      if (!sessionForRequest) {
+      if (!sessionForRequest || sessionForRequest.id.startsWith("temp-")) {
         sessionForRequest = await createSession(trimmed);
-        isNewSession = true;
+        setActiveSessionId(sessionForRequest.id);
+        appendMessage(sessionForRequest.id, userMessage);
+        router.replace(`/chat?session=${sessionForRequest.id}`);
+        setOptimisticSession(null);
       }
 
-      const userMessage: ChatMessage = {
-        id: `user-${Date.now()}-${Math.random().toString(16).slice(2)}`,
-        role: "user",
-        content: trimmed,
-        timestamp: Date.now(),
-      };
-
       const optimisticMessages = [...(sessionForRequest?.messages ?? []), userMessage];
-      appendMessage(sessionForRequest.id, userMessage);
-      setIsNearBottom(true);
 
       const response = await fetch("/api/chat", {
         method: "POST",
@@ -306,17 +353,16 @@ export function StudyWorkspace() {
 
       if (payload.data?.session) {
         upsertSession(payload.data.session);
-        if (isNewSession) {
-          router.replace(`/chat?session=${payload.data.session.id}`);
-        }
+        queryClient.setQueryData(sessionQueryKey(payload.data.session.id), payload.data.session);
       } else if (payload.data?.message) {
         appendMessage(sessionForRequest.id, payload.data.message);
+        queryClient.invalidateQueries({ queryKey: sessionQueryKey(sessionForRequest.id) });
       }
     } catch (sendError) {
       const message = sendError instanceof Error ? sendError.message : "Network error. Please try again.";
       setError(message);
 
-      if (sessionForRequest?.id) {
+      if (sessionForRequest?.id && !sessionForRequest.id.startsWith("temp-")) {
         appendMessage(sessionForRequest.id, {
           id: `error-${Date.now()}`,
           role: "assistant",
@@ -326,6 +372,7 @@ export function StudyWorkspace() {
       }
     } finally {
       setSending(false);
+      setOptimisticSession(null);
     }
   }
 
@@ -338,9 +385,11 @@ export function StudyWorkspace() {
     try {
       let sessionForRequest = activeSession;
       let isNewSession = false;
-      if (!sessionForRequest) {
+      if (!sessionForRequest || sessionForRequest.id.startsWith("temp-")) {
         sessionForRequest = await createSession("Uploaded a document for analysis");
         isNewSession = true;
+        setActiveSessionId(sessionForRequest.id);
+        router.replace(`/chat?session=${sessionForRequest.id}`);
       }
 
       const formData = new FormData();
@@ -395,7 +444,7 @@ export function StudyWorkspace() {
       onSend={handleSend}
       onUpload={handleUpload}
       isUploading={isUploading}
-      disabled={sending || loadingSessions || loadingActiveSession || authLoading || !ready}
+      disabled={sending || isSessionLoading || authLoading || !ready}
       onReferenceChange={setChatReference}
       materials={activeSessionMaterials}
       onDeleteMaterial={handleDeleteMaterial}
@@ -412,7 +461,7 @@ export function StudyWorkspace() {
         </div>
       )}
 
-      {(loadingSessions || loadingActiveSession) && currentSessionId ? (
+      {isSessionLoading ? (
         <div className="flex min-h-0 flex-1 flex-col px-4 pb-8 pt-12 md:px-8 md:pt-16" aria-label="Loading conversation" role="status">
           <div className="mx-auto flex w-full max-w-3xl animate-pulse flex-col gap-6 motion-reduce:animate-none">
             <div className="flex items-start gap-4">
@@ -432,7 +481,7 @@ export function StudyWorkspace() {
             </div>
           </div>
         </div>
-      ) : hasMessages ? (
+      ) : hasMessages || isExistingSession ? (
         <>
           <div
             className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-6 pt-8 md:px-8 md:pt-12"
@@ -442,8 +491,18 @@ export function StudyWorkspace() {
           >
             <div className="mx-auto flex max-w-3xl flex-col gap-6">
               {activeMessages.map((message) => (
-                <ChatMessageComponent key={message.id} message={message} />
+                <ChatMessageComponent 
+                  key={message.id} 
+                  message={message} 
+                  onRetry={(text) => handleSend(text)} 
+                />
               ))}
+              {activeMessages.length === 0 && !sending && (
+                <div className="flex flex-col items-center justify-center py-20 text-center text-slate-500 text-sm">
+                  <p className="font-medium text-slate-400">No messages in this conversation yet.</p>
+                  <p className="text-xs text-slate-600 mt-1">Send a message below to start your study session.</p>
+                </div>
+              )}
               {sending && (
                 <div className="flex justify-start" role="status" aria-label="Lerna is responding">
                   <TypingIndicator />
@@ -452,10 +511,23 @@ export function StudyWorkspace() {
               <div ref={messagesEndRef} className="h-2" />
             </div>
           </div>
-          <div className="z-10 shrink-0 bg-gradient-to-t from-[#0a0a0a] via-[#0a0a0a] to-[#0a0a0a]/80 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 sm:px-4 md:pb-4">
-            <div className="mx-auto max-w-3xl">
+          <div className="relative z-10 shrink-0 bg-gradient-to-t from-[#0a0a0a] via-[#0a0a0a] to-[#0a0a0a]/80 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 sm:px-4 md:pb-4">
+            <div className="relative mx-auto max-w-3xl">
+              {/* Floating scroll to bottom arrow icon */}
+              {!isNearBottom && (
+                <div className="absolute -top-11 left-1/2 -translate-x-1/2 z-20">
+                  <button
+                    type="button"
+                    onClick={() => scrollToBottom("smooth")}
+                    aria-label="Scroll to latest messages"
+                    className="flex h-8 w-8 items-center justify-center rounded-full bg-[#1e1e21] border border-white/10 text-slate-300 shadow-xl transition-all hover:bg-[#28282c] hover:text-white hover:scale-105 active:scale-95"
+                  >
+                    <ArrowDown className="h-4 w-4" />
+                  </button>
+                </div>
+              )}
               {composer}
-              <p className="mt-2 text-center text-[11px] text-slate-500">Lerna can make mistakes. Verify important information.</p>
+              <p className="mt-2 text-center text-[11px] text-slate-500">Lerna is AI and can make mistakes. Please double-check responses.</p>
             </div>
           </div>
         </>

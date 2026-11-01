@@ -16,6 +16,7 @@ import {
   Plus,
   Search,
   User,
+  Settings,
   Loader2,
 } from "lucide-react";
 import { motion, useReducedMotion } from "framer-motion";
@@ -23,6 +24,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
 import { ConversationActions } from "@/components/chat/ConversationActions";
+import { SettingsModal } from "@/components/settings/SettingsModal";
 import { useAuth } from "@/hooks/use-auth";
 import { useDashboard } from "@/context/dashboard-context";
 import type { StudySessionRecord } from "@/lib/study-sessions/types";
@@ -42,6 +44,10 @@ export function DashboardShell({ children }: { children: ReactNode }) {
     mobileSidebarOpen,
     setMobileSidebarOpen,
     deleteSession,
+    settingsOpen,
+    openSettings,
+    closeSettings,
+    settingsTab,
   } = useDashboard();
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -53,6 +59,15 @@ export function DashboardShell({ children }: { children: ReactNode }) {
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const reduceMotion = useReducedMotion();
   const mobileDrawerRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("settings") || pathname === "/account") {
+        openSettings(params.get("tab") || "account");
+      }
+    }
+  }, [pathname, openSettings]);
 
   const filteredSessions = useMemo(() => {
     const norm = searchQuery.trim().toLowerCase();
@@ -226,102 +241,102 @@ export function DashboardShell({ children }: { children: ReactNode }) {
         </Button>
       </div>
 
-      {/* Main Navigation Sections */}
-      <div className="flex-1 overflow-y-auto px-3 py-2 space-y-6">
-        {/* Navigation Links */}
-        <div className="space-y-1">
-          <div className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest px-2 mb-2">Workspace</div>
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = pathname === item.href;
-            return (
-              <Link prefetch={true}
-                key={item.href}
-                href={item.href}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${
-                  isActive 
-                    ? "bg-cyan-500/10 text-cyan-400 font-medium" 
-                    : "text-slate-300 hover:bg-[#202020] hover:text-white"
-                }`}
-              >
-                <Icon className={`h-4 w-4 ${isActive ? "text-cyan-400" : "text-slate-400"}`} />
-                {item.name}
-              </Link>
-            );
-          })}
+      {/* Workspace Navigation Links */}
+      <div className="shrink-0 px-3 py-2 space-y-1">
+        <div className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest px-2 mb-1.5">Workspace</div>
+        {navItems.map((item) => {
+          const Icon = item.icon;
+          const isActive = pathname === item.href;
+          return (
+            <Link prefetch={true}
+              key={item.href}
+              href={item.href}
+              className={`flex items-center gap-3 px-3 py-2 rounded-lg text-xs transition-colors ${
+                isActive 
+                  ? "bg-cyan-500/10 text-cyan-400 font-semibold" 
+                  : "text-slate-300 hover:bg-[#202020] hover:text-white"
+              }`}
+            >
+              <Icon className={`h-4 w-4 ${isActive ? "text-cyan-400" : "text-slate-400"}`} />
+              {item.name}
+            </Link>
+          );
+        })}
+      </div>
+
+      {/* Recent Chats: Fills 100% of remaining vertical sidebar height */}
+      <div className="flex-1 min-h-0 flex flex-col px-3 pt-2.5 border-t border-white/5 overflow-hidden">
+        <div className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest px-2 mb-2 shrink-0">Recent Chats</div>
+        
+        {/* Search bar inside Recents */}
+        <div className="relative px-1 mb-2 shrink-0">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-500" />
+          <Input
+            type="text"
+            name="conversation-search"
+            aria-label="Search conversations"
+            autoComplete="off"
+            placeholder="Search chats…"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="h-8 pl-8 pr-3 text-xs bg-[#0a0a0a] border-white/5 rounded-lg text-white placeholder-slate-600 focus-visible:ring-cyan-500/30"
+          />
         </div>
 
-        {/* Search & Recents */}
-        <div className="space-y-3 pt-2 border-t border-white/5">
-          <div className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest px-2">Recent Chats</div>
-          
-          {/* Search bar inside Recents */}
-          <div className="relative px-2">
-            <Search className="absolute left-5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-500" />
-            <Input
-              type="text"
-              name="conversation-search"
-              aria-label="Search conversations"
-              autoComplete="off"
-              placeholder="Search chats…"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="h-8 pl-8 pr-3 text-xs bg-[#0a0a0a] border-white/5 rounded-lg text-white placeholder-slate-600 focus-visible:ring-cyan-500/30"
-            />
-          </div>
-
+        {/* Conversation List taking all remaining vertical space */}
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain pr-1 space-y-0.5 scrollbar-thin">
           {showSessionListLoading || searchingSessions ? (
-            <div className="flex items-center gap-2 px-3 py-2 text-xs text-slate-500" role="status">
+            <div className="flex items-center gap-2 px-3 py-3 text-xs text-slate-500" role="status">
               <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" aria-hidden="true" />
               {searchingSessions ? "Searching…" : "Loading…"}
             </div>
           ) : sessionSearchError ? (
             <div className="px-3 py-2 text-xs text-amber-300" role="alert">{sessionSearchError}</div>
           ) : filteredSessions.length > 0 ? (
-            <div className="max-h-[min(40dvh,22rem)] space-y-0.5 overflow-y-auto overscroll-contain pr-1">
-              {filteredSessions.map((session) => (
-                <div key={session.id} className="group/conversation flex min-w-0 items-center gap-1 rounded-lg">
-                  <button
-                    type="button"
-                    onClick={() => handleSessionClick(session.id)}
-                    title={session.title || "Untitled conversation"}
-                    className={`block min-h-11 min-w-0 flex-1 truncate rounded-lg px-3 py-2 text-left text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 md:min-h-8 ${
-                      session.id === activeSessionId && pathname === "/chat"
-                        ? "bg-[#202020] text-white font-medium"
-                        : "text-slate-400 hover:bg-[#202020] hover:text-white"
-                    }`}
-                  >
-                    {session.title || "Untitled conversation"}
-                  </button>
-                  <ConversationActions
-                    conversationId={session.id}
-                    conversationTitle={session.title || "Untitled conversation"}
-                    onRequestDelete={handleDeleteRequest}
-                  />
-                </div>
-              ))}
-            </div>
+            filteredSessions.map((session) => (
+              <div key={session.id} className="group/conversation flex min-w-0 items-center gap-1 rounded-lg">
+                <button
+                  type="button"
+                  onClick={() => handleSessionClick(session.id)}
+                  title={session.title || "Untitled conversation"}
+                  className={`block min-h-9 min-w-0 flex-1 truncate rounded-lg px-2.5 py-1.5 text-left text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 ${
+                    session.id === activeSessionId && pathname === "/chat"
+                      ? "bg-[#202020] text-white font-medium"
+                      : "text-slate-400 hover:bg-[#202020] hover:text-white"
+                  }`}
+                >
+                  {session.title || "Untitled conversation"}
+                </button>
+                <ConversationActions
+                  conversationId={session.id}
+                  conversationTitle={session.title || "Untitled conversation"}
+                  onRequestDelete={handleDeleteRequest}
+                />
+              </div>
+            ))
           ) : (
-             <div className="text-xs text-slate-600 italic px-3 py-2">No history</div>
+            <div className="text-xs text-slate-600 italic px-3 py-2">No history</div>
           )}
         </div>
       </div>
 
       {/* Footer */}
       <div className="p-3 border-t border-white/5 mt-auto space-y-1">
-        <Link prefetch={true} href="/account" className="block w-full">
-          <Button
-            variant="ghost"
-            className={`w-full justify-start h-10 ${
-              pathname === "/account"
-                ? "bg-cyan-500/10 text-cyan-400 font-medium"
-                : "text-slate-300 hover:text-white hover:bg-[#202020]"
-            }`}
-          >
-            <User className={`mr-2 h-4 w-4 ${pathname === "/account" ? "text-cyan-400" : "text-slate-400"}`} />
-            Account settings
-          </Button>
-        </Link>
+        <Button
+          variant="ghost"
+          onClick={() => {
+            if (window.innerWidth < 768) setMobileSidebarOpen(false);
+            openSettings();
+          }}
+          className={`w-full justify-start h-10 ${
+            settingsOpen
+              ? "bg-cyan-500/10 text-cyan-400 font-medium"
+              : "text-slate-300 hover:text-white hover:bg-[#202020]"
+          }`}
+        >
+          <Settings className={`mr-2 h-4 w-4 ${settingsOpen ? "text-cyan-400" : "text-slate-400"}`} />
+          Settings
+        </Button>
         <Button
           variant="ghost"
           className="w-full justify-start text-slate-300 hover:text-white hover:bg-[#202020] h-10"
@@ -467,6 +482,12 @@ export function DashboardShell({ children }: { children: ReactNode }) {
           </div>
         </div>
       </Modal>
+
+      <SettingsModal
+        isOpen={settingsOpen}
+        onClose={closeSettings}
+        initialTab={settingsTab}
+      />
     </div>
   );
 }

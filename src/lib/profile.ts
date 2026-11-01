@@ -233,7 +233,6 @@ export function buildAIProfileContext(profile: NormalizedProfile) {
   if (!profile.onboardingCompleted) return "";
 
   const generalLines: Array<[string, string]> = [
-    ["Name", profile.displayName || `${profile.firstName} ${profile.lastName}`.trim()],
     ["Role", profile.accountType],
     ["Goals", profile.studyGoals.join(", ")],
     [

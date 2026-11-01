@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useState, useEffect, Suspense, type ReactNode } from "react";
 import { useSearchParams } from "next/navigation";
+import { useAuth } from "@/hooks/use-auth";
 import {
   ArrowRight,
   BookOpen,
@@ -178,8 +179,8 @@ const pricingPlans = [
       "Priority processing",
       "Larger AI quota",
     ],
-    buttonText: "Coming Soon",
-    isComingSoon: true,
+    buttonText: "Upgrade to Pro",
+    isComingSoon: false,
   },
   {
     name: "Premium",
@@ -192,8 +193,8 @@ const pricingPlans = [
       "Advanced analytics",
       "Premium support",
     ],
-    buttonText: "Coming Soon",
-    isComingSoon: true,
+    buttonText: "Upgrade to Premium",
+    isComingSoon: false,
   },
 ];
 
@@ -442,6 +443,7 @@ function HomePageContent() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const searchParams = useSearchParams();
+  const { user, loading: authLoading } = useAuth();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -517,18 +519,29 @@ function HomePageContent() {
 
           {/* Desktop CTA */}
           <div className="hidden md:flex items-center gap-3">
-            <button
-              onClick={() => setActiveModal("login")}
-              className="text-sm text-slate-400 hover:text-white font-medium transition-colors"
-            >
-              Sign in
-            </button>
-            <button
-              onClick={() => setActiveModal("signup")}
-              className="rounded-full bg-white text-[#0B1120] hover:bg-slate-100 px-5 h-9 text-sm font-semibold transition-all hover:scale-[1.02] active:scale-[0.98]"
-            >
-              Get started
-            </button>
+            {!authLoading && user ? (
+              <Link
+            href="/chat"
+            className="rounded-full bg-white text-[#0a0a0a] hover:bg-slate-100 px-4 h-8 text-xs font-semibold transition-all flex items-center"
+          >
+            Open app
+          </Link>
+            ) : (
+              <>
+                <button
+                  onClick={() => setActiveModal("login")}
+                  className="text-sm text-slate-400 hover:text-white font-medium transition-colors"
+                >
+                  Sign in
+                </button>
+                <button
+                  onClick={() => setActiveModal("signup")}
+                  className="rounded-full bg-white text-[#0B1120] hover:bg-slate-100 px-5 h-9 text-sm font-semibold transition-all hover:scale-[1.02] active:scale-[0.98]"
+                >
+                  Get started
+                </button>
+              </>
+            )}
           </div>
 
           {/* Mobile hamburger */}
@@ -557,18 +570,29 @@ function HomePageContent() {
                 ))}
               </div>
               <div className="flex flex-col gap-3 pt-2">
-                <button
-                  onClick={() => { setIsMobileMenuOpen(false); setActiveModal("login"); }}
-                  className="w-full text-center text-slate-300 hover:text-white font-semibold py-3 border border-white/10 rounded-full hover:bg-white/5 transition-all"
-                >
-                  Sign in
-                </button>
-                <button
-                  onClick={() => { setIsMobileMenuOpen(false); setActiveModal("signup"); }}
-                  className="w-full bg-white text-[#0B1120] hover:bg-slate-100 rounded-full py-3 font-semibold text-base transition-all flex items-center justify-center gap-2"
-                >
-                  Get started <ArrowRight className="h-4 w-4" />
-                </button>
+                {!authLoading && user ? (
+                  <Link
+            href="/chat"
+            className="rounded-full bg-white text-[#0a0a0a] hover:bg-slate-100 px-4 h-8 text-xs font-semibold transition-all flex items-center"
+          >
+            Open app
+          </Link>
+                ) : (
+                  <>
+                    <button
+                      onClick={() => { setIsMobileMenuOpen(false); setActiveModal("login"); }}
+                      className="w-full text-center text-slate-300 hover:text-white font-semibold py-3 border border-white/10 rounded-full hover:bg-white/5 transition-all"
+                    >
+                      Sign in
+                    </button>
+                    <button
+                      onClick={() => { setIsMobileMenuOpen(false); setActiveModal("signup"); }}
+                      className="w-full bg-white text-[#0B1120] hover:bg-slate-100 rounded-full py-3 font-semibold text-base transition-all flex items-center justify-center gap-2"
+                    >
+                      Get started <ArrowRight className="h-4 w-4" />
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           )}
@@ -780,17 +804,25 @@ function HomePageContent() {
                     ))}
                   </ul>
                 </div>
-                <button
-                  disabled={plan.isComingSoon}
-                  onClick={() => !plan.isComingSoon && setActiveModal("signup")}
-                  className={`w-full h-11 rounded-xl text-sm font-semibold transition-all ${
-                    plan.isComingSoon
-                      ? "bg-white/5 border border-white/10 text-slate-500 cursor-not-allowed"
-                      : "bg-blue-600 text-white hover:bg-blue-500 shadow-lg shadow-blue-500/20"
-                  }`}
-                >
-                  {plan.buttonText}
-                </button>
+                {plan.name === "Pro" || plan.name === "Premium" ? (
+                  <Link
+                    href={`/pricing?plan=${plan.name.toLowerCase()}`}
+                    className={`flex w-full h-11 items-center justify-center rounded-xl text-sm font-semibold transition-all active:scale-[0.98] ${
+                      plan.name === "Pro"
+                        ? "bg-blue-600 text-white hover:bg-blue-500 shadow-lg shadow-blue-500/20"
+                        : "bg-purple-600 text-white hover:bg-purple-500 shadow-lg shadow-purple-500/15"
+                    }`}
+                  >
+                    {plan.name === "Pro" ? "Upgrade to Pro" : "Upgrade to Premium"}
+                  </Link>
+                ) : (
+                  <button
+                    onClick={() => setActiveModal("signup")}
+                    className="w-full h-11 rounded-xl text-sm font-semibold transition-all active:scale-[0.98] bg-blue-600 text-white hover:bg-blue-500 shadow-lg shadow-blue-500/20"
+                  >
+                    {plan.buttonText}
+                  </button>
+                )}
 
               </div>
             ))}

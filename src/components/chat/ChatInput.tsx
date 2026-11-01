@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ArrowUp, BookOpen, FileText, Loader2, Paperclip, X } from "lucide-react";
+import { ArrowUp, BookOpen, FileText, Loader2, Paperclip, Plus, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import type { ChatReference, ChatReferenceSelection } from "@/lib/chat/references";
@@ -293,14 +293,14 @@ export function ChatInput({
             onClick={() => fileInputRef.current?.click()}
             aria-label="Upload attachment"
             disabled={disabled || isUploading}
-            className={`h-10 w-10 shrink-0 rounded-full sm:h-9 sm:w-9 ${
+            className={`h-9 w-9 shrink-0 rounded-full transition-colors ${
               isUploading ? "text-cyan-400" : "text-slate-400 hover:bg-white/10 hover:text-white"
             }`}
           >
             {isUploading ? (
-              <Loader2 className="h-5 w-5 animate-spin motion-reduce:animate-none" aria-hidden="true" />
+              <Loader2 className="h-4.5 w-4.5 animate-spin motion-reduce:animate-none" aria-hidden="true" />
             ) : (
-              <Paperclip className="h-5 w-5" aria-hidden="true" />
+              <Plus className="h-5 w-5" aria-hidden="true" />
             )}
           </Button>
         </div>
@@ -310,8 +310,8 @@ export function ChatInput({
           name="chat-message"
           value={text}
           onChange={handleTextChange}
-          placeholder="Message Lerna… (type @ for materials)"
-          aria-label="Message Lerna"
+          placeholder="Write a message… (type @ for materials)"
+          aria-label="Write a message"
           role="combobox"
           aria-autocomplete="list"
           aria-haspopup="dialog"

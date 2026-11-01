@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { Sparkles, X } from "lucide-react";
 import type { ChatMessage } from "@/lib/chat/types";
 import { ChatMessage as ChatMessageComponent } from "./ChatMessage";
 import { ChatInput } from "./ChatInput";
@@ -181,16 +182,19 @@ export function ChatContainer() {
       {/* Input Area */}
       <div className="w-full flex flex-col pb-1">
         {messages.length === 1 && !loading && (
-          <div className="mb-3 flex w-full snap-x snap-mandatory gap-2 overflow-x-auto overscroll-x-contain pb-2 md:mb-4 md:flex-wrap md:justify-center md:overflow-visible md:pb-0 [&::-webkit-scrollbar]:hidden">
+          <div className="mb-2 flex w-full flex-col px-2 sm:px-4">
             {starterPrompts.map((prompt) => (
               <button
                 key={prompt}
                 type="button"
                 onClick={() => handleSend(prompt)}
                 disabled={loading}
-                className="min-h-11 shrink-0 snap-start whitespace-nowrap rounded-full border border-white/10 bg-[#141414] px-4 py-2 text-sm text-slate-300 transition-colors hover:border-white/20 hover:bg-[#202020] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 disabled:pointer-events-none disabled:opacity-50"
+                className="group flex w-full items-center gap-4 py-3 text-left transition-colors disabled:pointer-events-none disabled:opacity-50"
               >
-                {prompt}
+                <Sparkles className="h-5 w-5 shrink-0 text-slate-400 group-hover:text-cyan-400" />
+                <span className="flex-1 truncate text-[15px] text-slate-300 group-hover:text-white">
+                  {prompt}
+                </span>
               </button>
             ))}
           </div>

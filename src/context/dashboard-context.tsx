@@ -44,6 +44,12 @@ type DashboardContextType = {
   deleteSession: (sessionId: string) => Promise<void>;
   upsertSession: (session: StudySessionRecord) => void;
   appendMessage: (sessionId: string, message: ChatMessage) => void;
+  settingsOpen: boolean;
+  setSettingsOpen: (open: boolean) => void;
+  settingsTab: string;
+  setSettingsTab: (tab: string) => void;
+  openSettings: (tab?: string) => void;
+  closeSettings: () => void;
 };
 
 const DashboardContext = createContext<DashboardContextType | null>(null);
@@ -94,6 +100,17 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsTab, setSettingsTab] = useState("account");
+
+  const openSettings = useCallback((tab?: string) => {
+    if (tab) setSettingsTab(tab);
+    setSettingsOpen(true);
+  }, []);
+
+  const closeSettings = useCallback(() => {
+    setSettingsOpen(false);
+  }, []);
   const deletedSessionIdsRef = useRef(new Set<string>());
 
   useEffect(() => {
@@ -231,8 +248,29 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
       deleteSession,
       upsertSession,
       appendMessage,
+      settingsOpen,
+      setSettingsOpen,
+      settingsTab,
+      setSettingsTab,
+      openSettings,
+      closeSettings,
     }),
-    [sessions, activeSessionId, loadingSessions, error, sidebarOpen, mobileSidebarOpen, createSession, deleteSession, upsertSession, appendMessage]
+    [
+      sessions,
+      activeSessionId,
+      loadingSessions,
+      error,
+      sidebarOpen,
+      mobileSidebarOpen,
+      settingsOpen,
+      settingsTab,
+      openSettings,
+      closeSettings,
+      createSession,
+      deleteSession,
+      upsertSession,
+      appendMessage,
+    ]
   );
 
   return <DashboardContext.Provider value={value}>{children}</DashboardContext.Provider>;
