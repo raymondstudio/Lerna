@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "reviewed_revision": "1aa101d82ed93aef91f43cb217934e01e0554837",
-  "generated_at": "2026-10-29T19:03:31.910719+00:00",
+  "reviewed_revision": "2428601421e5007a82bf98b760a5372f2fd6629c",
+  "generated_at": "2026-11-01T20:22:17.554067+00:00",
   "graphify_version": "0.9.97",
   "graphify_reviewed_revision": "0a8cd4e1e342235fe53e881fb5d591bf0460071f",
   "summary": {
@@ -332,7 +332,7 @@
     },
     "tooling-tests": {
       "file_count": 35,
-      "total_bytes": 166606,
+      "total_bytes": 166717,
       "files": [
         "scripts/agent_skills.py",
         "scripts/audit_knowledge.py",
@@ -4270,8 +4270,8 @@
       "review_mode": "direct",
       "scope": null,
       "reason": "Configuration, documentation, stylesheet, or CommonJS/ESM test module reviewed directly.",
-      "sha256": "8cc63e156f5bec176e1e650507389f458185e45672d58c90f9fd2fa109730e09",
-      "size_bytes": 1581
+      "sha256": "e16cfd08fb6faf1b60c4256705af08ca102f5b30c34129c64247d03401aced0d",
+      "size_bytes": 2996
     },
     {
       "path": "docs/STABILIZATION_WORKBOARD.md",
@@ -4315,8 +4315,8 @@
       "review_mode": "direct",
       "scope": null,
       "reason": "Configuration, documentation, stylesheet, or CommonJS/ESM test module reviewed directly.",
-      "sha256": "901aeef1afaa7012f8b52ecd88347f5b5abea291c74d4f9f659bf63e73924cad",
-      "size_bytes": 72078
+      "sha256": "985fce22410c39e310a7329fc890c8084640e9f2af8d2edb3c35b52d73dc74eb",
+      "size_bytes": 74849
     },
     {
       "path": "docs/security/SECURITY_AUDIT.md",
@@ -4621,8 +4621,8 @@
       "review_mode": "graphify+direct",
       "scope": "tooling-tests",
       "reason": "First-party code module indexed in bounded Graphify structural scope and reviewed directly.",
-      "sha256": "95f7e3077b5075a11e14fb3f65308794abad3cf3769cb2d11f4240dc19101fa5",
-      "size_bytes": 41523
+      "sha256": "6e1043485b57e2fdec07324d2ce1ae84a8f4af3b1694df387f7c9a699bd57d3c",
+      "size_bytes": 41634
     },
     {
       "path": "scripts/bootstrap-admin.js",

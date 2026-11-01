@@ -21,3 +21,11 @@ binary was unavailable. Actual local Auth/Storage/mailbox/browser flows remain b
 Dependencies were checked against the official [Next October update](https://nextjs.org/blog/nextjs-security-update-october-14-2026).
 KaTeX is pinned to the patched 0.19.0 line. Remaining transitive advisories require a
 final inventory and reachability assessment; no blanket vulnerability-free claim is made.
+
+## 29 October 2026 — Bounded Graphify, Playwright & Audit Knowledge Verification
+
+- `python -B scripts/agent_skills.py validate` and `self-test` passed (`71` skills, `6/6` negative controls).
+- `python -B .agents/skills/graphify/scripts/graphify_local.py status`, `smoke`, and `query` passed (`graphifyy 0.9.97`, reviewed revision `0a8cd4e1e342235fe53e881fb5d591bf0460071f`, structural-only mode, `0` paid provider calls).
+- `python -B scripts/check_agent_skill_fixtures.py` passed (`playwright-cli 0.1.22` in a fresh nonpersistent Chrome context, `local_only=true`, `loopback_requests_only=true`, `external_requests=[]`, `storage_pollution=false`, `paid_provider_calls=0`, responsive widths `375`, `768`, `1024`, `1440`, `1920`).
+- `python -B scripts/audit_knowledge.py build`, `validate`, and `self-test` passed across 12 bounded Graphify scopes (`286` code files in `graphify+direct`, `131` files in `direct`, `405` `excluded`, `0` `blocked`, `1,350` native AST nodes, `3,612` native AST edges, `34` finding nodes, `720` overlay edges, `327` cross-scope edges, `0` unresolved finding links, `6/6` self-test negative controls).
+- `docker version` confirmed Docker CLI `29.9.1` is installed on the host, while the Docker Desktop Linux engine (`npipe:////./pipe/dockerDesktopLinuxEngine`) remains stopped; live multi-container Supabase Auth/Storage/Mailpit E2E replay remains gated on starting the Linux engine.

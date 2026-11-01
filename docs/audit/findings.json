@@ -35,8 +35,18 @@
         "docs/STABILIZATION_HANDOFF.md"
       ],
       "status_history": [
-        { "date": "2026-10-12", "status": "open_confirmed", "commit": "9b37a7e8de96b09340ef4ecb5d0ded52840f5476", "note": "Identified in reachable Git history." },
-        { "date": "2026-10-20", "status": "open_external_containment", "commit": "fb0f19280d79975d9a79dde4ae970ddf71892ee8", "note": "Tracked as owner-controlled provider containment gate." }
+        {
+          "date": "2026-10-12",
+          "status": "open_confirmed",
+          "commit": "9b37a7e8de96b09340ef4ecb5d0ded52840f5476",
+          "note": "Identified in reachable Git history."
+        },
+        {
+          "date": "2026-10-20",
+          "status": "open_external_containment",
+          "commit": "fb0f19280d79975d9a79dde4ae970ddf71892ee8",
+          "note": "Tracked as owner-controlled provider containment gate."
+        }
       ]
     },
     {
@@ -70,8 +80,18 @@
         "docs/security/security-boundary-tests.mjs"
       ],
       "status_history": [
-        { "date": "2026-10-12", "status": "open_confirmed", "commit": "9b37a7e8de96b09340ef4ecb5d0ded52840f5476", "note": "Migration granted SECURITY DEFINER mutator without caller checks." },
-        { "date": "2026-10-20", "status": "fixed_local_verified_unit_sql", "commit": "c1300ed6b95d5b81c131f0d9561464bd48ce50a2", "note": "Execution revoked from ordinary roles; replaced by service-only reserve_operation." }
+        {
+          "date": "2026-10-12",
+          "status": "open_confirmed",
+          "commit": "9b37a7e8de96b09340ef4ecb5d0ded52840f5476",
+          "note": "Migration granted SECURITY DEFINER mutator without caller checks."
+        },
+        {
+          "date": "2026-10-20",
+          "status": "fixed_local_verified_unit_sql",
+          "commit": "c1300ed6b95d5b81c131f0d9561464bd48ce50a2",
+          "note": "Execution revoked from ordinary roles; replaced by service-only reserve_operation."
+        }
       ]
     },
     {
@@ -108,8 +128,18 @@
         "tests/database.test.mjs"
       ],
       "status_history": [
-        { "date": "2026-10-12", "status": "open_confirmed", "commit": "9b37a7e8de96b09340ef4ecb5d0ded52840f5476", "note": "Fallback to ADMIN_EMAILS and app_metadata on RPC error." },
-        { "date": "2026-10-20", "status": "fixed_local_verified_unit_sql", "commit": "c1300ed6b95d5b81c131f0d9561464bd48ce50a2", "note": "Canonical user_roles + active profile + MFA step-up enforced." }
+        {
+          "date": "2026-10-12",
+          "status": "open_confirmed",
+          "commit": "9b37a7e8de96b09340ef4ecb5d0ded52840f5476",
+          "note": "Fallback to ADMIN_EMAILS and app_metadata on RPC error."
+        },
+        {
+          "date": "2026-10-20",
+          "status": "fixed_local_verified_unit_sql",
+          "commit": "c1300ed6b95d5b81c131f0d9561464bd48ce50a2",
+          "note": "Canonical user_roles + active profile + MFA step-up enforced."
+        }
       ]
     },
     {
@@ -149,8 +179,18 @@
         "docs/security/security-boundary-tests.mjs"
       ],
       "status_history": [
-        { "date": "2026-10-12", "status": "open_confirmed", "commit": "9b37a7e8de96b09340ef4ecb5d0ded52840f5476", "note": "checkQuota failed open and demo limiter trusted X-Forwarded-For in memory." },
-        { "date": "2026-10-20", "status": "fixed_local_verified_unit_sql", "commit": "c1300ed6b95d5b81c131f0d9561464bd48ce50a2", "note": "Atomic DB reservations and distributed demo budget implemented." }
+        {
+          "date": "2026-10-12",
+          "status": "open_confirmed",
+          "commit": "9b37a7e8de96b09340ef4ecb5d0ded52840f5476",
+          "note": "checkQuota failed open and demo limiter trusted X-Forwarded-For in memory."
+        },
+        {
+          "date": "2026-10-20",
+          "status": "fixed_local_verified_unit_sql",
+          "commit": "c1300ed6b95d5b81c131f0d9561464bd48ce50a2",
+          "note": "Atomic DB reservations and distributed demo budget implemented."
+        }
       ]
     },
     {
@@ -191,8 +231,18 @@
         "tests/security-ingestion.test.ts"
       ],
       "status_history": [
-        { "date": "2026-10-12", "status": "open_confirmed", "commit": "9b37a7e8de96b09340ef4ecb5d0ded52840f5476", "note": "Unbounded body/archive parsing and unverified storage path registration." },
-        { "date": "2026-10-20", "status": "fixed_local_verified_unit_sql", "commit": "c1300ed6b95d5b81c131f0d9561464bd48ce50a2", "note": "Bounded stream reader, magic-byte checks, isolated worker, and DB processing claims." }
+        {
+          "date": "2026-10-12",
+          "status": "open_confirmed",
+          "commit": "9b37a7e8de96b09340ef4ecb5d0ded52840f5476",
+          "note": "Unbounded body/archive parsing and unverified storage path registration."
+        },
+        {
+          "date": "2026-10-20",
+          "status": "fixed_local_verified_unit_sql",
+          "commit": "c1300ed6b95d5b81c131f0d9561464bd48ce50a2",
+          "note": "Bounded stream reader, magic-byte checks, isolated worker, and DB processing claims."
+        }
       ]
     },
     {
@@ -230,8 +280,18 @@
         "docs/security/security-boundary-tests.mjs"
       ],
       "status_history": [
-        { "date": "2026-10-12", "status": "open_confirmed", "commit": "9b37a7e8de96b09340ef4ecb5d0ded52840f5476", "note": "PATCH notes upserted into notes table before checking study_sessions ownership." },
-        { "date": "2026-10-20", "status": "fixed_local_verified_unit_sql", "commit": "c1300ed6b95d5b81c131f0d9561464bd48ce50a2", "note": "Transactional save_session_notes and parent validation triggers enforced." }
+        {
+          "date": "2026-10-12",
+          "status": "open_confirmed",
+          "commit": "9b37a7e8de96b09340ef4ecb5d0ded52840f5476",
+          "note": "PATCH notes upserted into notes table before checking study_sessions ownership."
+        },
+        {
+          "date": "2026-10-20",
+          "status": "fixed_local_verified_unit_sql",
+          "commit": "c1300ed6b95d5b81c131f0d9561464bd48ce50a2",
+          "note": "Transactional save_session_notes and parent validation triggers enforced."
+        }
       ]
     },
     {
@@ -267,8 +327,18 @@
         "tests/active-api-routes.test.ts"
       ],
       "status_history": [
-        { "date": "2026-10-12", "status": "open_confirmed", "commit": "9b37a7e8de96b09340ef4ecb5d0ded52840f5476", "note": "profiles_update_own allowed updating all columns on own row." },
-        { "date": "2026-10-20", "status": "fixed_local_verified_unit_sql", "commit": "c1300ed6b95d5b81c131f0d9561464bd48ce50a2", "note": "Protected column trigger + strict allowlist in accountProfileUpdate." }
+        {
+          "date": "2026-10-12",
+          "status": "open_confirmed",
+          "commit": "9b37a7e8de96b09340ef4ecb5d0ded52840f5476",
+          "note": "profiles_update_own allowed updating all columns on own row."
+        },
+        {
+          "date": "2026-10-20",
+          "status": "fixed_local_verified_unit_sql",
+          "commit": "c1300ed6b95d5b81c131f0d9561464bd48ce50a2",
+          "note": "Protected column trigger + strict allowlist in accountProfileUpdate."
+        }
       ]
     },
     {
@@ -302,8 +372,18 @@
         "docs/security/security-boundary-tests.mjs"
       ],
       "status_history": [
-        { "date": "2026-10-12", "status": "open_confirmed", "commit": "9b37a7e8de96b09340ef4ecb5d0ded52840f5476", "note": "sanitizeAuthReturnPath existed but was not called in /auth/callback." },
-        { "date": "2026-10-20", "status": "fixed_local_verified_unit_sql", "commit": "c1300ed6b95d5b81c131f0d9561464bd48ce50a2", "note": "Enforced sanitizeAuthReturnPath and getAuthRequestOrigin in /auth/callback." }
+        {
+          "date": "2026-10-12",
+          "status": "open_confirmed",
+          "commit": "9b37a7e8de96b09340ef4ecb5d0ded52840f5476",
+          "note": "sanitizeAuthReturnPath existed but was not called in /auth/callback."
+        },
+        {
+          "date": "2026-10-20",
+          "status": "fixed_local_verified_unit_sql",
+          "commit": "c1300ed6b95d5b81c131f0d9561464bd48ce50a2",
+          "note": "Enforced sanitizeAuthReturnPath and getAuthRequestOrigin in /auth/callback."
+        }
       ]
     },
     {
@@ -334,8 +414,18 @@
         "docs/security/security-boundary-tests.mjs"
       ],
       "status_history": [
-        { "date": "2026-10-12", "status": "open_confirmed", "commit": "9b37a7e8de96b09340ef4ecb5d0ded52840f5476", "note": "Callback logged full URL and query params." },
-        { "date": "2026-10-20", "status": "fixed_local_verified_unit_sql", "commit": "c1300ed6b95d5b81c131f0d9561464bd48ce50a2", "note": "Redacted callback logging and added Referrer-Policy: no-referrer." }
+        {
+          "date": "2026-10-12",
+          "status": "open_confirmed",
+          "commit": "9b37a7e8de96b09340ef4ecb5d0ded52840f5476",
+          "note": "Callback logged full URL and query params."
+        },
+        {
+          "date": "2026-10-20",
+          "status": "fixed_local_verified_unit_sql",
+          "commit": "c1300ed6b95d5b81c131f0d9561464bd48ce50a2",
+          "note": "Redacted callback logging and added Referrer-Policy: no-referrer."
+        }
       ]
     },
     {
@@ -372,8 +462,18 @@
         "tests/database.test.mjs"
       ],
       "status_history": [
-        { "date": "2026-10-12", "status": "open_confirmed", "commit": "9b37a7e8de96b09340ef4ecb5d0ded52840f5476", "note": "broadcasts_select_all used true; replies_insert_own did not check user_id = auth.uid()." },
-        { "date": "2026-10-20", "status": "fixed_local_verified_unit_sql", "commit": "c1300ed6b95d5b81c131f0d9561464bd48ce50a2", "note": "Enforced sender binding and audience/schedule filtering in API and SQL." }
+        {
+          "date": "2026-10-12",
+          "status": "open_confirmed",
+          "commit": "9b37a7e8de96b09340ef4ecb5d0ded52840f5476",
+          "note": "broadcasts_select_all used true; replies_insert_own did not check user_id = auth.uid()."
+        },
+        {
+          "date": "2026-10-20",
+          "status": "fixed_local_verified_unit_sql",
+          "commit": "c1300ed6b95d5b81c131f0d9561464bd48ce50a2",
+          "note": "Enforced sender binding and audience/schedule filtering in API and SQL."
+        }
       ]
     },
     {
@@ -411,8 +511,18 @@
         "tests/database.test.mjs"
       ],
       "status_history": [
-        { "date": "2026-10-12", "status": "open_confirmed", "commit": "9b37a7e8de96b09340ef4ecb5d0ded52840f5476", "note": "Public insert policies on telemetry tables and hardcoded BI revenue/success." },
-        { "date": "2026-10-20", "status": "fixed_local_verified_unit_sql", "commit": "c1300ed6b95d5b81c131f0d9561464bd48ce50a2", "note": "Revoked direct telemetry writes; implemented v1 activity contract and truthful BI outcomes." }
+        {
+          "date": "2026-10-12",
+          "status": "open_confirmed",
+          "commit": "9b37a7e8de96b09340ef4ecb5d0ded52840f5476",
+          "note": "Public insert policies on telemetry tables and hardcoded BI revenue/success."
+        },
+        {
+          "date": "2026-10-20",
+          "status": "fixed_local_verified_unit_sql",
+          "commit": "c1300ed6b95d5b81c131f0d9561464bd48ce50a2",
+          "note": "Revoked direct telemetry writes; implemented v1 activity contract and truthful BI outcomes."
+        }
       ]
     },
     {
@@ -451,8 +561,18 @@
         "tests/database.test.mjs"
       ],
       "status_history": [
-        { "date": "2026-10-12", "status": "open_confirmed", "commit": "9b37a7e8de96b09340ef4ecb5d0ded52840f5476", "note": "deleteMaterialFromElastic swallowed errors after 3 retries and documentIds=[] fell back to all user docs." },
-        { "date": "2026-10-20", "status": "fixed_local_verified_unit_sql", "commit": "c1300ed6b95d5b81c131f0d9561464bd48ce50a2", "note": "Atomic SQL tombstone + revisioned cleanup queue + post-search SQL revalidation." }
+        {
+          "date": "2026-10-12",
+          "status": "open_confirmed",
+          "commit": "9b37a7e8de96b09340ef4ecb5d0ded52840f5476",
+          "note": "deleteMaterialFromElastic swallowed errors after 3 retries and documentIds=[] fell back to all user docs."
+        },
+        {
+          "date": "2026-10-20",
+          "status": "fixed_local_verified_unit_sql",
+          "commit": "c1300ed6b95d5b81c131f0d9561464bd48ce50a2",
+          "note": "Atomic SQL tombstone + revisioned cleanup queue + post-search SQL revalidation."
+        }
       ]
     },
     {
@@ -490,8 +610,18 @@
         "docs/security/security-boundary-tests.mjs"
       ],
       "status_history": [
-        { "date": "2026-10-12", "status": "open_confirmed", "commit": "9b37a7e8de96b09340ef4ecb5d0ded52840f5476", "note": "Forged score=999 accepted in POST /api/quiz." },
-        { "date": "2026-10-20", "status": "fixed_local_verified_unit_sql", "commit": "c1300ed6b95d5b81c131f0d9561464bd48ce50a2", "note": "Strict score/answer consistency check + transactional save_practice_quiz + explicit self-reported labeling." }
+        {
+          "date": "2026-10-12",
+          "status": "open_confirmed",
+          "commit": "9b37a7e8de96b09340ef4ecb5d0ded52840f5476",
+          "note": "Forged score=999 accepted in POST /api/quiz."
+        },
+        {
+          "date": "2026-10-20",
+          "status": "fixed_local_verified_unit_sql",
+          "commit": "c1300ed6b95d5b81c131f0d9561464bd48ce50a2",
+          "note": "Strict score/answer consistency check + transactional save_practice_quiz + explicit self-reported labeling."
+        }
       ]
     },
     {
@@ -526,8 +656,18 @@
         "tests/database.test.mjs"
       ],
       "status_history": [
-        { "date": "2026-10-12", "status": "open_confirmed", "commit": "9b37a7e8de96b09340ef4ecb5d0ded52840f5476", "note": "check-email queried profiles with service-role client and returned exists boolean." },
-        { "date": "2026-10-20", "status": "fixed_local_verified_unit_sql", "commit": "c1300ed6b95d5b81c131f0d9561464bd48ce50a2", "note": "Removed DB lookup in check-email and enforced non-disclosing recovery intent flow." }
+        {
+          "date": "2026-10-12",
+          "status": "open_confirmed",
+          "commit": "9b37a7e8de96b09340ef4ecb5d0ded52840f5476",
+          "note": "check-email queried profiles with service-role client and returned exists boolean."
+        },
+        {
+          "date": "2026-10-20",
+          "status": "fixed_local_verified_unit_sql",
+          "commit": "c1300ed6b95d5b81c131f0d9561464bd48ce50a2",
+          "note": "Removed DB lookup in check-email and enforced non-disclosing recovery intent flow."
+        }
       ]
     },
     {
@@ -564,8 +704,18 @@
         "tests/admin-ticket-audit-boundary.test.ts"
       ],
       "status_history": [
-        { "date": "2026-10-12", "status": "open_confirmed", "commit": "9b37a7e8de96b09340ef4ecb5d0ded52840f5476", "note": "Authenticated client inserts to audit_logs failed RLS silently." },
-        { "date": "2026-10-20", "status": "fixed_local_verified_unit_sql", "commit": "c1300ed6b95d5b81c131f0d9561464bd48ce50a2", "note": "Transactional DB audit triggers and fail-closed event writer enforced." }
+        {
+          "date": "2026-10-12",
+          "status": "open_confirmed",
+          "commit": "9b37a7e8de96b09340ef4ecb5d0ded52840f5476",
+          "note": "Authenticated client inserts to audit_logs failed RLS silently."
+        },
+        {
+          "date": "2026-10-20",
+          "status": "fixed_local_verified_unit_sql",
+          "commit": "c1300ed6b95d5b81c131f0d9561464bd48ce50a2",
+          "note": "Transactional DB audit triggers and fail-closed event writer enforced."
+        }
       ]
     },
     {
@@ -599,8 +749,18 @@
         "package.json"
       ],
       "status_history": [
-        { "date": "2026-10-12", "status": "open_confirmed", "commit": "9b37a7e8de96b09340ef4ecb5d0ded52840f5476", "note": "Next 16.2.6 advisory match and failing build/lint/typecheck." },
-        { "date": "2026-10-19", "status": "fixed_local_verified_unit_sql", "commit": "16c94e646b6549bcdeb4b10c5acccf3485c03900", "note": "Upgraded to Next 16.4.1 and KaTeX 0.19.0; restored strict checks." }
+        {
+          "date": "2026-10-12",
+          "status": "open_confirmed",
+          "commit": "9b37a7e8de96b09340ef4ecb5d0ded52840f5476",
+          "note": "Next 16.2.6 advisory match and failing build/lint/typecheck."
+        },
+        {
+          "date": "2026-10-19",
+          "status": "fixed_local_verified_unit_sql",
+          "commit": "16c94e646b6549bcdeb4b10c5acccf3485c03900",
+          "note": "Upgraded to Next 16.4.1 and KaTeX 0.19.0; restored strict checks."
+        }
       ]
     },
     {
@@ -612,8 +772,8 @@
       "review_status": "unreviewed_by_independent_agent",
       "reviewer": "pending-independent-reviewer",
       "introduced_commit": "35914eb39c4f1fdb79666c5829d28ca4f17841f4",
-      "fixed_commit": "1aa101d82ed93aef91f43cb217934e01e0554837",
-      "reviewed_commit": "1aa101d82ed93aef91f43cb217934e01e0554837",
+      "fixed_commit": "2428601421e5007a82bf98b760a5372f2fd6629c",
+      "reviewed_commit": "2428601421e5007a82bf98b760a5372f2fd6629c",
       "resource_boundary": "database:public.feedback,broadcasts,coupon_codes,institutions",
       "affected_files": [
         "supabase/migrations/20261029120000_stabilization_audit_repairs.sql",
@@ -638,7 +798,12 @@
         "tests/database.test.mjs"
       ],
       "status_history": [
-        { "date": "2026-10-29", "status": "fixed_local_verified_unit_sql", "commit": "1aa101d82ed93aef91f43cb217934e01e0554837", "note": "Added missing policies and privileges in 20261029120000_stabilization_audit_repairs.sql." }
+        {
+          "date": "2026-10-29",
+          "status": "fixed_local_verified_unit_sql",
+          "commit": "2428601421e5007a82bf98b760a5372f2fd6629c",
+          "note": "Added missing policies and privileges in 20261029120000_stabilization_audit_repairs.sql."
+        }
       ]
     },
     {
@@ -650,8 +815,8 @@
       "review_status": "unreviewed_by_independent_agent",
       "reviewer": "pending-independent-reviewer",
       "introduced_commit": "35914eb39c4f1fdb79666c5829d28ca4f17841f4",
-      "fixed_commit": "1aa101d82ed93aef91f43cb217934e01e0554837",
-      "reviewed_commit": "1aa101d82ed93aef91f43cb217934e01e0554837",
+      "fixed_commit": "2428601421e5007a82bf98b760a5372f2fd6629c",
+      "reviewed_commit": "2428601421e5007a82bf98b760a5372f2fd6629c",
       "resource_boundary": "database:admin_toggle_suspension,admin_toggle_soft_delete,admin_delete_user,admin_assign_plan",
       "affected_files": [
         "supabase/migrations/20261029120000_stabilization_audit_repairs.sql",
@@ -672,7 +837,12 @@
         "tests/database.test.mjs"
       ],
       "status_history": [
-        { "date": "2026-10-29", "status": "fixed_local_verified_unit_sql", "commit": "1aa101d82ed93aef91f43cb217934e01e0554837", "note": "Hardened all four RPCs with entry-level require_sensitive_admin(), target/input validation, and v1-only event auditing." }
+        {
+          "date": "2026-10-29",
+          "status": "fixed_local_verified_unit_sql",
+          "commit": "2428601421e5007a82bf98b760a5372f2fd6629c",
+          "note": "Hardened all four RPCs with entry-level require_sensitive_admin(), target/input validation, and v1-only event auditing."
+        }
       ]
     },
     {
@@ -684,8 +854,8 @@
       "review_status": "unreviewed_by_independent_agent",
       "reviewer": "pending-independent-reviewer",
       "introduced_commit": "35914eb39c4f1fdb79666c5829d28ca4f17841f4",
-      "fixed_commit": "1aa101d82ed93aef91f43cb217934e01e0554837",
-      "reviewed_commit": "1aa101d82ed93aef91f43cb217934e01e0554837",
+      "fixed_commit": "2428601421e5007a82bf98b760a5372f2fd6629c",
+      "reviewed_commit": "2428601421e5007a82bf98b760a5372f2fd6629c",
       "resource_boundary": "api:/api/tickets,api:/api/admin/broadcasts,api:/api/admin/coupons",
       "affected_files": [
         "src/app/api/tickets/route.ts",
@@ -705,7 +875,12 @@
         "tests/active-api-routes.test.ts"
       ],
       "status_history": [
-        { "date": "2026-10-29", "status": "fixed_local_verified_unit_sql", "commit": "1aa101d82ed93aef91f43cb217934e01e0554837", "note": "Removed redundant/denied client audit_logs inserts from ticket, broadcast, and coupon routes." }
+        {
+          "date": "2026-10-29",
+          "status": "fixed_local_verified_unit_sql",
+          "commit": "2428601421e5007a82bf98b760a5372f2fd6629c",
+          "note": "Removed redundant/denied client audit_logs inserts from ticket, broadcast, and coupon routes."
+        }
       ]
     },
     {
@@ -717,8 +892,8 @@
       "review_status": "unreviewed_by_independent_agent",
       "reviewer": "pending-independent-reviewer",
       "introduced_commit": "35914eb39c4f1fdb79666c5829d28ca4f17841f4",
-      "fixed_commit": "1aa101d82ed93aef91f43cb217934e01e0554837",
-      "reviewed_commit": "1aa101d82ed93aef91f43cb217934e01e0554837",
+      "fixed_commit": "2428601421e5007a82bf98b760a5372f2fd6629c",
+      "reviewed_commit": "2428601421e5007a82bf98b760a5372f2fd6629c",
       "resource_boundary": "database:public.log_profile_update,private.pseudonymize_deleted_actor",
       "affected_files": [
         "supabase/migrations/20261029120000_stabilization_audit_repairs.sql"
@@ -736,7 +911,12 @@
         "tests/database.test.mjs"
       ],
       "status_history": [
-        { "date": "2026-10-29", "status": "fixed_local_verified_unit_sql", "commit": "1aa101d82ed93aef91f43cb217934e01e0554837", "note": "Sanitized log_profile_update and extended pseudonymize_deleted_actor to scrub audit_logs.details." }
+        {
+          "date": "2026-10-29",
+          "status": "fixed_local_verified_unit_sql",
+          "commit": "2428601421e5007a82bf98b760a5372f2fd6629c",
+          "note": "Sanitized log_profile_update and extended pseudonymize_deleted_actor to scrub audit_logs.details."
+        }
       ]
     },
     {
@@ -748,8 +928,8 @@
       "review_status": "unreviewed_by_independent_agent",
       "reviewer": "pending-independent-reviewer",
       "introduced_commit": "c1300ed6b95d5b81c131f0d9561464bd48ce50a2",
-      "fixed_commit": "1aa101d82ed93aef91f43cb217934e01e0554837",
-      "reviewed_commit": "1aa101d82ed93aef91f43cb217934e01e0554837",
+      "fixed_commit": "2428601421e5007a82bf98b760a5372f2fd6629c",
+      "reviewed_commit": "2428601421e5007a82bf98b760a5372f2fd6629c",
       "resource_boundary": "database:reserve_operation,finish_operation,consume_recovery_proof",
       "affected_files": [
         "supabase/migrations/20261029120000_stabilization_audit_repairs.sql",
@@ -770,7 +950,12 @@
         "tests/database.test.mjs"
       ],
       "status_history": [
-        { "date": "2026-10-29", "status": "fixed_local_verified_unit_sql", "commit": "1aa101d82ed93aef91f43cb217934e01e0554837", "note": "Wired v1 upload and recovery completion events in SQL RPCs." }
+        {
+          "date": "2026-10-29",
+          "status": "fixed_local_verified_unit_sql",
+          "commit": "2428601421e5007a82bf98b760a5372f2fd6629c",
+          "note": "Wired v1 upload and recovery completion events in SQL RPCs."
+        }
       ]
     },
     {
@@ -782,8 +967,8 @@
       "review_status": "unreviewed_by_independent_agent",
       "reviewer": "pending-independent-reviewer",
       "introduced_commit": "35914eb39c4f1fdb79666c5829d28ca4f17841f4",
-      "fixed_commit": "1aa101d82ed93aef91f43cb217934e01e0554837",
-      "reviewed_commit": "1aa101d82ed93aef91f43cb217934e01e0554837",
+      "fixed_commit": "2428601421e5007a82bf98b760a5372f2fd6629c",
+      "reviewed_commit": "2428601421e5007a82bf98b760a5372f2fd6629c",
       "resource_boundary": "api:/api/admin/*,ui:/privacy-policy",
       "affected_files": [
         "src/app/api/admin/users/route.ts",
@@ -818,7 +1003,12 @@
         "tests/active-api-routes.test.ts"
       ],
       "status_history": [
-        { "date": "2026-10-29", "status": "fixed_local_verified_unit_sql", "commit": "1aa101d82ed93aef91f43cb217934e01e0554837", "note": "Sanitized admin error responses, added bounded input/pagination validation and no-store headers, and fixed privacy canonical URL." }
+        {
+          "date": "2026-10-29",
+          "status": "fixed_local_verified_unit_sql",
+          "commit": "2428601421e5007a82bf98b760a5372f2fd6629c",
+          "note": "Sanitized admin error responses, added bounded input/pagination validation and no-store headers, and fixed privacy canonical URL."
+        }
       ]
     },
     {
@@ -830,8 +1020,8 @@
       "review_status": "unreviewed_by_independent_agent",
       "reviewer": "pending-independent-reviewer",
       "introduced_commit": "c1300ed6b95d5b81c131f0d9561464bd48ce50a2",
-      "fixed_commit": "1aa101d82ed93aef91f43cb217934e01e0554837",
-      "reviewed_commit": "1aa101d82ed93aef91f43cb217934e01e0554837",
+      "fixed_commit": "2428601421e5007a82bf98b760a5372f2fd6629c",
+      "reviewed_commit": "2428601421e5007a82bf98b760a5372f2fd6629c",
       "resource_boundary": "test_harness:docs/security/security-boundary-tests.mjs,docs/security/parser-render-tests.mjs",
       "affected_files": [
         "docs/security/security-boundary-tests.mjs",
@@ -851,8 +1041,18 @@
         "docs/security/parser-render-tests.mjs"
       ],
       "status_history": [
-        { "date": "2026-10-20", "status": "open_confirmed", "commit": "fb0f19280d79975d9a79dde4ae970ddf71892ee8", "note": "Replay produced 3 pass / 13 harness errors due to revised module boundaries." },
-        { "date": "2026-10-29", "status": "fixed_local_verified_unit_sql", "commit": "1aa101d82ed93aef91f43cb217934e01e0554837", "note": "Repaired VM module resolution and UUID/precondition fixtures without weakening any assertion (16/16 pass)." }
+        {
+          "date": "2026-10-20",
+          "status": "open_confirmed",
+          "commit": "2428601421e5007a82bf98b760a5372f2fd6629c",
+          "note": "Replay produced 3 pass / 13 harness errors due to revised module boundaries."
+        },
+        {
+          "date": "2026-10-29",
+          "status": "fixed_local_verified_unit_sql",
+          "commit": "1aa101d82ed93aef91f43cb217934e01e0554837",
+          "note": "Repaired VM module resolution and UUID/precondition fixtures without weakening any assertion (16/16 pass)."
+        }
       ]
     },
     {
@@ -885,7 +1085,12 @@
         "package.json"
       ],
       "status_history": [
-        { "date": "2026-10-20", "status": "open_tracked_dependency_advisory", "commit": "fb0f19280d79975d9a79dde4ae970ddf71892ee8", "note": "Assessed unreachable in production runtime (--omit=dev)." }
+        {
+          "date": "2026-10-20",
+          "status": "open_tracked_dependency_advisory",
+          "commit": "fb0f19280d79975d9a79dde4ae970ddf71892ee8",
+          "note": "Assessed unreachable in production runtime (--omit=dev)."
+        }
       ]
     },
     {
@@ -918,7 +1123,12 @@
         "src/lib/materials/parser-worker.cjs"
       ],
       "status_history": [
-        { "date": "2026-10-20", "status": "open_tracked_dependency_advisory", "commit": "fb0f19280d79975d9a79dde4ae970ddf71892ee8", "note": "Verified unreachable in programmatic mammoth.extractRawText path." }
+        {
+          "date": "2026-10-20",
+          "status": "open_tracked_dependency_advisory",
+          "commit": "fb0f19280d79975d9a79dde4ae970ddf71892ee8",
+          "note": "Verified unreachable in programmatic mammoth.extractRawText path."
+        }
       ]
     },
     {
@@ -953,7 +1163,12 @@
         "docs/STABILIZATION_REVIEW_LOG.md"
       ],
       "status_history": [
-        { "date": "2026-10-20", "status": "fixed_local_verified_unit_sql", "commit": "c1300ed6b95d5b81c131f0d9561464bd48ce50a2", "note": "Separated AI generation budget from practice completion receipts; re-reviewed." }
+        {
+          "date": "2026-10-20",
+          "status": "fixed_local_verified_unit_sql",
+          "commit": "c1300ed6b95d5b81c131f0d9561464bd48ce50a2",
+          "note": "Separated AI generation budget from practice completion receipts; re-reviewed."
+        }
       ]
     },
     {
@@ -984,7 +1199,12 @@
         "docs/STABILIZATION_REVIEW_LOG.md"
       ],
       "status_history": [
-        { "date": "2026-10-20", "status": "fixed_local_verified_unit_sql", "commit": "c1300ed6b95d5b81c131f0d9561464bd48ce50a2", "note": "Validated UUID syntax and owned parents before session creation or provider calls; re-reviewed." }
+        {
+          "date": "2026-10-20",
+          "status": "fixed_local_verified_unit_sql",
+          "commit": "c1300ed6b95d5b81c131f0d9561464bd48ce50a2",
+          "note": "Validated UUID syntax and owned parents before session creation or provider calls; re-reviewed."
+        }
       ]
     },
     {
@@ -1018,7 +1238,12 @@
         "docs/STABILIZATION_REVIEW_LOG.md"
       ],
       "status_history": [
-        { "date": "2026-10-20", "status": "fixed_local_verified_unit_sql", "commit": "c1300ed6b95d5b81c131f0d9561464bd48ce50a2", "note": "Added post-collection requireAdminApi({ requireMfa: true }) recheck before audit and response release." }
+        {
+          "date": "2026-10-20",
+          "status": "fixed_local_verified_unit_sql",
+          "commit": "c1300ed6b95d5b81c131f0d9561464bd48ce50a2",
+          "note": "Added post-collection requireAdminApi({ requireMfa: true }) recheck before audit and response release."
+        }
       ]
     },
     {
@@ -1049,7 +1274,12 @@
         "docs/STABILIZATION_REVIEW_LOG.md"
       ],
       "status_history": [
-        { "date": "2026-10-20", "status": "fixed_local_verified_unit_sql", "commit": "c1300ed6b95d5b81c131f0d9561464bd48ce50a2", "note": "Checked both day and minute counts under advisory lock before incrementing demo_budget." }
+        {
+          "date": "2026-10-20",
+          "status": "fixed_local_verified_unit_sql",
+          "commit": "c1300ed6b95d5b81c131f0d9561464bd48ce50a2",
+          "note": "Checked both day and minute counts under advisory lock before incrementing demo_budget."
+        }
       ]
     },
     {
@@ -1080,7 +1310,12 @@
         "docs/STABILIZATION_REVIEW_LOG.md"
       ],
       "status_history": [
-        { "date": "2026-10-20", "status": "fixed_local_verified_unit_sql", "commit": "c1300ed6b95d5b81c131f0d9561464bd48ce50a2", "note": "Removed content-bearing legacy audit insert in PUT /api/admin/tickets." }
+        {
+          "date": "2026-10-20",
+          "status": "fixed_local_verified_unit_sql",
+          "commit": "c1300ed6b95d5b81c131f0d9561464bd48ce50a2",
+          "note": "Removed content-bearing legacy audit insert in PUT /api/admin/tickets."
+        }
       ]
     },
     {
@@ -1114,7 +1349,12 @@
         "docs/STABILIZATION_REVIEW_LOG.md"
       ],
       "status_history": [
-        { "date": "2026-10-20", "status": "fixed_local_verified_unit_sql", "commit": "c1300ed6b95d5b81c131f0d9561464bd48ce50a2", "note": "Implemented transactional admin_reset_usage and admin_extend_subscription RPCs." }
+        {
+          "date": "2026-10-20",
+          "status": "fixed_local_verified_unit_sql",
+          "commit": "c1300ed6b95d5b81c131f0d9561464bd48ce50a2",
+          "note": "Implemented transactional admin_reset_usage and admin_extend_subscription RPCs."
+        }
       ]
     },
     {
@@ -1149,7 +1389,12 @@
         "docs/STABILIZATION_REVIEW_LOG.md"
       ],
       "status_history": [
-        { "date": "2026-10-20", "status": "fixed_local_verified_unit_sql", "commit": "c1300ed6b95d5b81c131f0d9561464bd48ce50a2", "note": "Filtered failure cookies to retain only explicit removals; re-reviewed." }
+        {
+          "date": "2026-10-20",
+          "status": "fixed_local_verified_unit_sql",
+          "commit": "c1300ed6b95d5b81c131f0d9561464bd48ce50a2",
+          "note": "Filtered failure cookies to retain only explicit removals; re-reviewed."
+        }
       ]
     },
     {
@@ -1181,7 +1426,12 @@
         "docs/STABILIZATION_REVIEW_LOG.md"
       ],
       "status_history": [
-        { "date": "2026-10-20", "status": "fixed_local_verified_unit_sql", "commit": "c1300ed6b95d5b81c131f0d9561464bd48ce50a2", "note": "Cleared dedup_key and v0 properties on actor deletion; extended to audit_logs in 20261029120000." }
+        {
+          "date": "2026-10-20",
+          "status": "fixed_local_verified_unit_sql",
+          "commit": "c1300ed6b95d5b81c131f0d9561464bd48ce50a2",
+          "note": "Cleared dedup_key and v0 properties on actor deletion; extended to audit_logs in 20261029120000."
+        }
       ]
     },
     {
@@ -1213,8 +1463,14 @@
         "docs/STABILIZATION_REVIEW_LOG.md"
       ],
       "status_history": [
-        { "date": "2026-10-20", "status": "fixed_local_verified_unit_sql", "commit": "c1300ed6b95d5b81c131f0d9561464bd48ce50a2", "note": "Changed pre-read audit outcome to attempted; re-reviewed." }
+        {
+          "date": "2026-10-20",
+          "status": "fixed_local_verified_unit_sql",
+          "commit": "c1300ed6b95d5b81c131f0d9561464bd48ce50a2",
+          "note": "Changed pre-read audit outcome to attempted; re-reviewed."
+        }
       ]
     }
-  ]
+  ],
+  "reviewed_revision": "2428601421e5007a82bf98b760a5372f2fd6629c"
 }

@@ -491,7 +491,10 @@ def compute_staleness(root: Path = ROOT, coverage_path: Path = COVERAGE_PATH, fi
     findings_doc = json.loads(findings_path.read_text(encoding="utf-8"))
     overlay = json.loads(overlay_path.read_text(encoding="utf-8")) if overlay_path.is_file() else build_overlay_graph(root, coverage, findings_doc)
 
-    current_tracked = set(tracked_files(root))
+    current_tracked = {
+        rel for rel in tracked_files(root)
+        if not (rel.startswith(EXCLUDED_PREFIXES) and not (root / rel).is_file())
+    }
     recorded_map = {e["path"]: e for e in coverage.get("files", [])}
     recorded_paths = set(recorded_map.keys())
 
