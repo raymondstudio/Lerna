@@ -71,6 +71,14 @@
   .bg-navy-panel  { background-color: #0B1120; }
 }
 
+@media (max-width: 767px) {
+  input,
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}
+
 /* ── Floating card animation (hero mockup) ─────────────────────────── */
 @keyframes float-card {
   0%, 100% { transform: translateY(0px) rotate(-1deg); }

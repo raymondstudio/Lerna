@@ -716,21 +716,21 @@ export function SettingsModal({ isOpen, onClose, initialTab }: SettingsModalProp
               <div className="flex w-full md:w-56 lg:w-60 shrink-0 flex-col border-b md:border-b-0 md:border-r border-white/5 bg-[#141414] p-3 space-y-3">
                 {/* Search Input */}
                 <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-500" />
+                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
                   <input
                     type="text"
                     placeholder="Search"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="h-8.5 w-full rounded-lg bg-[#1f1f23] pl-9 pr-7 text-xs text-slate-200 placeholder:text-slate-500 border border-white/5 focus:border-cyan-500/40 focus:outline-none transition-colors"
+                    className="h-11 w-full rounded-lg bg-[#1f1f23] pl-10 pr-9 text-base text-slate-200 placeholder:text-slate-500 border border-white/5 focus:border-cyan-500/40 focus:outline-none transition-colors md:h-8 md:pl-9 md:pr-7 md:text-xs"
                   />
                   {searchQuery && (
                     <button
                       type="button"
                       onClick={() => setSearchQuery("")}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300"
+                      className="absolute right-1.5 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center text-slate-500 hover:text-slate-300"
                     >
-                      <X className="h-3 w-3" />
+                      <X className="h-3.5 w-3.5" />
                     </button>
                   )}
                 </div>
