@@ -22,12 +22,17 @@ export async function reserveOperation(input: {
 async function reserveValidatedOperation(input: Parameters<typeof reserveOperation>[0]) {
   const id = input.operationId ?? crypto.randomUUID();
   const db = createSupabaseAdminClient();
+  // Sanitize model identifier to satisfy Postgres audit event regex (^[a-zA-Z0-9_.:-]{1,100}$)
+  const sanitizedModel = input.model ? input.model.replace(/\//g, ":") : null;
   const { data, error } = await db.rpc("reserve_operation", {
     p_id: id, p_user_id: input.userId, p_resource: input.resource, p_amount: input.amount ?? 1,
-    p_bytes: input.bytes ?? 0, p_model: input.model ?? null, p_request_type: input.requestType ?? null,
+    p_bytes: input.bytes ?? 0, p_model: sanitizedModel, p_request_type: input.requestType ?? null,
     p_provider_mode: input.providerMode ?? "live",
   });
-  if (error) throw new OperationError(error.code === "PT429" ? "Your plan limit has been reached." : "Operation budget is unavailable. Please retry.", error.code === "PT429" ? 429 : 503);
+  if (error) {
+    console.error("[operations] reserve_operation error:", error);
+    throw new OperationError(error.code === "PT429" ? "Your plan limit has been reached." : "Operation budget is unavailable. Please retry.", error.code === "PT429" ? 429 : 503);
+  }
   // A lost reservation acknowledgement must never trigger another provider call with the same identity.
   if (!data || data.replayed) throw new OperationError("This operation already exists. Refresh its saved result before retrying.", 409);
   return operationHandle(id);

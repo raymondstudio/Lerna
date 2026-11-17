@@ -45,11 +45,20 @@ async function callGeminiAPI(prompt: string, userId?: string): Promise<{ text: s
     const usage = raw?.usageMetadata;
     const hasProviderCounts = typeof usage?.promptTokenCount === "number" && Number.isFinite(usage.promptTokenCount)
       && typeof usage.candidatesTokenCount === "number" && Number.isFinite(usage.candidatesTokenCount);
-    const promptTokens = hasProviderCounts ? usage!.promptTokenCount! : Math.ceil(promptWithSystem.length / 4);
+    
+    const promptTokens = typeof result?.usage?.promptTokens === "number"
+      ? result.usage.promptTokens
+      : (hasProviderCounts ? usage!.promptTokenCount! : Math.ceil(promptWithSystem.length / 4));
+    
     const candidateTokens = hasProviderCounts ? usage!.candidatesTokenCount! : Math.ceil(text.length / 4);
     const thoughtTokens = hasProviderCounts && typeof usage?.thoughtsTokenCount === "number" ? usage.thoughtsTokenCount : 0;
-    const completionTokens = candidateTokens + thoughtTokens;
-    const modelUsed = "gemini-2.5-flash";
+    
+    const completionTokens = typeof result?.usage?.completionTokens === "number"
+      ? result.usage.completionTokens
+      : (candidateTokens + thoughtTokens);
+    
+    const modelUsed = result?.model ?? "gemini-2.5-flash";
+    const tokenSource: "provider" | "estimated" = (result?.usage?.tokenSource === "provider" || hasProviderCounts) ? "provider" : "estimated";
 
     return {
       text,
@@ -58,7 +67,7 @@ async function callGeminiAPI(prompt: string, userId?: string): Promise<{ text: s
         promptTokens,
         completionTokens,
         totalTokens: promptTokens + completionTokens,
-        tokenSource: hasProviderCounts ? "provider" : "estimated",
+        tokenSource,
         operationId: result.operation?.id,
         operationOutcome: result.operation?.outcome,
         estimatedCost: result.operation?.outcome === "succeeded"
