@@ -63,6 +63,34 @@ interface SettingsModalProps {
   initialTab?: string;
 }
 
+interface QuotaUsageData {
+  plan?: string;
+  subscription?: {
+    billingCycle?: string;
+    subscriptionStatus?: string;
+  };
+  usage?: {
+    aiRequests?: number;
+    quizzes?: number;
+    flashcards?: number;
+    storageBytes?: number;
+  };
+  limits?: {
+    aiRequests?: number;
+    quizzes?: number;
+    flashcards?: number;
+    storage?: number;
+  };
+}
+
+interface InvoiceRecord {
+  id: string;
+  invoice_number: string;
+  issued_at: string;
+  amount: number | string;
+  currency: string;
+}
+
 export function SettingsModal({ isOpen, onClose, initialTab }: SettingsModalProps) {
   const router = useRouter();
   const { user, profile, refreshProfile, signOut } = useAuth();
@@ -158,9 +186,9 @@ export function SettingsModal({ isOpen, onClose, initialTab }: SettingsModalProp
   });
 
   // Billing & quotas
-  const [quotaUsage, setQuotaUsage] = useState<Record<string, unknown> | null>(null);
+  const [quotaUsage, setQuotaUsage] = useState<QuotaUsageData | null>(null);
   const [billingHistory, setBillingHistory] = useState<Record<string, unknown>[]>([]);
-  const [invoices, setInvoices] = useState<Record<string, unknown>[]>([]);
+  const [invoices, setInvoices] = useState<InvoiceRecord[]>([]);
   const [couponCode, setCouponCode] = useState("");
   const [redeemingCoupon, setRedeemingCoupon] = useState(false);
   const [couponMessage, setCouponMessage] = useState<string | null>(null);
@@ -1057,7 +1085,7 @@ export function SettingsModal({ isOpen, onClose, initialTab }: SettingsModalProp
                         <div>
                           <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Current plan</span>
                           <h4 className="text-xl font-bold text-white capitalize mt-0.5 flex items-center gap-2">
-                            Lerna {profile?.plan || quotaUsage?.plan || "Free"}
+                            Lerna {String(profile?.plan || quotaUsage?.plan || "Free")}
                             <span className="text-[10px] px-2 py-0.5 bg-cyan-500/15 text-cyan-400 rounded-full font-bold border border-cyan-500/20">
                               Active
                             </span>
