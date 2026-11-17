@@ -24,4 +24,6 @@ export type StudySessionRecord = {
   topicsCovered?: string[];
   summary?: string;
   notes?: string;
+  notesRevision?: number;
+  notesUpdatedAt?: string;
 };

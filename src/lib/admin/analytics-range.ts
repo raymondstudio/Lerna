@@ -142,7 +142,7 @@ function chooseBucket(start: Date, end: Date): AnalyticsBucket {
 export function parseAdminAnalyticsRange(searchParams: URLSearchParams, now = new Date()): AdminAnalyticsRange {
   const rawPreset = searchParams.get("range");
   const preset = isPreset(rawPreset) ? rawPreset : "30d";
-  const requestedTimezone = searchParams.get("timezone") || "UTC";
+  const requestedTimezone = searchParams.get("timezone") || "Africa/Lagos";
   if (!isValidTimezone(requestedTimezone)) throw new Error("Invalid timezone.");
 
   const timezone = requestedTimezone;

@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/use-auth";
 import { useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
-import { DEFAULT_UPLOAD_SESSION_TITLE, buildUploadPath, getAcceptedUploadMimeTypes, isAllowedUploadMimeType, UPLOADED_MATERIALS_BUCKET } from "@/lib/uploads/constants";
+import { DEFAULT_UPLOAD_SESSION_TITLE, getAcceptedUploadMimeTypes, isAllowedUploadMimeType } from "@/lib/uploads/constants";
 import type { UploadedMaterialRecord } from "@/lib/uploads/types";
 import type { StudySessionRecord } from "@/lib/study-sessions/types";
 
@@ -156,14 +156,20 @@ function getStatusIcon(status: UploadedMaterialRecord["status"]) {
 }
 
 export function UploadWorkspace() {
+  const { user } = useAuth();
+  return <UploadWorkspaceContent key={user?.id ?? "signed-out"} />;
+}
+
+function UploadWorkspaceContent() {
   const { user, ready } = useAuth();
   const router = useRouter();
   const supabase = useMemo(() => createSupabaseBrowserClient(), []);
   const [sessions, setSessions] = useState<StudySessionRecord[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [materials, setMaterials] = useState<UploadedMaterialRecord[]>([]);
-  const [loadingSessions, setLoadingSessions] = useState(true);
-  const [loadingMaterials, setLoadingMaterials] = useState(false);
+  const [loadingSessions, setLoadingSessions] = useState(Boolean(ready && user));
+  const [loadedSessionId, setLoadedSessionId] = useState<string | null>(null);
+  const loadingMaterials = Boolean(activeSessionId && loadedSessionId !== activeSessionId);
   const [uploading, setUploading] = useState(false);
   const [query, setQuery] = useState("");
   const [dragging, setDragging] = useState(false);
@@ -189,17 +195,11 @@ export function UploadWorkspace() {
   );
 
   useEffect(() => {
-    if (!ready || !user) {
-      setLoadingSessions(false);
-      return;
-    }
+    if (!ready || !user) return;
 
     let isMounted = true;
 
     void (async () => {
-      setLoadingSessions(true);
-      setError(null);
-
       try {
         const response = await fetch("/api/study-sessions", { method: "GET" });
         const payload = (await response.json()) as SessionsApiResponse;
@@ -240,18 +240,11 @@ export function UploadWorkspace() {
   }, [ready, user]);
 
   useEffect(() => {
-    if (!ready || !user || !supabase || !activeSessionId) {
-      setMaterials([]);
-      setLoadingMaterials(false);
-      return;
-    }
+    if (!ready || !user || !supabase || !activeSessionId) return;
 
     let isMounted = true;
 
     void (async () => {
-      setLoadingMaterials(true);
-      setError(null);
-
       const response = await fetch(`/api/materials?sessionId=${encodeURIComponent(activeSessionId)}`);
       const payload = (await response.json()) as MaterialsApiResponse;
 
@@ -261,12 +254,12 @@ export function UploadWorkspace() {
 
       if (!response.ok || !payload.success) {
         setError(payload.error?.message ?? "Unable to load uploads.");
-        setLoadingMaterials(false);
+        setLoadedSessionId(activeSessionId);
         return;
       }
 
       setMaterials(payload.data?.materials ?? []);
-      setLoadingMaterials(false);
+      setLoadedSessionId(activeSessionId);
     })();
 
     return () => {
@@ -335,48 +328,22 @@ export function UploadWorkspace() {
       const session = await ensureActiveSession(files[0].name);
 
       for (const file of files) {
-        const storagePath = buildUploadPath(user.id, session.id, file.name);
-        const { error: uploadError } = await supabase.storage.from(UPLOADED_MATERIALS_BUCKET).upload(storagePath, file, {
-          contentType: file.type || "application/octet-stream",
-          upsert: false,
-        });
-
-        if (uploadError) {
-          throw uploadError;
-        }
-
-        const insertRes = await fetch("/api/materials", {
+        const form = new FormData();
+        form.append("file", file);
+        form.append("sessionId", session.id);
+        const response = await fetch("/api/upload", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            sessionId: session.id,
-            fileName: file.name,
-            fileType: file.type || "application/octet-stream",
-            storagePath,
-            fileSize: file.size
-          })
+          headers: { "Idempotency-Key": crypto.randomUUID() },
+          body: form,
         });
-
-        const insertPayload = await insertRes.json();
-        if (!insertPayload.success || !insertPayload.data) {
-          await supabase.storage.from(UPLOADED_MATERIALS_BUCKET).remove([storagePath]);
-          throw new Error(insertPayload.error?.message || "Unable to save upload metadata.");
+        const payload = await response.json();
+        if (!response.ok || !payload.success || !payload.data?.material) {
+          // Failed processing still leaves a durable row that the library can display.
+          await refreshMaterials(session.id);
+          throw new Error(payload.error?.message || "Unable to upload and process the file.");
         }
-
-        const insertedRow = insertPayload.data;
-
-        setMaterials((current) => sortMaterials([mapMaterialRow(insertedRow as StorageRow), ...current.filter((item) => item.id !== insertedRow.id)]));
-
-        const processResponse = await fetch(`/api/materials/${insertedRow.id}/process`, {
-          method: "POST",
-        });
-        const processPayload = (await processResponse.json()) as MaterialsApiResponse;
-
-        if (!processResponse.ok || !processPayload.success) {
-          setError(processPayload.error?.message ?? `${file.name} uploaded, but processing failed.`);
-        }
+        const insertedRow = payload.data.material as StorageRow;
+        setMaterials((current) => sortMaterials([mapMaterialRow(insertedRow), ...current.filter((item) => item.id !== insertedRow.id)]));
       }
 
       await refreshMaterials(session.id);

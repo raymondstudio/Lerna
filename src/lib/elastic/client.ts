@@ -1,267 +1,118 @@
-/* Small server-side helper for Elastic Cloud HTTP requests
-   - Reads endpoint and API key from environment via src/lib/env.ts
-   - Exports `searchIndex` for simple query usage
-   - Notes: Elastic Cloud may require an `Authorization: ApiKey <base64>` header
-     where the value is the base64 of `<id>:<api_key>` depending on how your
-     key was generated. Adjust `authHeader()` if your project stores a different
-     shape in the environment.
-*/
-
 import { env } from "../env";
 
-// In-memory persistent mock store for ElasticSearch indices in Next.js development context.
-const globalMock = global as any;
-if (!globalMock._mockElasticIndices) {
-  globalMock._mockElasticIndices = {};
+type ElasticDocument = Record<string, unknown>;
+type ElasticHit = { _source: ElasticDocument; _score: number };
+type ElasticResponse = Record<string, unknown> & { hits?: { hits?: ElasticHit[] } };
+type ElasticFilter = { term?: Record<string, unknown>; terms?: Record<string, unknown[]>; match?: Record<string, unknown>; bool?: { should?: ElasticFilter[] } };
+type ElasticQuery = { query?: { bool?: { filter?: ElasticFilter[] } }; knn?: { filter?: ElasticFilter | ElasticFilter[]; query_vector?: number[]; k?: number } };
+const globalMock = globalThis as typeof globalThis & { _mockElasticIndices?: Record<string, Record<string, ElasticDocument>> };
+const mockIndices = globalMock._mockElasticIndices ??= {};
+
+function explicitMockMode() { return process.env.NODE_ENV === "test" && process.env.LERNA_ELASTIC_MODE === "mock"; }
+class ElasticRequestError extends Error {
+  constructor(public readonly status: number) { super("Search service request failed."); }
 }
-const mockIndices = globalMock._mockElasticIndices;
-
-let useMock = false;
-
-function getEndpoint(): string {
-  return env.ELASTICSEARCH_URL || "";
-}
-
-function getApiKey(): string {
-  return env.ELASTICSEARCH_API_KEY ?? env.ELASTIC_SEARCH_API_KEY ?? "";
-}
-
-function authHeader(): string {
-  const key = getApiKey();
-  return `ApiKey ${key}`;
-}
-
+function getEndpoint() { return env.ELASTICSEARCH_URL || ""; }
+function getApiKey() { return env.ELASTICSEARCH_API_KEY ?? env.ELASTIC_SEARCH_API_KEY ?? ""; }
+function authHeader() { return `ApiKey ${getApiKey()}`; }
+function isDocument(value: unknown): value is ElasticDocument { return Boolean(value && typeof value === "object" && !Array.isArray(value)); }
+function numberArray(value: unknown): value is number[] { return Array.isArray(value) && value.every(item => typeof item === "number" && Number.isFinite(item)); }
 function cosineSimilarity(a: number[], b: number[]): number {
-  if (!a || !b || a.length !== b.length) return 0;
-  let dotProduct = 0;
-  let normA = 0;
-  let normB = 0;
-  for (let i = 0; i < a.length; i++) {
-    dotProduct += a[i] * b[i];
-    normA += a[i] * a[i];
-    normB += b[i] * b[i];
-  }
-  return normA && normB ? dotProduct / (Math.sqrt(normA) * Math.sqrt(normB)) : 0;
+  if (a.length !== b.length) return 0;
+  let dot = 0, normA = 0, normB = 0;
+  for (let i = 0; i < a.length; i++) { dot += a[i] * b[i]; normA += a[i] * a[i]; normB += b[i] * b[i]; }
+  return normA && normB ? dot / Math.sqrt(normA * normB) : 0;
 }
-
-function mockElasticRequest(path: string, init: RequestInit = {}): any {
-  const method = init.method?.toUpperCase() || "GET";
-  const decodedPath = decodeURIComponent(path);
-  const parts = decodedPath.split("/");
-  const index = parts[0];
-  const nextPart = parts[1];
-
-  if (method === "HEAD") {
-    if (mockIndices[index]) {
-      return { status: 200 };
-    }
-    throw new Error("Index not found");
+function fixtureBody(init: RequestInit): ElasticDocument {
+  const value: unknown = JSON.parse(typeof init.body === "string" ? init.body : "{}");
+  if (!isDocument(value)) throw new Error("Invalid search fixture body.");
+  return value;
+}
+function field(document: ElasticDocument, key: string) {
+  const clean = key.replace(".keyword", "");
+  return document[clean] ?? document[clean.replace(/_([a-z])/g, (_, letter: string) => letter.toUpperCase())] ?? document[clean.replace(/([A-Z])/g, "_$1").toLowerCase()];
+}
+function matchesFilter(document: ElasticDocument, filter: ElasticFilter): boolean {
+  if (filter.term || filter.match) {
+    const entry = Object.entries(filter.term ?? filter.match ?? {})[0];
+    return Boolean(entry && field(document, entry[0]) === entry[1]);
   }
-
+  if (filter.terms) {
+    const entry = Object.entries(filter.terms)[0];
+    return Boolean(entry && Array.isArray(entry[1]) && entry[1].includes(field(document, entry[0])));
+  }
+  return filter.bool?.should?.some(item => matchesFilter(document, item)) ?? true;
+}
+/** Fixtures are reachable only in the explicit local test mode. */
+function mockElasticRequest(path: string, init: RequestInit = {}): ElasticResponse {
+  const method = init.method?.toUpperCase() ?? "GET";
+  const decoded = decodeURIComponent(path), [index, action, documentId] = decoded.split("/");
+  if (method === "HEAD") {
+    if (!mockIndices[index]) throw new ElasticRequestError(404);
+    return {};
+  }
   if (method === "PUT") {
-    if (!mockIndices[index]) {
-      mockIndices[index] = {};
-    }
-    if (nextPart === "_doc" && parts[2]) {
-      const docId = parts[2];
-      const body = JSON.parse(init.body as string);
-      mockIndices[index][docId] = body;
-      return { result: "created", _id: docId };
-    }
+    mockIndices[index] ??= {};
+    if (action === "_doc" && documentId) mockIndices[index][documentId] = fixtureBody(init);
     return { acknowledged: true };
   }
-
-  if (method === "POST") {
-    if (decodedPath.includes("_delete_by_query")) {
-      const docs = mockIndices[index];
-      if (docs) {
-        const body = JSON.parse(init.body as string);
-        const filterList = body?.query?.bool?.filter || [];
-        const documentId = filterList.find((f: any) => f.term && f.term.document_id)?.term?.document_id;
-        const userId = filterList.find((f: any) => f.term && f.term.user_id)?.term?.user_id;
-        for (const [id, doc] of Object.entries(docs)) {
-          const d = doc as any;
-          const matchDocId = !documentId || d.document_id === documentId;
-          const matchUserId = !userId || d.user_id === userId;
-          if (matchDocId && matchUserId) {
-            delete docs[id];
-          }
-        }
-      }
-      return { deleted: 1 };
+  if (method === "POST" && decoded.includes("_refresh")) return { _shards: { total: 1, successful: 1, failed: 0 } };
+  if (method === "POST" && (decoded.includes("_search") || decoded.includes("_delete_by_query"))) {
+    const body = fixtureBody(init) as ElasticQuery;
+    const filters = [...(body.query?.bool?.filter ?? []), ...(Array.isArray(body.knn?.filter) ? body.knn.filter : body.knn?.filter ? [body.knn.filter] : [])];
+    const documents = mockIndices[index] ?? {};
+    const entries = Object.entries(documents).filter(([, document]) => filters.every(filter => matchesFilter(document, filter)));
+    if (decoded.includes("_delete_by_query")) {
+      entries.forEach(([id]) => { delete documents[id]; });
+      return { deleted: entries.length };
     }
-
-    if (decodedPath.includes("_refresh")) {
-      return { _shards: { total: 1, successful: 1, failed: 0 } };
-    }
-
-    if (decodedPath.includes("_search")) {
-      const body = JSON.parse(init.body as string);
-      const docs = mockIndices[index] || {};
-      let hits = Object.values(docs);
-
-      const queryFilters: any[] = [];
-      const bodyFilter = body?.query?.bool?.filter;
-      if (Array.isArray(bodyFilter)) {
-        queryFilters.push(...bodyFilter);
-      }
-
-      const knn = body?.knn;
-      if (knn) {
-        if (Array.isArray(knn.filter)) {
-          queryFilters.push(...knn.filter);
-        } else if (knn.filter) {
-          queryFilters.push(knn.filter);
-        }
-      }
-
-      for (const filter of queryFilters) {
-        if (filter.term) {
-          const [key, val] = Object.entries(filter.term)[0];
-          const cleanKey = key.replace(".keyword", "");
-          hits = hits.filter((h: any) => {
-            const propVal = h[cleanKey] ?? h[cleanKey.replace(/_([a-z])/g, (g) => g[1].toUpperCase())] ?? h[cleanKey.replace(/([A-Z])/g, "_$1").toLowerCase()];
-            return propVal === val;
-          });
-        } else if (filter.terms) {
-          const [key, val] = Object.entries(filter.terms)[0];
-          const cleanKey = key.replace(".keyword", "");
-          if (Array.isArray(val)) {
-            hits = hits.filter((h: any) => {
-              const propVal = h[cleanKey] ?? h[cleanKey.replace(/_([a-z])/g, (g) => g[1].toUpperCase())] ?? h[cleanKey.replace(/([A-Z])/g, "_$1").toLowerCase()];
-              return val.includes(propVal);
-            });
-          }
-        } else if (filter.bool?.should) {
-          const shoulds = filter.bool.should;
-          hits = hits.filter((h: any) => {
-            return shoulds.some((s: any) => {
-              if (s.term) {
-                const [key, val] = Object.entries(s.term)[0];
-                const cleanKey = key.replace(".keyword", "");
-                const propVal = h[cleanKey] ?? h[cleanKey.replace(/_([a-z])/g, (g) => g[1].toUpperCase())] ?? h[cleanKey.replace(/([A-Z])/g, "_$1").toLowerCase()];
-                return propVal === val;
-              }
-              if (s.match) {
-                const [key, val] = Object.entries(s.match)[0];
-                const cleanKey = key.replace(".keyword", "");
-                const propVal = h[cleanKey] ?? h[cleanKey.replace(/_([a-z])/g, (g) => g[1].toUpperCase())] ?? h[cleanKey.replace(/([A-Z])/g, "_$1").toLowerCase()];
-                return propVal === val;
-              }
-              return false;
-            });
-          });
-        }
-      }
-
-      if (knn) {
-        const queryVector = knn.query_vector;
-        const scoredHits = hits.map((doc: any) => {
-          const score = queryVector && doc.embedding ? cosineSimilarity(queryVector, doc.embedding) : 1.0;
-          return {
-            _source: doc,
-            _score: score,
-          };
-        });
-
-        scoredHits.sort((a, b) => b._score - a._score);
-        const limit = knn.k || 5;
-        return {
-          hits: {
-            hits: scoredHits.slice(0, limit),
-          },
-        };
-      }
-
-      return {
-        hits: {
-          hits: hits.map((doc) => ({ _source: doc, _score: 1.0 })),
-        },
-      };
-    }
-
-    if (path === "_bulk") {
-      const bodyStr = init.body as string;
-      const lines = bodyStr.split("\n").filter(Boolean);
-      for (let i = 0; i < lines.length; i += 2) {
-        try {
-          const action = JSON.parse(lines[i]);
-          const doc = JSON.parse(lines[i + 1]);
-          const bulkIndex = action.index?._index;
-          if (bulkIndex) {
-            if (!mockIndices[bulkIndex]) {
-              mockIndices[bulkIndex] = {};
-            }
-            const docId = doc.id || doc.chunk_id || (Date.now().toString() + Math.random().toString());
-            mockIndices[bulkIndex][docId] = doc;
-          }
-        } catch {}
-      }
-      return { errors: false, items: [] };
-    }
+    const hits = entries.map(([, document]) => ({ _source: document, _score: numberArray(body.knn?.query_vector) && numberArray(document.embedding) ? cosineSimilarity(body.knn.query_vector, document.embedding) : 1 }));
+    hits.sort((a, b) => b._score - a._score);
+    return { hits: { hits: body.knn ? hits.slice(0, body.knn.k ?? 5) : hits } };
   }
-
-  return null;
+  if (method === "POST" && path === "_bulk") {
+    const lines = (typeof init.body === "string" ? init.body : "").split("\n").filter(Boolean);
+    for (let i = 0; i < lines.length; i += 2) {
+      const action: unknown = JSON.parse(lines[i]), document: unknown = JSON.parse(lines[i + 1]);
+      if (!isDocument(action) || !isDocument(action.index) || typeof action.index._index !== "string" || !isDocument(document)) throw new Error("Invalid bulk search fixture.");
+      const destination = mockIndices[action.index._index] ??= {};
+      const id = typeof document.id === "string" ? document.id : typeof document.chunk_id === "string" ? document.chunk_id : crypto.randomUUID();
+      destination[id] = document;
+    }
+    return { errors: false, items: [] };
+  }
+  return {};
 }
 
-async function elasticRequest(path: string, init: RequestInit = {}) {
-  const endpoint = getEndpoint();
-  const apiKey = getApiKey();
-
-  if (!endpoint || !apiKey) {
-    if (!useMock) {
-      console.warn("[Elastic Client] Missing Elastic credentials in environment. Falling back to in-memory mock store.");
-      useMock = true;
-    }
-  }
-
-  if (useMock) {
-    console.log(`[Elastic Client] [Mock] Executing ${init.method || "GET"} request on "${path}"`);
-    return mockElasticRequest(path, init);
-  }
-
+async function elasticRequest(path: string, init: RequestInit = {}): Promise<ElasticResponse> {
+  if (explicitMockMode()) return mockElasticRequest(path, init);
+  const endpoint = getEndpoint(), apiKey = getApiKey();
+  if (!endpoint || !apiKey) throw new Error("Search service is not configured.");
+  const origin = new URL(endpoint);
+  if (origin.protocol !== "https:" && !["localhost", "127.0.0.1", "[::1]"].includes(origin.hostname)) throw new Error("Search service requires a trusted HTTPS endpoint.");
+  const response = await fetch(`${endpoint.replace(/\/+$/g, "")}/${path.replace(/^\/+/, "")}`, {
+    ...init, redirect: "error", signal: init.signal ? AbortSignal.any([init.signal, AbortSignal.timeout(15_000)]) : AbortSignal.timeout(15_000),
+    headers: { "Content-Type": "application/json", Authorization: authHeader(), ...(init.headers ?? {}) },
+  });
+  if (!response.ok) { await response.body?.cancel(); throw new ElasticRequestError(response.status); }
+  if (init.method === "HEAD" || response.status === 204) return {};
+  const reader = response.body?.getReader();
+  if (!reader) return {};
+  const chunks: Uint8Array[] = []; let bytes = 0;
   try {
-    const url = `${endpoint.replace(/\/+$/g, "")}/${path.replace(/^\/+/g, "")}`;
-    console.log(`[Elastic Client] [Cloud] Sending ${init.method || "GET"} to: ${url}`);
-
-    const res = await fetch(url, {
-      ...init,
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: authHeader(),
-        ...(init.headers ?? {}),
-      },
-    });
-
-    if (!res.ok) {
-      const text = await res.text().catch(() => "");
-      console.error(`[Elastic Client] Cloud request failed: status=${res.status} ${res.statusText}`, text);
-      throw new Error(`Elastic request failed: ${res.status} ${res.statusText} ${text}`);
+    while (true) {
+      const part = await reader.read(); if (part.done) break;
+      bytes += part.value.byteLength;
+      if (bytes > 2 * 1024 * 1024) { await reader.cancel(); throw new Error("Search service response exceeds the supported limit."); }
+      chunks.push(part.value);
     }
-
-    if (res.status === 204) {
-      console.log(`[Elastic Client] Cloud response: 204 No Content`);
-      return null;
-    }
-
-    const json = await res.json().catch(() => null);
-    console.log(`[Elastic Client] Cloud response: success`);
-    return json;
-  } catch (error) {
-    const msg = error instanceof Error ? error.message : String(error);
-    if (
-      msg.includes("fetch failed") ||
-      msg.includes("ENOTFOUND") ||
-      msg.includes("EADDRREFUSED") ||
-      msg.includes("connection reset")
-    ) {
-      console.warn(`[Elastic Client] Connection to ElasticSearch failed (${msg}). Falling back to in-memory mock store.`);
-      useMock = true;
-      return mockElasticRequest(path, init);
-    }
-    console.error(`[Elastic Client] Elastic request encountered exception:`, error);
-    throw error;
+  } finally { reader.releaseLock(); }
+  const result: unknown = JSON.parse(Buffer.concat(chunks, bytes).toString("utf8"));
+  if (!isDocument(result)) throw new Error("Search service returned an invalid response.");
+  if (result?.errors === true || (Array.isArray(result?.failures) && result.failures.length > 0) || result?.timed_out === true) {
+    throw new Error("Search service could not complete the operation.");
   }
+  return result as ElasticResponse;
 }
 
 export async function searchIndex(index: string, body: unknown) {
@@ -271,37 +122,38 @@ export async function searchIndex(index: string, body: unknown) {
   });
 }
 
-export async function createIndexIfMissing(index: string, body: unknown) {
+export async function createIndexIfMissing(index: string, body: unknown, signal?: AbortSignal) {
   const encodedIndex = encodeURIComponent(index);
 
   try {
-    await elasticRequest(encodedIndex, { method: "HEAD" });
+    await elasticRequest(encodedIndex, { method: "HEAD", signal });
     return;
-  } catch {
+  } catch (error) {
+    if (!(error instanceof ElasticRequestError && error.status === 404) && !explicitMockMode()) throw error;
     await elasticRequest(encodedIndex, {
-      method: "PUT",
+      method: "PUT", signal,
       body: JSON.stringify(body),
     });
   }
 }
 
-export async function indexDocument(index: string, id: string, body: unknown) {
+export async function indexDocument(index: string, id: string, body: unknown, signal?: AbortSignal) {
   return elasticRequest(`${encodeURIComponent(index)}/_doc/${encodeURIComponent(id)}`, {
-    method: "PUT",
+    method: "PUT", signal,
     body: JSON.stringify(body),
   });
 }
 
-export async function deleteByQuery(index: string, body: unknown) {
+export async function deleteByQuery(index: string, body: unknown, signal?: AbortSignal) {
   return elasticRequest(`${encodeURIComponent(index)}/_delete_by_query?conflicts=proceed&refresh=true`, {
-    method: "POST",
+    method: "POST", signal,
     body: JSON.stringify(body),
   });
 }
 
-export async function refreshIndex(index: string) {
+export async function refreshIndex(index: string, signal?: AbortSignal) {
   return elasticRequest(`${encodeURIComponent(index)}/_refresh`, {
-    method: "POST",
+    method: "POST", signal,
   });
 }
 
@@ -315,45 +167,7 @@ export async function indexDocumentChunks(
     body += JSON.stringify(chunk) + "\n";
   }
 
-  const endpoint = getEndpoint();
-  const apiKey = getApiKey();
-
-  if (useMock || !endpoint || !apiKey) {
-    useMock = true;
-    return mockElasticRequest("_bulk", { method: "POST", body });
-  }
-
-  try {
-    const url = `${endpoint.replace(/\/+$/g, "")}/_bulk`;
-    const res = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-ndjson",
-        Authorization: authHeader(),
-      },
-      body,
-    });
-
-    if (!res.ok) {
-      const text = await res.text().catch(() => "");
-      throw new Error(`Elastic bulk index failed: ${res.status} ${res.statusText} ${text}`);
-    }
-
-    return res.json();
-  } catch (error) {
-    const msg = error instanceof Error ? error.message : String(error);
-    if (
-      msg.includes("fetch failed") ||
-      msg.includes("ENOTFOUND") ||
-      msg.includes("EADDRREFUSED") ||
-      msg.includes("connection reset")
-    ) {
-      console.warn(`[Elastic Client] Connection to ElasticSearch failed (${msg}). Falling back to in-memory mock store.`);
-      useMock = true;
-      return mockElasticRequest("_bulk", { method: "POST", body });
-    }
-    throw error;
-  }
+  return elasticRequest("_bulk", { method: "POST", headers: { "Content-Type": "application/x-ndjson" }, body });
 }
 
 export async function searchSimilarChunks(index: string, sessionId: string, embedding: number[], limit = 3) {
@@ -380,5 +194,5 @@ export async function searchSimilarChunks(index: string, sessionId: string, embe
   };
 
   const res = await searchIndex(index, query);
-  return res.hits?.hits?.map((hit: any) => hit._source.chunk_text ?? hit._source.text).filter(Boolean) || [];
+  return res.hits?.hits?.map(hit => hit._source.chunk_text ?? hit._source.text).filter((text): text is string => typeof text === "string" && Boolean(text)) ?? [];
 }

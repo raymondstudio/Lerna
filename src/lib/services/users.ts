@@ -16,7 +16,7 @@ export async function getUserProfile(userId: string) {
   return normalizeProfile(profileResult.data, subscriptionResult.data, roleResult.data);
 }
 
-export async function updateProfile(userId: string, data: any) {
+export async function updateProfile(userId: string, data: Record<string, unknown>) {
   const supabase = await createSupabaseServerClient();
   const payload = stripUndefined(buildProfileUpdatePayload({
     ...data,

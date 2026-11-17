@@ -7,7 +7,7 @@ export async function handleWebhookPayload(
   provider: string,
   eventId: string,
   eventType: string,
-  payload: any
+  payload: Record<string, unknown>
 ) {
   // Store the raw webhook event for logging & idempotency
   await createWebhookEvent(provider, eventId, eventType, payload);

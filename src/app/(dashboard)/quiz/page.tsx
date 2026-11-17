@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, Suspense } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import React, { useState, useCallback, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Brain,
@@ -15,23 +15,16 @@ import {
   Loader2,
   BookOpen,
   History,
-  ArrowLeft,
   ChevronLeft,
   AlertCircle
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { useCourses } from '@/hooks/use-courses';
 import { useMaterials } from '@/hooks/use-materials';
-import { useInvalidateQuizList } from '@/hooks/use-quiz';
 
 type QuizType = 'mcq' | 'flashcard' | 'short_answer';
 type Phase = 'setup' | 'quiz' | 'results' | 'review';
 
-interface Course {
-  id: string;
-  title: string;
-  code: string;
-}
 
 interface Material {
   id: string;
@@ -50,6 +43,7 @@ interface Question {
 }
 
 interface AnswerRecord {
+  selection: string;
   questionId: string;
   correct: boolean;
   question: Question;
@@ -281,7 +275,7 @@ function ShortAnswerQuestion({
 
   const handleSubmit = () => {
     if (!value.trim() || submitted) return;
-    const correct = value.trim().toLowerCase() === question.correct_answer.trim().toLowerCase() || value.trim().length > 0;
+    const correct = value.trim().toLowerCase() === question.correct_answer.trim().toLowerCase();
     setIsCorrect(correct);
     setSubmitted(true);
     onAnswer(correct, value.trim());
@@ -369,28 +363,13 @@ function QuizPageContent() {
   // Setup state — courses & materials come from React Query (cached, instant on re-visit)
   const { data: courses = [] } = useCourses();
   const { data: allMaterials = [] } = useMaterials();
-  const [selectedCourseId, setSelectedCourseId] = useState<string>('');
-  const [selectedMaterialId, setSelectedMaterialId] = useState<string>('');
+  const [chosenCourseId, setSelectedCourseId] = useState<string | null>(null);
+  const [chosenMaterialId, setSelectedMaterialId] = useState<string | null>(null);
+  const queryMaterial = allMaterials.find(material => material.id === queryMaterialId);
+  const selectedCourseId = chosenCourseId ?? queryMaterial?.course_id ?? (courses.some(course => course.id === queryCourseId) ? queryCourseId ?? "" : "");
+  const selectedMaterialId = chosenMaterialId ?? queryMaterial?.id ?? "";
   const [quizType, setQuizType] = useState<QuizType>('mcq');
   const [questionCount, setQuestionCount] = useState<number>(5);
-
-  // Preselect from query params
-  useEffect(() => {
-    if (courses.length > 0 && queryCourseId) {
-      const match = courses.some((c: any) => c.id === queryCourseId);
-      if (match) setSelectedCourseId(queryCourseId);
-    }
-  }, [courses, queryCourseId]);
-
-  useEffect(() => {
-    if (allMaterials.length > 0 && queryMaterialId) {
-      const mat = allMaterials.find((m: any) => m.id === queryMaterialId);
-      if (mat) {
-        setSelectedMaterialId(mat.id);
-        setSelectedCourseId(mat.course_id ?? '');
-      }
-    }
-  }, [allMaterials, queryMaterialId]);
 
   // Derive materials list from React Query data
   const materials: Material[] = allMaterials;
@@ -399,6 +378,8 @@ function QuizPageContent() {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answers, setAnswers] = useState<AnswerRecord[]>([]);
+  const [practiceAttemptId, setPracticeAttemptId] = useState("");
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [currentAnswered, setCurrentAnswered] = useState(false);
   const [currentAnswer, setCurrentAnswer] = useState<{ correct: boolean; selection: string } | null>(null);
   const [generating, setGenerating] = useState(false);
@@ -411,8 +392,6 @@ function QuizPageContent() {
   const [reviewQuestions, setReviewQuestions] = useState<ReviewQuestion[]>([]);
   const [loadingReview, setLoadingReview] = useState(false);
 
-  // Last recorded user answer option/text
-  const [lastUserAnswerVal, setLastUserAnswerVal] = useState('');
   const [startTime, setStartTime] = useState<number | null>(null);
 
   // ─── Fetch Past Quizzes ────────────────────────────────────────────────────
@@ -432,16 +411,22 @@ function QuizPageContent() {
     }
   }, [user]);
 
-  useEffect(() => {
-    if (user && setupTab === 'history') {
-      fetchPastQuizzes();
-    }
-  }, [user, setupTab, fetchPastQuizzes]);
-
   // Filter materials based on selected course
   const filteredMaterials = selectedCourseId
     ? materials.filter(m => m.course_id === selectedCourseId && m.status === 'ready')
     : materials.filter(m => m.status === 'ready');
+
+  const startQuiz = useCallback((qs: Question[]) => {
+    setQuestions(qs);
+    setCurrentIndex(0);
+    setAnswers([]);
+    setSaveError(null);
+    setCurrentAnswered(false);
+    setCurrentAnswer(null);
+    setStartTime(Date.now());
+    setPracticeAttemptId(crypto.randomUUID());
+    setPhase('quiz');
+  }, []);
 
   // ─── Generate quiz ────────────────────────────────────────────────────────
   const handleGenerate = async (e: React.FormEvent) => {
@@ -464,7 +449,7 @@ function QuizPageContent() {
 
       const payload = await res.json();
       if (res.ok && payload.success && Array.isArray(payload.data?.questions)) {
-        const qs = payload.data.questions.map((q: any, idx: number) => ({
+        const qs = payload.data.questions.map((q: Omit<Question, "id">, idx: number) => ({
           id: `q-${idx}`,
           question: q.question,
           options: q.options,
@@ -483,20 +468,11 @@ function QuizPageContent() {
     setSetupError('Unable to generate AI quiz questions. Please check that you selected a course or material with text chunks.');
   };
 
-  const startQuiz = (qs: Question[]) => {
-    setQuestions(qs);
-    setCurrentIndex(0);
-    setAnswers([]);
-    setCurrentAnswered(false);
-    setCurrentAnswer(null);
-    setStartTime(Date.now());
-    setPhase('quiz');
-  };
+
 
   // ─── Handle answer recording ──────────────────────────────────────────────
   const handleAnswer = (correct: boolean, selection: string) => {
     if (currentAnswered) return;
-    setLastUserAnswerVal(selection);
     setCurrentAnswered(true);
     setCurrentAnswer({ correct, selection });
   };
@@ -507,6 +483,7 @@ function QuizPageContent() {
     const newAnswerRecord = {
       questionId: questions[currentIndex].id,
       correct: currentAnswer.correct,
+      selection: currentAnswer.selection,
       question: questions[currentIndex],
     };
 
@@ -528,9 +505,9 @@ function QuizPageContent() {
         const title = `Quiz — ${currentCourse ? currentCourse.code : 'General Knowledge'} (${new Date().toLocaleDateString()})`;
         const timeSpent = startTime ? Math.round((Date.now() - startTime) / 1000) : 0;
 
-        await fetch('/api/quiz', {
+        const saveResponse = await fetch('/api/quiz', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', 'Idempotency-Key': practiceAttemptId },
           body: JSON.stringify({
             courseId: selectedCourseId || null,
             materialId: selectedMaterialId || null,
@@ -541,18 +518,19 @@ function QuizPageContent() {
             timeSpent,
             difficulty: 'Medium',
             topic: questions[0]?.topic || 'General',
-            questions: updatedAnswers.map((a, idx) => ({
+            questions: updatedAnswers.map((a) => ({
               questionText: a.question.question,
               options: a.question.options || [],
               correctAnswer: a.question.correct_answer,
               explanation: a.question.explanation,
-              userAnswer: idx === currentIndex ? lastUserAnswerVal : 'Answered', // fallback or track options
+              userAnswer: a.selection,
               isCorrect: a.correct,
             })),
           }),
         });
-      } catch (err) {
-        console.error('Failed to save quiz results to database', err);
+        if (!saveResponse.ok) throw new Error("Practice results could not be saved. Your answers are still shown below.");
+      } catch {
+        setSaveError("Practice results could not be saved. Your answers are still shown below.");
       }
     }
   };
@@ -629,7 +607,7 @@ function QuizPageContent() {
                   Create Quiz
                 </button>
                 <button
-                  onClick={() => setSetupTab('history')}
+                  onClick={() => { setSetupTab('history'); void fetchPastQuizzes(); }}
                   className={`px-4 py-1.5 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5 ${
                     setupTab === 'history'
                       ? 'bg-cyan-500 text-black'
@@ -951,6 +929,8 @@ function QuizPageContent() {
                 transition={{ duration: 0.3 }}
                 className="space-y-6"
               >
+              <p className="text-xs text-slate-400">Practice results are self reported and are not verified assessments.</p>
+              {saveError && <p role="alert" className="text-sm text-red-300">{saveError}</p>}
                 {/* Result Hero */}
                 <div className="bg-[#141414] border border-white/5 rounded-2xl p-8 text-center flex flex-col items-center">
                   <div className="w-16 h-16 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center mb-4">
@@ -1034,6 +1014,7 @@ function QuizPageContent() {
                   onClick={() => {
                     setPhase('setup');
                     setSetupTab('history');
+                    void fetchPastQuizzes();
                   }}
                   className="flex items-center gap-2 text-xs font-semibold text-slate-400 hover:text-cyan-400 transition-colors uppercase tracking-wider"
                 >

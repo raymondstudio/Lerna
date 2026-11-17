@@ -1,3 +1,4 @@
+import { selectReadyOwnedMaterialIds } from "@/lib/repositories/materials";
 import { generateEmbedding } from "@/lib/gemini/client";
 import type { ChatSource } from "@/lib/chat/types";
 import { searchMaterialEmbeddings } from "./elastic";
@@ -64,36 +65,24 @@ export async function retrieveMaterialContext(params: {
   query: string;
   documentIds?: string[];
 }): Promise<RagContext> {
-  const queryEmbedding = await generateEmbedding(params.query, "RETRIEVAL_QUERY");
+  const allowed = await selectReadyOwnedMaterialIds(params.userId, params.documentIds);
+  if (allowed.length === 0) return { chunks: [], sources: [] };
+  const queryEmbedding = await generateEmbedding(params.query, "RETRIEVAL_QUERY", { userId: params.userId });
   const sessionChunks = await searchMaterialEmbeddings({
     userId: params.userId,
-    sessionId: params.sessionId,
-    queryEmbedding,
-    limit: 5,
-    documentIds: params.documentIds,
+    sessionId: params.documentIds === undefined ? params.sessionId : undefined,
+    queryEmbedding, limit: 5, documentIds: allowed,
   });
-
   let chunks = sessionChunks.filter((chunk) => chunk.score >= MIN_RELEVANCE_SCORE);
-  
+  let generalChunks: RetrievedMaterialChunk[] = [];
   if (chunks.length === 0) {
-    // Try general user materials with threshold
-    chunks = (await searchMaterialEmbeddings({
-      userId: params.userId,
-      queryEmbedding,
-      limit: 5,
-      documentIds: params.documentIds,
-    })).filter((chunk) => chunk.score >= MIN_RELEVANCE_SCORE);
+    generalChunks = await searchMaterialEmbeddings({ userId: params.userId, queryEmbedding, limit: 5, documentIds: allowed });
+    chunks = generalChunks.filter((chunk) => chunk.score >= MIN_RELEVANCE_SCORE);
   }
-
-  // Fallback: If still empty (e.g. mock embeddings in offline demo mode), return top matches without threshold
-  if (chunks.length === 0) {
-    chunks = sessionChunks.length > 0 ? sessionChunks : await searchMaterialEmbeddings({
-      userId: params.userId,
-      queryEmbedding,
-      limit: 5,
-      documentIds: params.documentIds,
-    });
-  }
+  if (chunks.length === 0) chunks = sessionChunks.length > 0 ? sessionChunks : generalChunks;
+  // Recheck SQL after search so stale/deleted/foreign index hits never enter a prompt.
+  const current = new Set(await selectReadyOwnedMaterialIds(params.userId, [...new Set(chunks.map((chunk) => chunk.documentId))]));
+  chunks = chunks.filter((chunk) => chunk.userId === params.userId && current.has(chunk.documentId) && allowed.includes(chunk.documentId));
 
   return {
     chunks,

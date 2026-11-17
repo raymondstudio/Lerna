@@ -1,4 +1,5 @@
 "use client";
+import { ExportLink } from "@/components/admin/ExportLink";
 
 import { CalendarRange, Download } from "lucide-react";
 
@@ -46,8 +47,8 @@ export function AdminDateRangeBar() {
 
         <div className="ml-auto flex items-center gap-2">
           <span className="hidden items-center gap-1.5 text-[10px] text-slate-500 lg:flex"><CalendarRange className="h-3.5 w-3.5" /> UTC storage · local reporting</span>
-          <a href={exportUrl("csv")} className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-white/10 px-3 text-xs font-semibold text-slate-300 hover:border-cyan-500/40 hover:text-cyan-300"><Download className="h-3.5 w-3.5" /> CSV</a>
-          <a href={exportUrl("json")} className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-white/10 px-3 text-xs font-semibold text-slate-300 hover:border-cyan-500/40 hover:text-cyan-300"><Download className="h-3.5 w-3.5" /> JSON</a>
+          <ExportLink href={exportUrl("csv")} className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-white/10 px-3 text-xs font-semibold text-slate-300 hover:border-cyan-500/40 hover:text-cyan-300"><Download className="h-3.5 w-3.5" /> CSV</ExportLink>
+          <ExportLink href={exportUrl("json")} className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-white/10 px-3 text-xs font-semibold text-slate-300 hover:border-cyan-500/40 hover:text-cyan-300"><Download className="h-3.5 w-3.5" /> JSON</ExportLink>
         </div>
       </div>
     </div>

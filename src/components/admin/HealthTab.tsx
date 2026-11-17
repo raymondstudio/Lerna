@@ -5,10 +5,10 @@ import { Activity, AlertCircle, AlertTriangle, CheckCircle, Cpu, Loader2, Server
 
 type HealthDiagnostics = {
   latencies: {
-    apiGateway: number;
-    geminiResponse: number;
-    searchRetrieval: number;
-    pdfProcessing: number;
+    apiGateway: number | null;
+    geminiResponse: number | null;
+    searchRetrieval: number | null;
+    pdfProcessing: number | null;
   };
   failedAiRequests: Array<{
     id: string;
@@ -20,7 +20,7 @@ type HealthDiagnostics = {
   failedEvents: Array<{
     id: string;
     event_name: string;
-    event_properties: any;
+    event_properties: Record<string, unknown>;
     created_at: string;
   }>;
   webhooks: Array<{
@@ -59,7 +59,7 @@ export function HealthTab() {
         } else {
           setError(json.error || "Failed to compile system health details.");
         }
-      } catch (err) {
+      } catch {
         setError("Error connecting to server.");
       } finally {
         setLoading(false);
@@ -100,7 +100,7 @@ export function HealthTab() {
         <div className="p-5 rounded-2xl border border-white/5 bg-[#141414]/50 backdrop-blur-md flex items-center justify-between gap-3">
           <div className="space-y-1">
             <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest block">API Gateway</span>
-            <div className="text-xl font-bold text-white">{data.latencies.apiGateway}ms</div>
+            <div className="text-xl font-bold text-white">{data.latencies.apiGateway == null ? "Unavailable" : `${data.latencies.apiGateway}ms`}</div>
           </div>
           <Server className="h-5 w-5 text-cyan-400" />
         </div>
@@ -108,7 +108,7 @@ export function HealthTab() {
         <div className="p-5 rounded-2xl border border-white/5 bg-[#141414]/50 backdrop-blur-md flex items-center justify-between gap-3">
           <div className="space-y-1">
             <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest block">Gemini API latency</span>
-            <div className="text-xl font-bold text-white">{data.latencies.geminiResponse}ms</div>
+            <div className="text-xl font-bold text-white">{data.latencies.geminiResponse == null ? "Unavailable" : `${data.latencies.geminiResponse}ms`}</div>
           </div>
           <Cpu className="h-5 w-5 text-cyan-400" />
         </div>
@@ -116,7 +116,7 @@ export function HealthTab() {
         <div className="p-5 rounded-2xl border border-white/5 bg-[#141414]/50 backdrop-blur-md flex items-center justify-between gap-3">
           <div className="space-y-1">
             <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest block">RAG query delay</span>
-            <div className="text-xl font-bold text-white">{data.latencies.searchRetrieval}ms</div>
+            <div className="text-xl font-bold text-white">{data.latencies.searchRetrieval == null ? "Unavailable" : `${data.latencies.searchRetrieval}ms`}</div>
           </div>
           <CheckCircle className="h-5 w-5 text-cyan-400" />
         </div>
@@ -124,7 +124,7 @@ export function HealthTab() {
         <div className="p-5 rounded-2xl border border-white/5 bg-[#141414]/50 backdrop-blur-md flex items-center justify-between gap-3">
           <div className="space-y-1">
             <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest block">PDF Parsing</span>
-            <div className="text-xl font-bold text-white">{data.latencies.pdfProcessing}ms</div>
+            <div className="text-xl font-bold text-white">{data.latencies.pdfProcessing == null ? "Unavailable" : `${data.latencies.pdfProcessing}ms`}</div>
           </div>
           <AlertCircle className="h-5 w-5 text-cyan-400" />
         </div>

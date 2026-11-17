@@ -455,9 +455,11 @@ function HomePageContent() {
 
   useEffect(() => {
     const auth = searchParams.get("auth");
-    if (auth === "login") setActiveModal("login");
-    if (auth === "signup") setActiveModal("signup");
-    if (auth === "reset") setActiveModal("reset");
+    if (auth === "login" || auth === "signup" || auth === "reset") {
+      queueMicrotask(() => {
+        setActiveModal(auth as "login" | "signup" | "reset");
+      });
+    }
   }, [searchParams]);
 
   return (

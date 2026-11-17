@@ -3,8 +3,13 @@
 import { useEffect, useState } from "react";
 import { Loader2, X, User, Calendar, Cpu, FolderOpen, Globe, Laptop, HelpCircle, GraduationCap, Coins, MessageSquare, ShieldAlert, Shield, History, Receipt } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ActivityPanel } from "./ActivityPanel";
 
 type UserDetails = {
+  subscription?: { current_period_end?: string; payment_provider?: string };
+  subscriptionHistory?: Array<{ id: string; old_plan?: string; new_plan?: string; created_at: string; reason?: string }>;
+  invoices?: Array<{ id: string; invoice_number: string; amount: number; currency: string; status: string }>;
+  billingHistory?: Array<{ id: string; reference: string; provider: string; amount: number; currency: string; status: string }>;
   profile: {
     id: string;
     firstName?: string;
@@ -81,7 +86,7 @@ export function UserDetailDrawer({ userId, onClose }: { userId: string; onClose:
   const [data, setData] = useState<UserDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [timeline, setTimeline] = useState<any[]>([]);
+
 
   // Subscription plan management states
   const [selectedPlan, setSelectedPlan] = useState("free");
@@ -151,7 +156,7 @@ export function UserDetailDrawer({ userId, onClose }: { userId: string; onClose:
   };
 
   const handleResetUsage = async () => {
-    const confirmReset = window.confirm("Are you sure you want to reset today's usage stats for this user?");
+    const confirmReset = window.confirm("Reset today's legacy usage counters? This does not replenish durable AI, upload or quiz limits.");
     if (!confirmReset) return;
 
     try {
@@ -163,7 +168,7 @@ export function UserDetailDrawer({ userId, onClose }: { userId: string; onClose:
       });
       const json = await res.json();
       if (json.success) {
-        alert("Usage limits reset successfully.");
+        alert("Legacy daily counters reset. Durable AI, upload and quiz limits are unchanged.");
         onClose();
       } else {
         alert(json.error || "Failed to reset usage.");
@@ -222,12 +227,7 @@ export function UserDetailDrawer({ userId, onClose }: { userId: string; onClose:
           setError(json.error || "Failed to load user metadata.");
         }
 
-        // Fetch chronological timeline
-        const timelineRes = await fetch(`/api/admin/users/${userId}/timeline`);
-        const timelineJson = await timelineRes.json();
-        if (timelineJson.success && Array.isArray(timelineJson.data)) {
-          setTimeline(timelineJson.data);
-        }
+
       } catch (err) {
         setError("Error connecting to server.");
       } finally {
@@ -303,8 +303,8 @@ export function UserDetailDrawer({ userId, onClose }: { userId: string; onClose:
                   <div>Gender: <strong>{data.profile.gender || "N/A"}</strong></div>
                   <div>Student: <strong>{data.profile.isStudent ? "Yes" : "No"}</strong></div>
                   <div>Level: <strong>{data.profile.studyLevel || "N/A"}</strong></div>
-                  <div>Plan Expiration: <strong>{(data as any).subscription?.current_period_end ? new Date((data as any).subscription.current_period_end).toLocaleDateString() : "N/A"}</strong></div>
-                  <div>Renewal Type: <strong className="capitalize">{(data as any).subscription?.payment_provider || "manual"}</strong></div>
+                  <div>Plan Expiration: <strong>{data.subscription?.current_period_end ? new Date(data.subscription.current_period_end).toLocaleDateString() : "N/A"}</strong></div>
+                  <div>Renewal Type: <strong className="capitalize">{data.subscription?.payment_provider || "manual"}</strong></div>
                   <div className="col-span-2 truncate">School: <strong>{data.profile.institution || "N/A"} ({data.profile.department || "N/A"})</strong></div>
                   <div className="col-span-2 truncate">Goals: <strong>{data.profile.studyGoals?.join(", ") || "N/A"}</strong></div>
                 </div>
@@ -401,7 +401,7 @@ export function UserDetailDrawer({ userId, onClose }: { userId: string; onClose:
                       disabled={savingPlan}
                       className="flex-1 h-8 border border-yellow-500/20 bg-yellow-500/5 hover:bg-yellow-500/10 text-yellow-400 text-[10px] font-bold rounded-lg"
                     >
-                      Reset Daily Usage
+                      Reset Legacy Counters
                     </Button>
                   </div>
                 </div>
@@ -501,7 +501,7 @@ export function UserDetailDrawer({ userId, onClose }: { userId: string; onClose:
                           <span>{"★".repeat(f.rating)}</span>
                           <span className="text-[8px] px-1.5 py-0.5 bg-white/5 rounded text-slate-400 uppercase">{f.type}</span>
                         </div>
-                        <p className="text-slate-300 italic">"{f.message}"</p>
+                        <p className="text-slate-300 italic">&ldquo;{f.message}&rdquo;</p>
                       </div>
                     ))}
                   </div>
@@ -629,11 +629,11 @@ export function UserDetailDrawer({ userId, onClose }: { userId: string; onClose:
                 <div className="flex items-center gap-1.5 text-slate-400 font-semibold border-b border-white/5 pb-1.5">
                   <History className="h-4 w-4 text-cyan-400" /> Subscription History Log
                 </div>
-                {!(data as any).subscriptionHistory || (data as any).subscriptionHistory.length === 0 ? (
+                {!data.subscriptionHistory || data.subscriptionHistory.length === 0 ? (
                   <p className="text-[10px] text-slate-500 italic">No plan changes logged.</p>
                 ) : (
                   <div className="space-y-1.5 max-h-[120px] overflow-y-auto pr-1">
-                    {(data as any).subscriptionHistory.map((h: any) => (
+                    {data.subscriptionHistory.map((h) => (
                       <div key={h.id} className="p-2 bg-[#0a0a0a]/30 border border-white/5 rounded text-[10px] space-y-0.5">
                         <div className="flex justify-between text-slate-400">
                           <span>Plan: <strong className="text-white capitalize">{h.old_plan || "none"} → {h.new_plan || "none"}</strong></span>
@@ -651,17 +651,17 @@ export function UserDetailDrawer({ userId, onClose }: { userId: string; onClose:
                 <div className="flex items-center gap-1.5 text-slate-400 font-semibold border-b border-white/5 pb-1.5">
                   <Receipt className="h-4 w-4 text-cyan-400" /> Transactions & Invoices
                 </div>
-                {(!(data as any).invoices || (data as any).invoices.length === 0) && (!(data as any).billingHistory || (data as any).billingHistory.length === 0) ? (
+                {(!data.invoices || data.invoices.length === 0) && (!data.billingHistory || data.billingHistory.length === 0) ? (
                   <p className="text-[10px] text-slate-500 italic">No invoices or payments registered.</p>
                 ) : (
                   <div className="space-y-1.5 max-h-[150px] overflow-y-auto pr-1 text-[9px] font-mono">
-                    {(data as any).invoices?.map((inv: any) => (
+                    {data.invoices?.map((inv) => (
                       <div key={inv.id} className="flex justify-between p-1.5 border-b border-white/5 bg-white/[0.01]">
                         <span className="text-slate-400">Invoice: {inv.invoice_number}</span>
                         <span className="text-slate-200">{inv.amount} {inv.currency} ({inv.status})</span>
                       </div>
                     ))}
-                    {(data as any).billingHistory?.map((tx: any) => (
+                    {data.billingHistory?.map((tx) => (
                       <div key={tx.id} className="flex justify-between p-1.5 border-b border-white/5">
                         <span className="text-slate-500">Ref: {tx.reference} ({tx.provider})</span>
                         <span className="text-slate-300">{tx.amount} {tx.currency} ({tx.status})</span>
@@ -671,37 +671,7 @@ export function UserDetailDrawer({ userId, onClose }: { userId: string; onClose:
                 )}
               </div>
 
-              {/* Chronological Event Timeline */}
-              <div className="space-y-2 pt-2">
-                <div className="flex items-center gap-1.5 text-slate-400 font-semibold border-b border-white/5 pb-1.5">
-                  <Calendar className="h-4 w-4 text-cyan-400" /> Chronological Activity Timeline
-                </div>
-                {timeline.length === 0 ? (
-                  <p className="text-[10px] text-slate-500 italic">No activity logs recorded.</p>
-                ) : (
-                  <div className="relative border-l border-white/10 ml-2 pl-4 space-y-3.5 max-h-[220px] overflow-y-auto pr-1">
-                    {timeline.map((evt, index) => (
-                      <div key={evt.id || index} className="relative text-[11px] text-slate-400">
-                        {/* Event bullet point */}
-                        <div className="absolute -left-[21px] top-1 bg-cyan-500 w-2 h-2 rounded-full border border-slate-900" />
-                        <div className="flex justify-between items-start">
-                          <span className="font-bold text-white capitalize">
-                            {evt.event_type.replace(/_/g, " ")}
-                          </span>
-                          <span className="text-[9px] text-slate-500">
-                            {new Date(evt.created_at).toLocaleDateString()}
-                          </span>
-                        </div>
-                        {evt.properties && Object.keys(evt.properties).length > 0 && (
-                          <div className="mt-1 p-2 rounded bg-white/5 text-[9px] font-mono text-slate-500 max-w-full overflow-x-auto">
-                            {JSON.stringify(evt.properties)}
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+              <ActivityPanel userId={userId} />
 
             </div>
           )}

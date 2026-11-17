@@ -3,12 +3,14 @@
 import { useEffect, useRef } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useAuth } from "@/hooks/use-auth";
+import { reportRouteView, resetActivityBuffer } from "@/lib/activity/browser-buffer";
 
 export function AnalyticsTracker() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { user } = useAuth();
   const prevPath = useRef<string | null>(null);
+  const previousActor = useRef<string | null>(null);
 
   // 1. Capture UTM params and referrer immediately on initial load or search params changes
   useEffect(() => {
@@ -44,28 +46,14 @@ export function AnalyticsTracker() {
     }
   }, [searchParams]);
 
-  // 2. Track page views on route changes
+  // Reported navigation is best effort and carries no content or search parameters.
   useEffect(() => {
-    const currentPath = pathname + (searchParams?.toString() ? `?${searchParams.toString()}` : "");
-    if (currentPath === prevPath.current) return;
-    prevPath.current = currentPath;
-
-    void (async () => {
-      try {
-        await fetch("/api/analytics/pageview", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            path: pathname,
-            referrer: typeof document !== "undefined" && document.referrer ? document.referrer : null,
-          }),
-        });
-      } catch (err) {
-        console.warn("[analytics] failed to log page view:", err);
-      }
-    })();
-  }, [pathname, searchParams]);
-
+    if (previousActor.current !== (user?.id ?? null)) { prevPath.current = null; previousActor.current = user?.id ?? null; }
+    resetActivityBuffer(user?.id ?? null);
+    if (!user || pathname === prevPath.current) return;
+    prevPath.current = pathname;
+    reportRouteView(pathname);
+  }, [pathname, user?.id]);
   // 3. Sync attribution to DB once the user is authenticated
   useEffect(() => {
     if (user && typeof window !== "undefined") {

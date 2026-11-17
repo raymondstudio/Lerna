@@ -1,32 +1,17 @@
 import { NextResponse } from "next/server";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { authorizeActiveUserApi } from "@/lib/auth/require-active-user-api";
 
 export async function GET(
   _req: Request,
   context: { params: Promise<{ id: string }> }
 ) {
   const requestId = crypto.randomUUID();
+  const auth = await authorizeActiveUserApi();
+  if (!auth.ok) return auth.response;
+  const { supabase, user } = auth;
 
   try {
     const { id } = await context.params;
-    const supabase = await createSupabaseServerClient();
-    const { data: userData } = await supabase.auth.getUser();
-    const user = userData.user;
-
-    if (!user) {
-      return NextResponse.json(
-        {
-          success: false,
-          requestId,
-          error: {
-            code: "UNAUTHORIZED",
-            message: "You must be signed in to view this quiz.",
-          },
-        },
-        { status: 401 }
-      );
-    }
-
     const { data: quiz, error: quizError } = await supabase
       .from("quizzes")
       .select("id, title, score, total_questions, created_at, course_id, courses(code, title)")
@@ -34,7 +19,8 @@ export async function GET(
       .eq("user_id", user.id)
       .maybeSingle();
 
-    if (quizError || !quiz) {
+    if (quizError) throw quizError;
+    if (!quiz) {
       return NextResponse.json(
         {
           success: false,
@@ -74,14 +60,14 @@ export async function GET(
         })),
       },
     });
-  } catch (error) {
+  } catch {
     return NextResponse.json(
       {
         success: false,
         requestId,
         error: {
           code: "SERVER_ERROR",
-          message: error instanceof Error ? error.message : "Unable to retrieve quiz details.",
+          message: "Unable to retrieve quiz details.",
         },
       },
       { status: 500 }

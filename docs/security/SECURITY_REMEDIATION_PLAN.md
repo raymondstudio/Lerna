@@ -1,5 +1,11 @@
 # Security remediation plan
 
+**20 October 2026 implementation note:** The plan below is a dated proposal from
+the original audit. The approved stabilization implementation is underway on
+`security/stabilization`; current source/evidence and blocked gates are in
+[STABILIZATION_WORKBOARD.md](../STABILIZATION_WORKBOARD.md). Source changes do
+not close the historical credential incident or production readiness gate.
+
 **Private — 12 October 2026, Africa/Lagos.** Applies to main @ 9b37a7e8de96b09340ef4ecb5d0ded52840f5476. All tasks are **proposed / not applied**. Current status remains blocked by confirmed risks and missing deployment/database verification.
 
 ## Dependency order and assumptions

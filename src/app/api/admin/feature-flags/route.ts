@@ -1,27 +1,14 @@
+import { authorizeAdminApi } from "@/lib/auth/require-admin-api";
+import { readBoundedJson } from "@/lib/http/bounded-json";
+import { OperationError } from "@/lib/repositories/operations";
 import { NextResponse } from "next/server";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const supabase = await createSupabaseServerClient();
-  const { data: userData } = await supabase.auth.getUser();
-
-  if (!userData?.user) {
-    return NextResponse.json({ success: false, error: "Unauthenticated" }, { status: 401 });
-  }
-
-  const { data: isAdmin } = await supabase.rpc("is_admin", { user_id: userData.user.id });
-  
-  const adminEmails = process.env.ADMIN_EMAILS
-    ? process.env.ADMIN_EMAILS.split(",").map((e) => e.trim())
-    : ["msuraymond@gmail.com"];
-  const isFallbackAdmin = userData.user.email && adminEmails.includes(userData.user.email);
-  const isRoleAdmin = userData.user.app_metadata?.role === "admin";
-
-  if (!isAdmin && !isFallbackAdmin && !isRoleAdmin) {
-    return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 403 });
-  }
+  const authorization = await authorizeAdminApi();
+  if (!authorization.ok) return authorization.response;
+  const { supabase } = authorization;
 
   try {
     const { data: flags, error } = await supabase
@@ -31,38 +18,24 @@ export async function GET() {
 
     if (error) throw error;
 
-    return NextResponse.json({ success: true, data: flags });
-  } catch (err) {
-    console.error("[api:admin:flags] GET error:", err);
-    return NextResponse.json({ success: false, error: String(err) }, { status: 500 });
+    return NextResponse.json({ success: true, data: flags }, { headers: { "Cache-Control": "private, no-store" } });
+  } catch {
+    console.error("[api:admin:flags] GET failed");
+    return NextResponse.json({ success: false, error: "Feature flags could not be loaded." }, { status: 503, headers: { "Cache-Control": "private, no-store" } });
   }
 }
 
 export async function POST(req: Request) {
-  const supabase = await createSupabaseServerClient();
-  const { data: userData } = await supabase.auth.getUser();
-
-  if (!userData?.user) {
-    return NextResponse.json({ success: false, error: "Unauthenticated" }, { status: 401 });
-  }
-
-  const { data: isAdmin } = await supabase.rpc("is_admin", { user_id: userData.user.id });
-  
-  const adminEmails = process.env.ADMIN_EMAILS
-    ? process.env.ADMIN_EMAILS.split(",").map((e) => e.trim())
-    : ["msuraymond@gmail.com"];
-  const isFallbackAdmin = userData.user.email && adminEmails.includes(userData.user.email);
-  const isRoleAdmin = userData.user.app_metadata?.role === "admin";
-
-  if (!isAdmin && !isFallbackAdmin && !isRoleAdmin) {
-    return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 403 });
-  }
+  const authorization = await authorizeAdminApi({ requireMfa: true });
+  if (!authorization.ok) return authorization.response;
+  const { supabase } = authorization;
 
   try {
-    const { key, enabled } = await req.json();
+    const body = await readBoundedJson(req, 4096);
+    const { key, enabled } = (body && typeof body === "object" && !Array.isArray(body) ? body : {}) as Record<string, unknown>;
 
-    if (typeof key !== "string" || typeof enabled !== "boolean") {
-      return NextResponse.json({ success: false, error: "Invalid parameters" }, { status: 400 });
+    if (typeof key !== "string" || !/^[a-z0-9_]{1,80}$/.test(key) || typeof enabled !== "boolean") {
+      return NextResponse.json({ success: false, error: "Invalid parameters" }, { status: 400, headers: { "Cache-Control": "private, no-store" } });
     }
 
     const { error } = await supabase
@@ -72,9 +45,12 @@ export async function POST(req: Request) {
 
     if (error) throw error;
 
-    return NextResponse.json({ success: true });
-  } catch (err) {
-    console.error("[api:admin:flags] POST error:", err);
-    return NextResponse.json({ success: false, error: String(err) }, { status: 500 });
+    return NextResponse.json({ success: true }, { headers: { "Cache-Control": "private, no-store" } });
+  } catch (error) {
+    if (error instanceof OperationError && error.status >= 400 && error.status < 500) {
+      return NextResponse.json({ success: false, error: error.message }, { status: error.status, headers: { "Cache-Control": "private, no-store" } });
+    }
+    console.error("[api:admin:flags] POST failed");
+    return NextResponse.json({ success: false, error: "Feature flag could not be updated." }, { status: 503, headers: { "Cache-Control": "private, no-store" } });
   }
 }

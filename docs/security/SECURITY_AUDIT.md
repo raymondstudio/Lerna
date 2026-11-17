@@ -1,5 +1,12 @@
 # Lerna AI security audit
 
+**20 October 2026 stabilization note:** This report is the unchanged 12 October
+baseline, not a current assessment of `security/stabilization`. Source fixes and
+synthetic boundary results are tracked in [the workboard](../STABILIZATION_WORKBOARD.md)
+and [test matrix](SECURITY_TEST_MATRIX.md). No real local/hosted Supabase gate or
+independent integrated re-audit has passed. The historical credential exposure
+and separate owner-controlled containment remain open.
+
 **Private workspace report — 12 October 2026 (Africa/Lagos).** Audited branch: main. Commit: 9b37a7e8de96b09340ef4ecb5d0ded52840f5476. Origin: https://github.com/raymondstudio/Lerna. Status: **blocked by confirmed risks**, additionally blocked by missing high-impact deployment/database verification. No recommendation is marked fixed.
 
 ## Scope, identity and preservation
@@ -687,5 +694,14 @@ High-impact missing evidence blocks a confident scale decision even after source
 [ASVS stable project](https://owasp.org/projects/asvs) / [5.0.0 stable CSV](https://raw.githubusercontent.com/OWASP/ASVS/v5.0.0/5.0/docs_en/OWASP_Application_Security_Verification_Standard_5.0.0_en.csv), [OWASP API Security 2023](https://api-security.owasp.org/editions/2023/en/0x11-t10/), [OWASP GenAI risks](https://genai.owasp.org/llm-top-10/), [File Upload Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/File_Upload_Cheat_Sheet.html), [Supabase API keys](https://supabase.com/docs/guides/getting-started/api-keys), [Supabase RLS](https://supabase.com/docs/guides/database/postgres/row-level-security), [Supabase SSR](https://supabase.com/docs/guides/auth/server-side/creating-a-client?queryGroups=framework&framework=nextjs). Retrieved 12 October 2026. Supabase changelog.md was unavailable; HTML changelog was retrieved. Linked provider guidance informs recommendations, not proof of configured controls.
 
 ## Conclusion
+
+The 20 October stabilization work is an unhosted source candidate, tracked in
+`../STABILIZATION_WORKBOARD.md`. Independent reviews identified and prompted
+corrections for orphan chat sessions, split/double quiz charges, export
+demotion races, demo budget denial accounting, content in legacy audit rows,
+failed-recovery Auth cookies and retained deletion identifiers. Targeted
+source/SQL checks pass for the corrected cases. These results do not close
+the historical privileged credential exposure or the local/hosted provider,
+browser, concurrency and recovery-drill evidence gates.
 
 The audited commit is **blocked by confirmed risks**, with significant missing verification. Rotate/revoke the historically exposed privileged credential first, then establish isolation and fix privileged access, budget and upload boundaries before expanding usage. Mocks verify concrete application defects and several useful controls; they do not establish production exploitability or universal security. Residual prompt injection, stolen-account abuse, parser risks, dependency changes and operational recovery need continuing monitoring after fixes and deployment retesting.

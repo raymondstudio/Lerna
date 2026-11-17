@@ -9,3 +9,4 @@
 1. **No Direct Client DB Queries**: No React components should query Supabase directly using client-side `supabase.from(...)`. All queries must route through Next.js API endpoints, which invoke the Repository/Service Layer.
 2. **Centralized Repository Pattern**: Keep all direct Supabase queries inside `src/lib/repositories/` to preserve a clean single interface for database operations.
 3. **No Mock Data / Placeholders**: Never return dummy stats or fallback KPI counters. Failures must return descriptive error payloads and display warnings in the UI.
+4. **Durable Audit Knowledge**: Before modifying security, authentication, persistence, or telemetry boundaries, read `docs/audit/README.md` and run `python -B scripts/audit_knowledge.py stale` (and `file <path>`) to check recorded invariants, findings, and freshness.
