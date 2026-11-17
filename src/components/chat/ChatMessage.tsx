@@ -197,7 +197,7 @@ export function ChatMessage({
                     {children}
                   </a>
                 ),
-                code: ({ node, inline, className, children, ...props }: any) => {
+                code: ({ node: _node, inline: _inline, className, children, ...props }: React.ComponentPropsWithoutRef<"code"> & { node?: unknown; inline?: boolean }) => {
                   const match = /language-(\w+)/.exec(className || "");
                   const lang = match ? match[1] : "";
                   const content = String(children).replace(/\n$/, "");

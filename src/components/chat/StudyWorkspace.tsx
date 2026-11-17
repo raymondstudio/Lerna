@@ -107,7 +107,9 @@ export function StudyWorkspace() {
       }
       initialSyncRef.current = true;
       if (optimisticSession && paramSessionId === optimisticSession.id) {
-        setOptimisticSession(null);
+        queueMicrotask(() => {
+          setOptimisticSession(null);
+        });
       }
     } else {
       if (!initialSyncRef.current) {
@@ -218,16 +220,20 @@ export function StudyWorkspace() {
   // Load materials with cache-first strategy to prevent disappearing UI
   useEffect(() => {
     if (!ready || !user || !activeSessionId) {
-      setActiveSessionMaterials([]);
+      queueMicrotask(() => {
+        setActiveSessionMaterials([]);
+      });
       return;
     }
 
     // Show cached materials immediately if available
-    if (materialsCache.current[activeSessionId]) {
-      setActiveSessionMaterials(materialsCache.current[activeSessionId]);
-    } else {
-      setActiveSessionMaterials([]);
-    }
+    queueMicrotask(() => {
+      if (materialsCache.current[activeSessionId]) {
+        setActiveSessionMaterials(materialsCache.current[activeSessionId]);
+      } else {
+        setActiveSessionMaterials([]);
+      }
+    });
 
     let cancelled = false;
     void (async () => {

@@ -82,7 +82,7 @@ export async function checkEmailExists(email: string): Promise<boolean> {
   return data && data.length > 0 ? true : false;
 }
 
-export async function updateUserProfile(userId: string, data: Record<string, any>) {
+export async function updateUserProfile(userId: string, data: Record<string, unknown>) {
   const supabase = await createSupabaseServerClient();
   const payload = stripUndefined(buildProfileUpdatePayload(data));
   const { data: updated, error } = await supabase

@@ -77,8 +77,10 @@ function PricingContent() {
     const upgrade = searchParams.get("upgrade");
     const plan = searchParams.get("plan") as Plan | null;
     if (upgrade === "true" || plan === "pro" || plan === "premium") {
-      setSelectedPlan(plan === "premium" ? "premium" : "pro");
-      setModalOpen(true);
+      queueMicrotask(() => {
+        setSelectedPlan(plan === "premium" ? "premium" : "pro");
+        setModalOpen(true);
+      });
     }
   }, [searchParams]);
 
