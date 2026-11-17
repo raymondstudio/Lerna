@@ -11,6 +11,14 @@ const envSchema = z.object({
   ELASTICSEARCH_URL: z.string().url().optional(),
   ELASTICSEARCH_API_KEY: z.string().min(1).optional(),
   ELASTIC_SEARCH_API_KEY: z.string().min(1).optional(),
+  AI_PROVIDER: z.enum(["groq", "xai", "gemini"]).optional(),
+  GROQ_API_KEY: z.string().min(1).optional(),
+  GROQ_MODEL: z.string().min(1).optional(),
+  GROQ_API_URL: z.string().url().optional(),
+  XAI_API_KEY: z.string().min(1).optional(),
+  XAI_MODEL: z.string().min(1).optional(),
+  XAI_API_URL: z.string().url().optional(),
+  AI_ENABLE_FALLBACK: z.string().optional(),
 });
 
 export const env = envSchema.parse({
@@ -24,4 +32,12 @@ export const env = envSchema.parse({
   ELASTICSEARCH_URL: process.env.ELASTICSEARCH_URL,
   ELASTICSEARCH_API_KEY: process.env.ELASTICSEARCH_API_KEY ?? process.env.ELASTIC_SEARCH_API_KEY,
   ELASTIC_SEARCH_API_KEY: process.env.ELASTIC_SEARCH_API_KEY,
+  AI_PROVIDER: process.env.AI_PROVIDER as "groq" | "xai" | "gemini" | undefined,
+  GROQ_API_KEY: process.env.GROQ_API_KEY,
+  GROQ_MODEL: process.env.GROQ_MODEL,
+  GROQ_API_URL: process.env.GROQ_API_URL,
+  XAI_API_KEY: process.env.XAI_API_KEY,
+  XAI_MODEL: process.env.XAI_MODEL,
+  XAI_API_URL: process.env.XAI_API_URL,
+  AI_ENABLE_FALLBACK: process.env.AI_ENABLE_FALLBACK,
 });
