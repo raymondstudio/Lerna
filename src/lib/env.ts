@@ -19,6 +19,9 @@ const envSchema = z.object({
   XAI_MODEL: z.string().min(1).optional(),
   XAI_API_URL: z.string().url().optional(),
   AI_ENABLE_FALLBACK: z.string().optional(),
+  RESEND_API_KEY: z.string().min(1).optional(),
+  RESEND_EMAILS_API_KEY: z.string().min(1).optional(),
+  RESEND_WEBHOOK_SECRET: z.string().min(1).optional(),
 });
 
 export const env = envSchema.parse({
@@ -40,4 +43,7 @@ export const env = envSchema.parse({
   XAI_MODEL: process.env.XAI_MODEL,
   XAI_API_URL: process.env.XAI_API_URL,
   AI_ENABLE_FALLBACK: process.env.AI_ENABLE_FALLBACK,
+  RESEND_API_KEY: process.env.RESEND_API_KEY ?? process.env.RESEND_EMAILS_API_KEY,
+  RESEND_EMAILS_API_KEY: process.env.RESEND_EMAILS_API_KEY ?? process.env.RESEND_API_KEY,
+  RESEND_WEBHOOK_SECRET: process.env.RESEND_WEBHOOK_SECRET,
 });
