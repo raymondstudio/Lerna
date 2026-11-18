@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
+import { Analytics } from "@vercel/analytics/next";
 import { Providers } from "@/components/providers";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import "highlight.js/styles/github-dark.css";
@@ -87,6 +88,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
     <html lang="en" suppressHydrationWarning className="h-full">
       <body className={`${headingFont.variable} ${bodyFont.variable} min-h-screen overflow-x-hidden bg-background font-body text-foreground antialiased`}>
         <Providers initialSession={initialSession}>{children}</Providers>
+        <Analytics />
       </body>
     </html>
   );
