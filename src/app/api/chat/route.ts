@@ -253,7 +253,7 @@ export async function POST(req: Request) {
         .is("deleted_at", null);
 
       if (materialsError) {
-        throw new Error("Authorized material lookup is unavailable. Please retry.");
+        console.warn("[chat] Authorized material lookup non-fatal fallback:", materialsError);
       } else if (materials) {
         documentIds = materials.map((material) => material.id);
       }

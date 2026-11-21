@@ -77,6 +77,21 @@ describe("callback and origin boundary (mocked code exchange)", () => {
     expect(getAuthRequestOrigin("https://preview.fixture.invalid/auth/callback")).toBe("https://preview.fixture.invalid");
     expect(() => getAuthRequestOrigin("https://unknown.fixture.invalid/auth/callback")).toThrow(/not configured/);
   });
+  it("recognizes uselerna.app and www.uselerna.app as valid production origins", () => {
+    expect(getAuthRequestOrigin("https://www.uselerna.app/auth/callback")).toBe("https://www.uselerna.app");
+    expect(getAuthRequestOrigin("https://uselerna.app/auth/callback")).toBe("https://uselerna.app");
+  });
+  it("redirects confirmed signup users to the login screen with a success message", async () => {
+    const response = await GET(request("code=synthetic-code&type=signup", "https://www.uselerna.app"));
+    expect(response.headers.get("location")).toContain("auth=login");
+    expect(decodeURIComponent(response.headers.get("location")!)).toContain("Email verified successfully");
+    expect(mocks.exchange).toHaveBeenCalledWith("synthetic-code");
+  });
+  it("redirects email_confirmation type to the login screen with a success message", async () => {
+    const response = await GET(request("code=synthetic-code&type=email_confirmation", "https://www.uselerna.app"));
+    expect(response.headers.get("location")).toContain("auth=login");
+    expect(decodeURIComponent(response.headers.get("location")!)).toContain("Email verified successfully");
+  });
   it("rejects unsafe return syntax and preserves allowed paths and queries", () => {
     for (const value of ["https://other.fixture.invalid", "//other.fixture.invalid", "/\\other.fixture.invalid", "/\r\n/other.fixture.invalid"]) {
       expect(sanitizeAuthReturnPath(value)).toBe("/chat");
