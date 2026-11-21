@@ -62,7 +62,7 @@ export function getAIConfig(): AIProviderConfig {
     },
     gemini: {
       apiKey: geminiKey,
-      model: DEFAULT_GEMINI_MODEL,
+      model: (env.GEMINI_MODEL || process.env.GEMINI_MODEL)?.trim() || DEFAULT_GEMINI_MODEL,
     },
   };
 }

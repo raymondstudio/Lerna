@@ -11,11 +11,13 @@ import { Input } from "@/components/ui/input";
 export function LoginForm({
   redirectTo = "/chat",
   initialErrorMessage,
+  initialSuccessMessage,
   onSwitchToSignup,
   onSwitchToForgot
 }: {
   redirectTo?: string;
   initialErrorMessage?: string;
+  initialSuccessMessage?: string;
   onSwitchToSignup?: () => void;
   onSwitchToForgot?: () => void;
 }) {
@@ -26,6 +28,7 @@ export function LoginForm({
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(initialErrorMessage ?? null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(initialSuccessMessage ?? null);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -38,6 +41,7 @@ export function LoginForm({
     try {
       setLoading(true);
       setError(null);
+      setSuccessMessage(null);
       await signIn({ email: email.trim(), password });
       router.push(sanitizeAuthReturnPath(redirectTo));
       router.refresh();
@@ -151,6 +155,14 @@ export function LoginForm({
             </button>
           </div>
         </div>
+        {successMessage ? (
+          <div role="status" className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200 flex items-center gap-2">
+            <svg className="w-4 h-4 text-emerald-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+            <span>{successMessage}</span>
+          </div>
+        ) : null}
         {(error || authError) ? (
           <p role="alert" className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">
             {error ?? authError}

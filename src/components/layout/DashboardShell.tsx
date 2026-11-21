@@ -9,6 +9,7 @@ import {
   BookOpen, 
   Timer, 
   GraduationCap, 
+  FileText,
   LogOut, 
   PanelLeftClose, 
   PanelLeftOpen, 
@@ -158,6 +159,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
 
   const navItems = [
     { name: "Chat Tutor", href: "/chat", icon: Brain },
+    { name: "My Assignments", href: "/assignments", icon: FileText },
     { name: "Study Session", href: "/study", icon: Timer },
     { name: "Courses Hub", href: "/courses", icon: BookOpen },
     { name: "AI Quizzes", href: "/quiz", icon: GraduationCap },

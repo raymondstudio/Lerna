@@ -196,7 +196,7 @@ export function AuthProvider({ children, initialSession }: { children: ReactNode
             tos_accepted_at: acceptedTos ? new Date().toISOString() : undefined,
             privacy_accepted_at: acceptedPrivacy ? new Date().toISOString() : undefined,
           },
-          emailRedirectTo: `${getAppUrl()}/auth/callback`,
+          emailRedirectTo: `${getAppUrl()}/auth/callback?type=signup`,
         },
       });
 

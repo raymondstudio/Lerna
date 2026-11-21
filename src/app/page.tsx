@@ -1124,6 +1124,8 @@ function HomePageContent() {
           onSwitchToSignup={() => setActiveModal("signup")}
           onSwitchToForgot={() => setActiveModal("forgot")}
           redirectTo="/chat"
+          initialSuccessMessage={searchParams.get("message") || undefined}
+          initialErrorMessage={searchParams.get("error") || undefined}
         />
       </Modal>
 

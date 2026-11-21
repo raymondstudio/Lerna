@@ -57,7 +57,7 @@ async function callGeminiAPI(prompt: string, userId?: string): Promise<{ text: s
       ? result.usage.completionTokens
       : (candidateTokens + thoughtTokens);
     
-    const modelUsed = result?.model ?? "gemini-2.5-flash";
+    const modelUsed = result?.model ?? process.env.GEMINI_MODEL?.trim() ?? "gemini-2.5-flash";
     const tokenSource: "provider" | "estimated" = (result?.usage?.tokenSource === "provider" || hasProviderCounts) ? "provider" : "estimated";
 
     return {

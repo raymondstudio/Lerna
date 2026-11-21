@@ -497,3 +497,52 @@ test('upload reservations and recovery proof consumption emit v1 activity lifecy
     { event_type: 'material.upload.started', outcome: 'pending' },
   ]);
 });
+
+test('assignments RLS isolates learners, allows anon reads only when public, and blocks anon mutations', async () => {
+  const asgnA = randomUUID();
+  const asgnB = randomUUID();
+  const tokenA = 'share-token-a-' + randomUUID().replace(/-/g, '');
+  const tokenB = 'share-token-b-' + randomUUID().replace(/-/g, '');
+
+  // 1. User A creates private assignment
+  await role('authenticated', A);
+  await sql("insert into public.assignments(id,user_id,title,mode,is_public,share_token) values($1,$2,'Assignment A','explain',false,$3)", [asgnA, A, tokenA]);
+  const aRows = (await sql("select id,title from public.assignments where id=$1", [asgnA])).rows;
+  assert.equal(aRows.length, 1);
+
+  // 2. User B cannot see User A's private assignment
+  await role('authenticated', B);
+  const bViewA = (await sql("select id from public.assignments where id=$1", [asgnA])).rows;
+  assert.equal(bViewA.length, 0);
+
+  // 3. User B creates an assignment and makes it public
+  await sql("insert into public.assignments(id,user_id,title,mode,is_public,share_token) values($1,$2,'Assignment B','answer',true,$3)", [asgnB, B, tokenB]);
+  await sql("insert into public.assignment_messages(assignment_id,user_id,role,content) values($1,$2,'assistant','Worked solution B')", [asgnB, B]);
+
+  // 4. Anon user can see Assignment B (public) but NOT Assignment A (private)
+  await role('anon');
+  const anonViewA = (await sql("select id from public.assignments where id=$1", [asgnA])).rows;
+  assert.equal(anonViewA.length, 0);
+
+  const anonViewB = (await sql("select id,title,is_public from public.assignments where id=$1", [asgnB])).rows;
+  assert.equal(anonViewB.length, 1);
+  assert.equal(anonViewB[0].title, 'Assignment B');
+
+  const anonMessagesB = (await sql("select content from public.assignment_messages where assignment_id=$1", [asgnB])).rows;
+  assert.equal(anonMessagesB.length, 1);
+  assert.equal(anonMessagesB[0].content, 'Worked solution B');
+
+  // 5. Anon user cannot insert, update, or delete
+  await rejectsSql("insert into public.assignments(user_id,title) values($1,'Forged')", [B]);
+  await rejectsSql("update public.assignments set title='Hacked' where id=$1", [asgnB]);
+  await rejectsSql("delete from public.assignments where id=$1", [asgnB]);
+
+  // 6. User B revokes public status
+  await role('authenticated', B);
+  await sql("update public.assignments set is_public=false where id=$1", [asgnB]);
+
+  // 7. Anon user immediately loses access
+  await role('anon');
+  const anonAfterRevoke = (await sql("select id from public.assignments where id=$1", [asgnB])).rows;
+  assert.equal(anonAfterRevoke.length, 0);
+});

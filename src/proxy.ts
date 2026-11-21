@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { getSupabaseKey, getSupabaseUrl } from "@/lib/supabase/config";
 
 type CookieToSet = { name: string; value: string; options: Record<string, unknown> };
-const PROTECTED_PATHS = ["/chat", "/materials", "/schedule", "/progress", "/courses", "/study", "/quiz", "/account", "/admin", "/onboarding", "/welcome"];
+const PROTECTED_PATHS = ["/chat", "/assignments", "/materials", "/schedule", "/progress", "/courses", "/study", "/quiz", "/account", "/admin", "/onboarding", "/welcome"];
 const isProtectedPath = (pathname: string) => PROTECTED_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`));
 const noStore = (response: NextResponse) => {
   response.headers.set("Cache-Control", "private, no-store");
@@ -65,5 +65,5 @@ export async function proxy(request: NextRequest) {
 
 // Auth callback, recovery and MFA perform their own validation; never intercept PKCE.
 export const config = {
-  matcher: ["/chat/:path*", "/materials/:path*", "/schedule/:path*", "/progress/:path*", "/courses/:path*", "/study/:path*", "/quiz/:path*", "/account/:path*", "/admin/:path*", "/onboarding/:path*", "/welcome/:path*", "/login", "/signup"],
+  matcher: ["/chat/:path*", "/assignments/:path*", "/materials/:path*", "/schedule/:path*", "/progress/:path*", "/courses/:path*", "/study/:path*", "/quiz/:path*", "/account/:path*", "/admin/:path*", "/onboarding/:path*", "/welcome/:path*", "/login", "/signup"],
 };

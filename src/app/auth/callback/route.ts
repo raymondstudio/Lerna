@@ -12,19 +12,27 @@ export async function GET(request: NextRequest) {
       status: 503, headers: { "Cache-Control": "private, no-store" },
     });
   }
+  const typeParam = request.nextUrl.searchParams.get("type");
+  const isEmailConfirmation = typeParam === "signup" || typeParam === "email_confirmation";
+
   let nextPath = sanitizeAuthReturnPath(request.nextUrl.searchParams.get("next"));
   // Preserve already-issued recovery links without sending recovery into chat.
   if (["/chat?auth=reset", "/?auth=reset"].includes(nextPath)) nextPath = "/auth/reset-password";
-  const recovery = nextPath === "/auth/reset-password" || request.nextUrl.searchParams.has("recovery_nonce");
+  const recovery = nextPath === "/auth/reset-password" || request.nextUrl.searchParams.has("recovery_nonce") || typeParam === "recovery";
   if (recovery) nextPath = "/auth/reset-password";
-  const response = NextResponse.redirect(new URL(nextPath, origin));
+
+  const targetPath = isEmailConfirmation
+    ? "/?auth=login&message=" + encodeURIComponent("Email verified successfully. You can now sign in.")
+    : nextPath;
+
+  const response = NextResponse.redirect(new URL(targetPath, origin));
   response.headers.set("Cache-Control", "private, no-store");
   response.headers.set("Referrer-Policy", "no-referrer");
   const failed = () => {
     const login = new URL("/", origin);
     login.searchParams.set("auth", "login");
     login.searchParams.set("error", "This sign-in link is invalid or expired. Please try again.");
-    login.searchParams.set("redirectTo", nextPath);
+    if (nextPath && nextPath !== "/chat") login.searchParams.set("redirectTo", nextPath);
     const failure = NextResponse.redirect(login);
     // A failed recovery proof can happen after PKCE exchanged a valid code.
     // Never forward that newly issued Auth session to the browser on failure.

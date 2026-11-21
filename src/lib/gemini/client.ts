@@ -11,7 +11,7 @@ export type EmbeddingTaskType =
   | "RETRIEVAL_DOCUMENT"
   | "RETRIEVAL_QUERY";
 
-const GENERATIVE_MODEL = "gemini-2.5-flash";
+const GENERATIVE_MODEL = process.env.GEMINI_MODEL?.trim() || "gemini-2.5-flash";
 const EMBEDDING_MODEL = "gemini-embedding-001";
 
 export const EMBEDDING_DIMENSIONS = 768;

@@ -49,7 +49,7 @@ export function normalizeRoute(value: string): string {
   const path = value.split(/[?#]/, 1)[0];
   if (path.length > 180 || !/^\/[a-zA-Z0-9_/[\]-]*$/.test(path) || path.includes("//")) throw new ActivityError("Invalid route.");
   // Only approved product route templates are retained. Dynamic identifiers never enter route metadata.
-  const routes = ["/", "/login", "/signup", "/forgot-password", "/reset-password", "/auth/callback", "/onboarding", "/dashboard", "/chat", "/study", "/study-sessions", "/notes", "/materials", "/courses", "/schedule", "/settings", "/profile", "/admin", "/privacy", "/terms"];
+  const routes = ["/", "/login", "/signup", "/forgot-password", "/reset-password", "/auth/callback", "/onboarding", "/dashboard", "/chat", "/assignments", "/share", "/study", "/study-sessions", "/notes", "/materials", "/courses", "/schedule", "/settings", "/profile", "/admin", "/privacy", "/terms"];
   const root = routes.find((route) => route !== "/" && (path === route || path.startsWith(`${route}/`)));
   return root ? (path === root ? root : `${root}/[id]`) : path === "/" ? "/" : "/other";
 }
