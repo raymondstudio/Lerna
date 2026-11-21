@@ -102,12 +102,18 @@ export function PaymentModal({ isOpen, onClose, defaultPlan = "pro" }: PaymentMo
 
   // Sync plan when prop changes
   useEffect(() => {
-    setSelectedPlan(defaultPlan);
+    queueMicrotask(() => {
+      setSelectedPlan(defaultPlan);
+    });
   }, [defaultPlan]);
 
   // Reset step on open
   useEffect(() => {
-    if (isOpen) setStep(1);
+    if (isOpen) {
+      queueMicrotask(() => {
+        setStep(1);
+      });
+    }
   }, [isOpen]);
 
   // Prevent body scroll

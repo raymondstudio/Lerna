@@ -1,6 +1,7 @@
 'use client';
+import { uploadCourseMaterial } from "@/lib/uploads/course-upload";
 
-import React, { useState, useEffect, use } from 'react';
+import React, { useState, useEffect, useCallback, use } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   BookOpen,
@@ -19,8 +20,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 
-import { createSupabaseBrowserClient } from '@/lib/supabase/client';
-import { UPLOADED_MATERIALS_BUCKET, buildUploadPath, isAllowedUploadMimeType, getAcceptedUploadMimeTypes } from '@/lib/uploads/constants';
+import { isAllowedUploadMimeType, getAcceptedUploadMimeTypes } from '@/lib/uploads/constants';
 
 type Course = {
   id: string;
@@ -56,7 +56,9 @@ interface PageProps {
 
 export default function CourseDetailsPage({ params }: PageProps) {
   const resolvedParams = use(params);
-  const courseId = resolvedParams.id;
+  return <CourseDetailsContent key={resolvedParams.id} courseId={resolvedParams.id} />;
+}
+function CourseDetailsContent({ courseId }: { courseId: string }) {
   
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
@@ -78,38 +80,22 @@ export default function CourseDetailsPage({ params }: PageProps) {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
 
-  // Fetch course details & stats
-  const fetchDetails = async () => {
-    try {
-      const res = await fetch(`/api/courses/${courseId}`);
-      if (res.ok) {
-        const payload = await res.json();
-        const data = payload.data;
-        setCourse(data.course);
-        setMaterials(data.materials);
-        setSessions(data.sessions);
-        setQuizzes(data.quizzes);
-
-        // Prep edit states
-        setEditCode(data.course.code);
-        setEditTitle(data.course.title);
-        setEditDesc(data.course.description || '');
-      } else {
-        router.push('/courses');
-      }
-    } catch (e) {
-      console.error('Failed to load course details', e);
-      router.push('/courses');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
-    if (user && courseId) {
-      fetchDetails();
-    }
-  }, [user, courseId]);
+    if (!user?.id) return;
+    const controller = new AbortController();
+    void fetch('/api/courses/'+encodeURIComponent(courseId), { signal: controller.signal, cache: 'no-store' })
+      .then(async response => {
+        if (!response.ok) throw new Error('Course details unavailable.');
+        const payload = await response.json();
+        if (controller.signal.aborted) return;
+        const data = payload.data;
+        setCourse(data.course); setMaterials(data.materials); setSessions(data.sessions); setQuizzes(data.quizzes);
+        setEditCode(data.course.code); setEditTitle(data.course.title); setEditDesc(data.course.description || '');
+      })
+      .catch(() => { if (!controller.signal.aborted) router.push('/courses'); })
+      .finally(() => { if (!controller.signal.aborted) setLoading(false); });
+    return () => controller.abort();
+  }, [courseId, user?.id, router]);
 
   // Auth check
   useEffect(() => {
@@ -180,44 +166,11 @@ export default function CourseDetailsPage({ params }: PageProps) {
 
     setIsUploading(true);
     try {
-      const supabase = createSupabaseBrowserClient();
-      if (!supabase) throw new Error('Supabase client missing');
-
-      const storagePath = buildUploadPath(user!.id, courseId, file.name);
-
-      // 1. Upload file to Storage Bucket
-      const { error: uploadError } = await supabase.storage
-        .from(UPLOADED_MATERIALS_BUCKET)
-        .upload(storagePath, file, {
-          contentType: file.type || 'application/octet-stream',
-          upsert: false,
-        });
-
-      if (uploadError) throw uploadError;
-
-      // 2. Insert record in DB
-      const { data: material, error: insertError } = await supabase
-        .from('uploaded_materials')
-        .insert({
-          user_id: user!.id,
-          course_id: courseId,
-          file_name: file.name,
-          file_type: file.type || 'application/octet-stream',
-          storage_path: storagePath,
-        })
-        .select('id, file_name, file_type, status, created_at')
-        .single();
-
-      if (insertError) throw insertError;
-
+      const material = await uploadCourseMaterial(courseId, file);
       setMaterials((prev) => [material, ...prev]);
-
-      // 3. Process document chunks in background
-      fetch(`/api/materials/${material.id}/process`, { method: 'POST' }).catch(() => {});
-
     } catch (err) {
       console.error(err);
-      alert('Failed to upload material.');
+      alert(err instanceof Error ? err.message : 'Failed to upload material.');
     } finally {
       setIsUploading(false);
     }

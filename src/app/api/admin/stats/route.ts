@@ -1,40 +1,25 @@
+import { authorizeAdminApi } from "@/lib/auth/require-admin-api";
 import { NextResponse } from "next/server";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const supabase = await createSupabaseServerClient();
-  const { data: userData } = await supabase.auth.getUser();
-
-  if (!userData?.user) {
-    return NextResponse.json({ success: false, error: "Unauthenticated" }, { status: 401 });
-  }
-
-  const { data: isAdmin } = await supabase.rpc("is_admin", { user_id: userData.user.id });
-  
-  const adminEmails = process.env.ADMIN_EMAILS
-    ? process.env.ADMIN_EMAILS.split(",").map((e) => e.trim())
-    : ["msuraymond@gmail.com"];
-  const isFallbackAdmin = userData.user.email && adminEmails.includes(userData.user.email);
-  const isRoleAdmin = userData.user.app_metadata?.role === "admin";
-
-  if (!isAdmin && !isFallbackAdmin && !isRoleAdmin) {
-    return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 403 });
-  }
+  const authorization = await authorizeAdminApi();
+  if (!authorization.ok) return authorization.response;
+  const { supabase } = authorization;
 
   try {
     const { data, error } = await supabase.rpc("get_admin_stats");
     
     if (error) {
-      console.error("[api:admin:stats] RPC failed:", error.message);
-      return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+      console.error("[api:admin:stats] RPC failed");
+      return NextResponse.json({ success: false, error: "Statistics could not be loaded." }, { status: 503, headers: { "Cache-Control": "private, no-store" } });
     }
 
-    return NextResponse.json({ success: true, data });
-  } catch (err) {
-    console.error("[api:admin:stats] Exception:", err);
-    return NextResponse.json({ success: false, error: String(err) }, { status: 500 });
+    return NextResponse.json({ success: true, data }, { headers: { "Cache-Control": "private, no-store" } });
+  } catch {
+    console.error("[api:admin:stats] failed");
+    return NextResponse.json({ success: false, error: "Statistics could not be loaded." }, { status: 503, headers: { "Cache-Control": "private, no-store" } });
   }
 }
 

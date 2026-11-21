@@ -1,26 +1,21 @@
 import { NextResponse } from "next/server";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { authorizeActiveUserApi } from "@/lib/auth/require-active-user-api";
 import { getInvoices } from "@/lib/repositories/billing";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
+  const auth = await authorizeActiveUserApi();
+  if (!auth.ok) return auth.response;
   try {
-    const supabase = await createSupabaseServerClient();
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user) {
-      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
-    }
-
-    const invoices = await getInvoices(user.id);
+    const invoices = await getInvoices(auth.user.id);
 
     return NextResponse.json({
       success: true,
       invoices,
     });
-  } catch (err) {
-    console.error("[api:account:invoices] Error:", err);
-    return NextResponse.json({ success: false, error: String(err) }, { status: 500 });
+  } catch {
+    console.error("[api:account:invoices] fetch failed");
+    return NextResponse.json({ success: false, error: "Invoices could not be loaded." }, { status: 503 });
   }
 }

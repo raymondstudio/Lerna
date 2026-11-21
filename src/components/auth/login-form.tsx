@@ -4,17 +4,20 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
+import { sanitizeAuthReturnPath } from "@/lib/auth/return-path";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 export function LoginForm({
   redirectTo = "/chat",
   initialErrorMessage,
+  initialSuccessMessage,
   onSwitchToSignup,
   onSwitchToForgot
 }: {
   redirectTo?: string;
   initialErrorMessage?: string;
+  initialSuccessMessage?: string;
   onSwitchToSignup?: () => void;
   onSwitchToForgot?: () => void;
 }) {
@@ -25,6 +28,7 @@ export function LoginForm({
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(initialErrorMessage ?? null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(initialSuccessMessage ?? null);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -37,8 +41,9 @@ export function LoginForm({
     try {
       setLoading(true);
       setError(null);
+      setSuccessMessage(null);
       await signIn({ email: email.trim(), password });
-      router.push(redirectTo);
+      router.push(sanitizeAuthReturnPath(redirectTo));
       router.refresh();
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : "Unable to sign in right now.");
@@ -107,6 +112,9 @@ export function LoginForm({
         <div className="space-y-2">
           <Input
             id="email"
+            name="email"
+            aria-label="Email address"
+            spellCheck={false}
             type="email"
             placeholder="Email address"
             autoComplete="email"
@@ -119,6 +127,8 @@ export function LoginForm({
           <div className="relative">
             <Input
               id="password"
+              name="password"
+              aria-label="Password"
               type={showPassword ? "text" : "password"}
               placeholder="Password"
               autoComplete="current-password"
@@ -145,8 +155,16 @@ export function LoginForm({
             </button>
           </div>
         </div>
+        {successMessage ? (
+          <div role="status" className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200 flex items-center gap-2">
+            <svg className="w-4 h-4 text-emerald-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+            <span>{successMessage}</span>
+          </div>
+        ) : null}
         {(error || authError) ? (
-          <p className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+          <p role="alert" className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">
             {error ?? authError}
           </p>
         ) : null}

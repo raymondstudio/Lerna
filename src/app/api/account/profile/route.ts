@@ -1,64 +1,40 @@
 import { NextResponse } from "next/server";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { selectUserProfile, updateUserProfile } from "@/lib/repositories/users";
+import { requireActiveUserApi, AuthApiError } from "@/lib/auth/require-active-user-api";
+import { AccountRepositoryError, updateAccountProfile } from "@/lib/repositories/account";
+import { selectUserProfile } from "@/lib/repositories/users";
+import { readSessionBody } from "@/lib/study-sessions/api";
+import { SessionApiError } from "@/lib/repositories/study-sessions";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
   const requestId = crypto.randomUUID();
   try {
-    const supabase = await createSupabaseServerClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return NextResponse.json(
-        { success: false, error: "Unauthorized", requestId },
-        { status: 401 }
-      );
-    }
-
+    const { user } = await requireActiveUserApi();
     const profile = await selectUserProfile(user.id);
-    return NextResponse.json({ success: true, data: profile, requestId });
+    return NextResponse.json({ success: true, data: profile, requestId }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
-    console.error("[api:account:profile:GET] Error:", error);
+    const known = error instanceof AuthApiError;
     return NextResponse.json(
-      { success: false, error: "Failed to fetch user profile", requestId },
-      { status: 500 }
+      { success: false, error: known ? error.message : "Failed to fetch user profile", requestId },
+      { status: known ? error.status : 500, headers: { "Cache-Control": "no-store" } }
     );
   }
 }
 
-export async function PATCH(req: Request) {
-  const requestId = crypto.randomUUID();
+export async function PATCH(request: Request) {
   try {
-    const supabase = await createSupabaseServerClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return NextResponse.json(
-        { success: false, error: "Unauthorized", requestId },
-        { status: 401 }
-      );
-    }
-
-    const body = await req.json();
-    const updated = await updateUserProfile(user.id, body);
-
-    return NextResponse.json({
-      success: true,
-      message: "Profile updated successfully",
-      data: updated,
-      requestId,
-    });
-  } catch (error) {
-    console.error("[api:account:profile:PATCH] Error:", error);
+    const { supabase, user } = await requireActiveUserApi();
+    const input = await readSessionBody(request);
     return NextResponse.json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : "Failed to update profile",
-        requestId,
-      },
-      { status: 500 }
+      { success: true, data: await updateAccountProfile(supabase, user.id, input) },
+      { headers: { "Cache-Control": "no-store" } }
+    );
+  } catch (error) {
+    const known = error instanceof AuthApiError || error instanceof AccountRepositoryError || error instanceof SessionApiError;
+    return NextResponse.json(
+      { success: false, error: known ? error.message : "Your profile could not be saved. Retry shortly." },
+      { status: known ? error.status : 503, headers: { "Cache-Control": "no-store" } }
     );
   }
 }

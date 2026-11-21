@@ -1,71 +1,19 @@
 import { NextResponse } from "next/server";
+import { requireActiveUserApi } from "@/lib/auth/require-active-user-api";
+import { fetchOwnedMaterial, requireOwnedMaterialSession, signOwnedUpload } from "@/lib/repositories/materials";
+import { MaterialBoundaryError, assertOwnedStoragePath } from "@/lib/uploads/validation";
+import { materialErrorResponse } from "@/lib/uploads/api-error";
 
-import { fetchOwnedMaterial } from "@/lib/materials/ingestion";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { UPLOADED_MATERIALS_BUCKET } from "@/lib/uploads/constants";
-
-export async function POST(_req: Request, context: { params: Promise<{ id: string }> }) {
+export async function POST(_request: Request, context: { params: Promise<{ id: string }> }) {
   const requestId = crypto.randomUUID();
-
   try {
+    const { supabase, user } = await requireActiveUserApi();
     const { id } = await context.params;
-    const supabase = await createSupabaseServerClient();
-    const { data: userData } = await supabase.auth.getUser();
-    const user = userData.user;
-
-    if (!user) {
-      return NextResponse.json(
-        {
-          success: false,
-          requestId,
-          error: {
-            code: "UNAUTHORIZED",
-            message: "You must be signed in to view materials.",
-          },
-        },
-        { status: 401 }
-      );
-    }
-
     const material = await fetchOwnedMaterial(supabase, id, user.id);
-    if (!material) {
-      return NextResponse.json(
-        {
-          success: false,
-          requestId,
-          error: {
-            code: "NOT_FOUND",
-            message: "Material not found.",
-          },
-        },
-        { status: 404 }
-      );
-    }
-
-    const { data, error } = await supabase.storage.from(UPLOADED_MATERIALS_BUCKET).createSignedUrl(material.storage_path, 60 * 10);
-
-    if (error || !data?.signedUrl) {
-      throw error ?? new Error("Unable to create a signed URL.");
-    }
-
-    return NextResponse.json({
-      success: true,
-      requestId,
-      data: {
-        signedUrl: data.signedUrl,
-      },
-    });
-  } catch (error) {
-    return NextResponse.json(
-      {
-        success: false,
-        requestId,
-        error: {
-          code: "VIEW_FAILED",
-          message: error instanceof Error ? error.message : "Unable to open this material.",
-        },
-      },
-      { status: 500 }
-    );
-  }
+    if (!material || !material.session_id) throw new MaterialBoundaryError("Material not found.", 404, "NOT_FOUND");
+    await requireOwnedMaterialSession(supabase, material.session_id, user.id);
+    assertOwnedStoragePath(material.storage_path, user.id, material.session_id);
+    const signedUrl = await signOwnedUpload(supabase, material.storage_path);
+    return NextResponse.json({ success: true, requestId, data: { signedUrl } }, { headers: { "Cache-Control": "private, no-store" } });
+  } catch (error) { return materialErrorResponse(error, requestId); }
 }

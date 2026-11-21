@@ -1,13 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { MessageSquare, Loader2, RefreshCw, Star, Info, Search } from "lucide-react";
+import { MessageSquare, Loader2, RefreshCw, Star, Search } from "lucide-react";
+import { useVisibleRefresh } from "./use-visible-refresh";
+import { useAdminData } from "./use-admin-data";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
+type Feedback = { id: string; message: string; type: string; status: string; rating: number | null; admin_notes: string | null; created_at: string; user_name: string | null; user_email: string | null };
+type FeedbackUpdate = { status?: string; adminNotes?: string };
 export function FeedbackTab() {
-  const [feedbacks, setFeedbacks] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: rows, setData: setFeedbacks, loading, error, reload: fetchFeedback } = useAdminData<Feedback[]>("/api/admin/feedback");
+  const feedbacks = rows ?? [];
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [notesInput, setNotesInput] = useState<{ [key: string]: string }>({});
 
@@ -16,50 +20,9 @@ export function FeedbackTab() {
   const [typeFilter, setTypeFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
 
-  const fetchFeedback = async () => {
-    try {
-      setLoading(true);
-      const res = await fetch("/api/admin/feedback");
-      const json = await res.json();
-      if (json.success && Array.isArray(json.data)) {
-        setFeedbacks(json.data);
-        const inputs: { [key: string]: string } = {};
-        json.data.forEach((f: any) => {
-          inputs[f.id] = f.admin_notes || "";
-        });
-        setNotesInput(inputs);
-      }
-    } catch (err) {
-      console.error("[feedback-tab] Error fetching feedback:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  useVisibleRefresh(fetchFeedback);
 
-  useEffect(() => {
-    void fetchFeedback();
-
-    const { createSupabaseBrowserClient } = require("@/lib/supabase/client");
-    const supabase = createSupabaseBrowserClient();
-    if (!supabase) return;
-
-    const channel = supabase
-      .channel("feedback_realtime_sync")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "feedback" },
-        () => {
-          void fetchFeedback();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      void supabase.removeChannel(channel);
-    };
-  }, []);
-
-  const handleUpdateFeedback = async (feedbackId: string, fields: any) => {
+  const handleUpdateFeedback = async (feedbackId: string, fields: FeedbackUpdate) => {
     try {
       setUpdatingId(feedbackId);
       const res = await fetch("/api/admin/feedback", {
@@ -69,7 +32,7 @@ export function FeedbackTab() {
       });
       const json = await res.json();
       if (json.success) {
-        setFeedbacks(prev => prev.map(f => f.id === feedbackId ? { ...f, ...fields } : f));
+        setFeedbacks(prev => (prev ?? []).map(f => f.id === feedbackId ? { ...f, ...fields } : f));
       } else {
         alert(json.error || "Failed to update feedback roadmap status.");
       }
@@ -95,6 +58,7 @@ export function FeedbackTab() {
     return matchesSearch && matchesType && matchesStatus;
   });
 
+  if (error) return <p role="alert" className="p-4 text-xs text-red-300">{error}</p>;
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center gap-4">
@@ -193,7 +157,7 @@ export function FeedbackTab() {
                   <td className="p-4 text-center whitespace-nowrap">
                     <div className="flex items-center justify-center gap-0.5 text-yellow-400 font-bold">
                       <Star className="h-3 w-3 fill-current text-yellow-400" />
-                      <span>{f.rating || 5}/5</span>
+                      <span>{f.rating == null ? "N/A" : `${f.rating}/5`}</span>
                     </div>
                   </td>
                   <td className="p-4 max-w-xs text-slate-300 break-words whitespace-pre-wrap leading-relaxed text-[11px]">
@@ -221,13 +185,13 @@ export function FeedbackTab() {
                     <textarea
                       rows={2}
                       placeholder="Add roadmap or changelog details..."
-                      value={notesInput[f.id] || ""}
+                      value={notesInput[f.id] ?? f.admin_notes ?? ""}
                       onChange={(e) => setNotesInput(prev => ({ ...prev, [f.id]: e.target.value }))}
                       className="w-full p-2 rounded-lg border border-white/10 bg-[#0d0f12] text-[11px] text-slate-300 focus:outline-none focus:border-cyan-500/40"
                     />
                     <Button
                       size="sm"
-                      onClick={() => handleUpdateFeedback(f.id, { adminNotes: notesInput[f.id] || "" })}
+                      onClick={() => handleUpdateFeedback(f.id, { adminNotes: notesInput[f.id] ?? f.admin_notes ?? "" })}
                       disabled={updatingId === f.id}
                       className="h-7 px-2.5 bg-white/5 hover:bg-white/10 text-white border border-white/10 text-[10px]"
                     >

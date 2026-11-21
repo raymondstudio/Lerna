@@ -6,6 +6,8 @@ export type MaterialRow = {
   user_id: string;
   session_id: string | null;
   file_name: string;
+  file_size?: number | null;
+  course_id?: string | null;
   file_type: string;
   storage_path: string;
   created_at: string;
@@ -46,4 +48,4 @@ export type RagContext = {
 };
 
 export const MATERIAL_SELECT =
-  "id,user_id,session_id,file_name,file_type,storage_path,created_at,status,error_message,processed_at,chunk_count,summary,source_metadata,deleted_at";
+  "id,user_id,session_id,course_id,file_size,file_name,file_type,storage_path,created_at,status,error_message,processed_at,chunk_count,summary,source_metadata,deleted_at";

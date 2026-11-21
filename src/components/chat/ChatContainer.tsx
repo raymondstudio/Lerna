@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Sparkles, X } from "lucide-react";
 import type { ChatMessage } from "@/lib/chat/types";
 import { ChatMessage as ChatMessageComponent } from "./ChatMessage";
@@ -39,7 +39,7 @@ export function ChatContainer() {
   }, [messages, loading]);
 
   // Main handler for sending messages
-  const handleSend = async (text: string) => {
+  const handleSend = useCallback(async (text: string) => {
     if (!text.trim() || loading) {
       console.warn("[chat] Ignoring send: empty text or already loading");
       return;
@@ -59,7 +59,6 @@ export function ChatContainer() {
 
     console.info("[chat] Sending message", {
       userId: userMessage.id,
-      preview: text.slice(0, 100),
       totalMessages: updatedMessages.length,
     });
 
@@ -144,7 +143,7 @@ export function ChatContainer() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [messages, loading]);
 
   const starterPrompts = [
     "Explain photosynthesis like I'm 12.",

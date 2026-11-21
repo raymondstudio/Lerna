@@ -63,6 +63,34 @@ interface SettingsModalProps {
   initialTab?: string;
 }
 
+interface QuotaUsageData {
+  plan?: string;
+  subscription?: {
+    billingCycle?: string;
+    subscriptionStatus?: string;
+  };
+  usage?: {
+    aiRequests?: number;
+    quizzes?: number;
+    flashcards?: number;
+    storageBytes?: number;
+  };
+  limits?: {
+    aiRequests?: number;
+    quizzes?: number;
+    flashcards?: number;
+    storage?: number;
+  };
+}
+
+interface InvoiceRecord {
+  id: string;
+  invoice_number: string;
+  issued_at: string;
+  amount: number | string;
+  currency: string;
+}
+
 export function SettingsModal({ isOpen, onClose, initialTab }: SettingsModalProps) {
   const router = useRouter();
   const { user, profile, refreshProfile, signOut } = useAuth();
@@ -79,7 +107,9 @@ export function SettingsModal({ isOpen, onClose, initialTab }: SettingsModalProp
   // Sync tab if initialTab changes
   useEffect(() => {
     if (initialTab) {
-      setActiveTab(initialTab as SettingsTabId);
+      queueMicrotask(() => {
+        setActiveTab(initialTab as SettingsTabId);
+      });
     }
   }, [initialTab]);
 
@@ -105,7 +135,7 @@ export function SettingsModal({ isOpen, onClose, initialTab }: SettingsModalProp
 
   // Search & custom school
   const [schoolSearchQuery, setSchoolSearchQuery] = useState("");
-  const [schoolSearchResults, setSchoolSearchResults] = useState<any[]>([]);
+  const [schoolSearchResults, setSchoolSearchResults] = useState<Array<{ id: string; name: string; institution_type: string }>>([]);
   const [isSearchingSchool, setIsSearchingSchool] = useState(false);
   const [showCustomForm, setShowCustomForm] = useState(false);
   const [customName, setCustomName] = useState("");
@@ -156,9 +186,9 @@ export function SettingsModal({ isOpen, onClose, initialTab }: SettingsModalProp
   });
 
   // Billing & quotas
-  const [quotaUsage, setQuotaUsage] = useState<any>(null);
-  const [billingHistory, setBillingHistory] = useState<any[]>([]);
-  const [invoices, setInvoices] = useState<any[]>([]);
+  const [quotaUsage, setQuotaUsage] = useState<QuotaUsageData | null>(null);
+  const [billingHistory, setBillingHistory] = useState<Record<string, unknown>[]>([]);
+  const [invoices, setInvoices] = useState<InvoiceRecord[]>([]);
   const [couponCode, setCouponCode] = useState("");
   const [redeemingCoupon, setRedeemingCoupon] = useState(false);
   const [couponMessage, setCouponMessage] = useState<string | null>(null);
@@ -169,7 +199,7 @@ export function SettingsModal({ isOpen, onClose, initialTab }: SettingsModalProp
   const [paymentPlan, setPaymentPlan] = useState<"pro" | "premium">("pro");
 
   // Support & tickets
-  const [tickets, setTickets] = useState<any[]>([]);
+  const [tickets, setTickets] = useState<Record<string, unknown>[]>([]);
   const [ticketSubject, setTicketSubject] = useState("");
   const [ticketMessage, setTicketMessage] = useState("");
   const [submittingTicket, setSubmittingTicket] = useState(false);
@@ -190,7 +220,9 @@ export function SettingsModal({ isOpen, onClose, initialTab }: SettingsModalProp
   const [copiedId, setCopiedId] = useState(false);
 
   useEffect(() => {
-    setMounted(true);
+    queueMicrotask(() => {
+      setMounted(true);
+    });
   }, []);
 
   // Trap body scroll & handle ESC key
@@ -215,41 +247,43 @@ export function SettingsModal({ isOpen, onClose, initialTab }: SettingsModalProp
   // Load initial user data into form
   useEffect(() => {
     if (!profile) return;
-    setFirstName(profile.first_name || "");
-    setLastName(profile.last_name || "");
-    setDisplayName(profile.display_name || (profile.first_name ? `${profile.first_name} ${profile.last_name}`.trim() : ""));
-    const savedType = ONBOARDING_ACCOUNT_TYPES.find(
-      (type) => type.toLowerCase() === String(profile.account_type || "").toLowerCase()
-    );
-    setAccountType(savedType || (profile.is_student ? "Student" : "Other"));
-    setInstitution(profile.institution || "");
-    setInstitutionId(profile.institution_id || "");
-    setInstitutionType(profile.institution_type || "University");
-    setFaculty(profile.faculty || "");
-    setDepartment(profile.department || "");
-    setStudyLevel(profile.study_level || "");
-    setStudyGoals(profile.study_goals || []);
-    setCompany(profile.company || "");
-    setOccupation(profile.occupation || "");
-    setIndustry(profile.industry || "");
-    setField(profile.field || "");
-    setInterests(profile.interests || []);
-    setGender(profile.gender || "Prefer not to say");
-    setAge(profile.age || "");
+    queueMicrotask(() => {
+      setFirstName(profile.first_name || "");
+      setLastName(profile.last_name || "");
+      setDisplayName(profile.display_name || (profile.first_name ? `${profile.first_name} ${profile.last_name}`.trim() : ""));
+      const savedType = ONBOARDING_ACCOUNT_TYPES.find(
+        (type) => type.toLowerCase() === String(profile.account_type || "").toLowerCase()
+      );
+      setAccountType(savedType || (profile.is_student ? "Student" : "Other"));
+      setInstitution(profile.institution || "");
+      setInstitutionId(profile.institution_id || "");
+      setInstitutionType(profile.institution_type || "University");
+      setFaculty(profile.faculty || "");
+      setDepartment(profile.department || "");
+      setStudyLevel(profile.study_level || "");
+      setStudyGoals(profile.study_goals || []);
+      setCompany(profile.company || "");
+      setOccupation(profile.occupation || "");
+      setIndustry(profile.industry || "");
+      setField(profile.field || "");
+      setInterests(profile.interests || []);
+      setGender(profile.gender || "Prefer not to say");
+      setAge(profile.age || "");
 
-    setTeachingStyle(profile.teaching_style || "Intermediate");
-    setDifficulty(profile.difficulty || "Medium");
-    setPreferredQuizFormat(profile.preferred_quiz_format || "Mixed");
-    setFlashcardPreference(profile.flashcard_preference || "Standard");
-    setPreferredLanguage(profile.preferred_language || "English");
-    setResponseLength(profile.response_length || "Medium");
-    setVoicePreference(profile.voice_preference || "Default");
+      setTeachingStyle(profile.teaching_style || "Intermediate");
+      setDifficulty(profile.difficulty || "Medium");
+      setPreferredQuizFormat(profile.preferred_quiz_format || "Mixed");
+      setFlashcardPreference(profile.flashcard_preference || "Standard");
+      setPreferredLanguage(profile.preferred_language || "English");
+      setResponseLength(profile.response_length || "Medium");
+      setVoicePreference(profile.voice_preference || "Default");
 
-    setStudyReminderEnabled(profile.study_reminder_enabled ?? true);
-    setMarketingUpdatesEnabled(profile.marketing_updates_enabled ?? true);
-    setSecurityAlertsEnabled(profile.security_alerts_enabled ?? true);
-    setDailyGoalMinutes(profile.daily_goal_minutes || 15);
-    setPreferredTheme(profile.preferred_theme || "dark");
+      setStudyReminderEnabled(profile.study_reminder_enabled ?? true);
+      setMarketingUpdatesEnabled(profile.marketing_updates_enabled ?? true);
+      setSecurityAlertsEnabled(profile.security_alerts_enabled ?? true);
+      setDailyGoalMinutes(profile.daily_goal_minutes || 15);
+      setPreferredTheme(profile.preferred_theme || "dark");
+    });
   }, [profile]);
 
   // Load async telemetry, tickets, billing and stats via endpoints
@@ -302,7 +336,9 @@ export function SettingsModal({ isOpen, onClose, initialTab }: SettingsModalProp
   // School search debounce
   useEffect(() => {
     if (!schoolSearchQuery.trim()) {
-      setSchoolSearchResults([]);
+      queueMicrotask(() => {
+        setSchoolSearchResults([]);
+      });
       return;
     }
 
@@ -325,7 +361,7 @@ export function SettingsModal({ isOpen, onClose, initialTab }: SettingsModalProp
     return () => clearTimeout(timeout);
   }, [schoolSearchQuery, institutionType]);
 
-  const handleSelectInstitution = (inst: any) => {
+  const handleSelectInstitution = (inst: { name: string; id: string; institution_type: string }) => {
     setInstitution(inst.name);
     setInstitutionId(inst.id);
     setInstitutionType(inst.institution_type);
@@ -980,7 +1016,7 @@ export function SettingsModal({ isOpen, onClose, initialTab }: SettingsModalProp
                     {/* Where you're logged in */}
                     <div className="space-y-3 pt-2">
                       <div className="flex items-center justify-between">
-                        <span className="text-xs font-semibold text-white">Where you're logged in</span>
+                        <span className="text-xs font-semibold text-white">Where you&apos;re logged in</span>
                         <Button
                           type="button"
                           variant="ghost"
@@ -1049,7 +1085,7 @@ export function SettingsModal({ isOpen, onClose, initialTab }: SettingsModalProp
                         <div>
                           <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Current plan</span>
                           <h4 className="text-xl font-bold text-white capitalize mt-0.5 flex items-center gap-2">
-                            Lerna {profile?.plan || quotaUsage?.plan || "Free"}
+                            Lerna {String(profile?.plan || quotaUsage?.plan || "Free")}
                             <span className="text-[10px] px-2 py-0.5 bg-cyan-500/15 text-cyan-400 rounded-full font-bold border border-cyan-500/20">
                               Active
                             </span>
@@ -1584,7 +1620,7 @@ export function SettingsModal({ isOpen, onClose, initialTab }: SettingsModalProp
                       <div className="grid grid-cols-2 gap-3">
                         <select
                           value={feedbackType}
-                          onChange={(e) => setFeedbackType(e.target.value as any)}
+                          onChange={(e) => setFeedbackType(e.target.value as "general" | "bug" | "feature")}
                           className="h-9 px-2.5 rounded-lg border border-white/10 bg-[#121316] text-xs text-slate-300"
                         >
                           <option value="general">General</option>

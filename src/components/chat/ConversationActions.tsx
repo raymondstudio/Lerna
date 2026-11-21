@@ -4,6 +4,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { MoreHorizontal, Trash2 } from "lucide-react";
+import { useHydrated } from "@/hooks/use-hydrated";
 
 type ConversationActionsProps = {
   conversationId: string;
@@ -12,14 +13,12 @@ type ConversationActionsProps = {
 };
 
 export function ConversationActions({ conversationId, conversationTitle, onRequestDelete }: ConversationActionsProps) {
-  const [mounted, setMounted] = useState(false);
+  const mounted = useHydrated();
   const [menuOpen, setMenuOpen] = useState(false);
   const [position, setPosition] = useState({ top: 0, left: 0, ready: false });
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const reduceMotion = useReducedMotion();
-
-  useEffect(() => setMounted(true), []);
 
   const updatePosition = useCallback(() => {
     const trigger = triggerRef.current;

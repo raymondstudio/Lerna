@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { motion } from "framer-motion";
 import ReactMarkdown from "react-markdown";
 import rehypeHighlight from "rehype-highlight";
@@ -94,7 +94,6 @@ export function ChatMessage({
 }) {
   const [copied, setCopied] = useState(false);
   const [liked, setLiked] = useState(false);
-
   const safeMessage = {
     id: typeof message?.id === "string" ? message.id : "unknown-message",
     role: message?.role === "assistant" ? "assistant" : "user",
@@ -198,7 +197,7 @@ export function ChatMessage({
                     {children}
                   </a>
                 ),
-                code: ({ node, inline, className, children, ...props }: any) => {
+                code: ({ node: _node, inline: _inline, className, children, ...props }: React.ComponentPropsWithoutRef<"code"> & { node?: unknown; inline?: boolean }) => {
                   const match = /language-(\w+)/.exec(className || "");
                   const lang = match ? match[1] : "";
                   const content = String(children).replace(/\n$/, "");

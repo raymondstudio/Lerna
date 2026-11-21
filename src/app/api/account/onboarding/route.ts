@@ -5,7 +5,7 @@ import {
   onboardingSubmissionSchema,
   type OnboardingAccountType,
 } from "@/lib/onboarding";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { authorizeActiveUserApi } from "@/lib/auth/require-active-user-api";
 
 export const dynamic = "force-dynamic";
 
@@ -24,16 +24,10 @@ function stringList(value: unknown) {
 
 export async function GET() {
   const requestId = crypto.randomUUID();
+  const auth = await authorizeActiveUserApi();
+  if (!auth.ok) return auth.response;
+  const { supabase, user } = auth;
   try {
-    const supabase = await createSupabaseServerClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      return NextResponse.json(
-        { success: false, error: "Please sign in again to load your profile.", requestId },
-        { status: 401 },
-      );
-    }
-
     const { data: profile, error } = await supabase
       .from("profiles")
       .select("account_type,institution,institution_id,institution_type,faculty,department,study_level,company,occupation,industry,field,study_goals,interests")
@@ -45,7 +39,6 @@ export async function GET() {
         requestId,
         userId: user.id,
         code: error.code,
-        message: error.message,
       });
       return NextResponse.json(
         { success: false, error: "We could not load your saved profile.", requestId },
@@ -74,8 +67,8 @@ export async function GET() {
           }
         : {},
     });
-  } catch (error) {
-    console.error("[api:account:onboarding] Unexpected profile load error", { requestId, error });
+  } catch {
+    console.error("[api:account:onboarding] Unexpected profile load error", { requestId });
     return NextResponse.json(
       { success: false, error: "We could not load your saved profile.", requestId },
       { status: 500 },
@@ -85,18 +78,11 @@ export async function GET() {
 
 export async function POST(req: Request) {
   const requestId = crypto.randomUUID();
+  const auth = await authorizeActiveUserApi();
+  if (!auth.ok) return auth.response;
+  const { supabase, user } = auth;
 
   try {
-    const supabase = await createSupabaseServerClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return NextResponse.json(
-        { success: false, error: "Please sign in again to save your profile.", requestId },
-        { status: 401 },
-      );
-    }
-
     let rawBody: unknown;
     try {
       rawBody = await req.json();
@@ -140,8 +126,6 @@ export async function POST(req: Request) {
         requestId,
         userId: user.id,
         code: error.code,
-        message: error.message,
-        details: error.details,
       });
       return NextResponse.json(
         {
@@ -154,8 +138,8 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json({ success: true, data, requestId });
-  } catch (error) {
-    console.error("[api:account:onboarding] Unexpected error", { requestId, error });
+  } catch {
+    console.error("[api:account:onboarding] Unexpected error", { requestId });
     return NextResponse.json(
       { success: false, error: "Something went wrong while saving your profile. Please try again.", requestId },
       { status: 500 },

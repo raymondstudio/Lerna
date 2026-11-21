@@ -44,17 +44,17 @@ export function produceInvoiceObject(
 /**
  * Prepares readable metadata for client UI rendering or PDF creation.
  */
-export function preparePdfMetadata(invoice: any, userProfile: any): InvoiceMetadata {
+export function preparePdfMetadata(invoice: Record<string, unknown>, userProfile: Record<string, unknown>): InvoiceMetadata {
   return {
-    invoiceNumber: invoice.invoice_number || invoice.invoiceNumber || "",
+    invoiceNumber: String(invoice.invoice_number || invoice.invoiceNumber || ""),
     amount: Number(invoice.amount || 0),
-    currency: invoice.currency || "NGN",
-    issuedAt: invoice.issued_at || invoice.issuedAt || new Date().toISOString(),
-    paidAt: invoice.paid_at || invoice.paidAt || undefined,
+    currency: String(invoice.currency || "NGN"),
+    issuedAt: String(invoice.issued_at || invoice.issuedAt || new Date().toISOString()),
+    paidAt: typeof (invoice.paid_at ?? invoice.paidAt) === "string" ? String(invoice.paid_at ?? invoice.paidAt) : undefined,
     userName: userProfile
-      ? `${userProfile.first_name || ""} ${userProfile.last_name || ""}`.trim() || userProfile.name || "User"
+      ? `${userProfile.first_name || ""} ${userProfile.last_name || ""}`.trim() || String(userProfile.name || "User")
       : "Lerna User",
-    userEmail: userProfile?.email || "",
-    planName: userProfile?.plan || "Free",
+    userEmail: String(userProfile?.email || ""),
+    planName: String(userProfile?.plan || "Free"),
   };
 }

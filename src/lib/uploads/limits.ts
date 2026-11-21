@@ -1,0 +1,15 @@
+export const UPLOAD_LIMITS = Object.freeze({
+  fileBytes: 20 * 1024 * 1024,
+  requestBytes: 20 * 1024 * 1024 + 64 * 1024,
+  zipEntries: 512,
+  zipEntryBytes: 8 * 1024 * 1024,
+  zipExpandedBytes: 32 * 1024 * 1024,
+  pages: 100,
+  pixels: 10_000_000,
+  dimension: 8192,
+  textCharacters: 200_000,
+  chunks: 64,
+  chunkCharacters: 12_000,
+  parserMilliseconds: 15_000,
+  processingMilliseconds: 120_000,
+});

@@ -9,6 +9,7 @@ import {
   BookOpen, 
   Timer, 
   GraduationCap, 
+  FileText,
   LogOut, 
   PanelLeftClose, 
   PanelLeftOpen, 
@@ -50,10 +51,14 @@ export function DashboardShell({ children }: { children: ReactNode }) {
     settingsTab,
   } = useDashboard();
 
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchValue] = useState("");
   const [searchResults, setSearchResults] = useState<StudySessionRecord[]>([]);
   const [searchingSessions, setSearchingSessions] = useState(false);
   const [sessionSearchError, setSessionSearchError] = useState<string | null>(null);
+  const setSearchQuery = (value: string) => {
+    setSearchValue(value);
+    if (!value.trim()) { setSearchResults([]); setSearchingSessions(false); setSessionSearchError(null); }
+  };
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; title: string } | null>(null);
   const [deletingSession, setDeletingSession] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -77,12 +82,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const query = searchQuery.trim();
-    if (!query) {
-      setSearchResults([]);
-      setSearchingSessions(false);
-      setSessionSearchError(null);
-      return;
-    }
+    if (!query) return;
 
     const controller = new AbortController();
     const timeout = window.setTimeout(async () => {
@@ -159,6 +159,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
 
   const navItems = [
     { name: "Chat Tutor", href: "/chat", icon: Brain },
+    { name: "My Assignments", href: "/assignments", icon: FileText },
     { name: "Study Session", href: "/study", icon: Timer },
     { name: "Courses Hub", href: "/courses", icon: BookOpen },
     { name: "AI Quizzes", href: "/quiz", icon: GraduationCap },

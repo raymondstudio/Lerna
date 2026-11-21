@@ -1,140 +1,49 @@
-// eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-explicit-any
-const pdfParse: (dataBuffer: Buffer, options?: Record<string, unknown>) => Promise<{ numpages: number; text: string }> = require("pdf-parse/lib/pdf-parse.js");
-import mammoth from "mammoth";
-import JSZip from "jszip";
-import { XMLParser } from "fast-xml-parser";
+import { Worker } from "node:worker_threads";
+import path from "node:path";
 import { extractImageText } from "@/lib/gemini/client";
+import { UPLOAD_LIMITS } from "@/lib/uploads/limits";
+import { MaterialBoundaryError, validateUploadBuffer } from "@/lib/uploads/validation";
 import type { ExtractedMaterialSegment } from "./types";
 
-const IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/jpg", "image/webp"]);
-const PPTX_TYPE = "application/vnd.openxmlformats-officedocument.presentationml.presentation";
-const DOCX_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
-
-function normalizeExtractedText(text: string) {
-  return text.replace(/\r/g, "\n").replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim();
-}
-
-function collectTextNodes(value: unknown, output: string[] = []): string[] {
-  if (typeof value === "string" || typeof value === "number") {
-    output.push(String(value));
-    return output;
-  }
-
-  if (Array.isArray(value)) {
-    value.forEach((item) => collectTextNodes(item, output));
-    return output;
-  }
-
-  if (value && typeof value === "object") {
-    for (const [key, item] of Object.entries(value)) {
-      if (key === "a:t" || key.endsWith(":t")) {
-        collectTextNodes(item, output);
-      } else if (typeof item === "object") {
-        collectTextNodes(item, output);
-      }
-    }
-  }
-
-  return output;
-}
-
-async function extractPdf(buffer: Buffer): Promise<ExtractedMaterialSegment[]> {
-  const segments: ExtractedMaterialSegment[] = [];
-  let currentPage = 0;
-
-  const renderPage = async (pageData: {
-    getTextContent: () => Promise<{ items: Array<{ str: string }> }>;
-  }) => {
-    currentPage++;
-    const pageNum = currentPage;
-    const textContent = await pageData.getTextContent();
-    const pageText = textContent.items.map((item) => item.str).join(" ");
-    const normalized = normalizeExtractedText(pageText);
-    if (normalized) {
-      segments.push({ page: pageNum, text: normalized });
-    }
-    return pageText;
-  };
-
-  try {
-    await pdfParse(buffer, { pagerender: renderPage });
-  } catch (error) {
-    console.error("[extract:pdf] pdf-parse failed:", error);
-    throw new Error(error instanceof Error ? error.message : "Failed to parse PDF document");
-  }
-
-  // Ensure pages are sorted in order
-  segments.sort((a, b) => (a.page || 0) - (b.page || 0));
-  return segments.filter((segment) => segment.text.length > 0);
-}
-
-async function extractDocx(buffer: Buffer): Promise<ExtractedMaterialSegment[]> {
-  const result = await mammoth.extractRawText({ buffer });
-  const text = normalizeExtractedText(result.value ?? "");
-  return text ? [{ text }] : [];
-}
-
-async function extractPptx(buffer: Buffer): Promise<ExtractedMaterialSegment[]> {
-  const zip = await JSZip.loadAsync(buffer);
-  const parser = new XMLParser({ ignoreAttributes: false });
-  const slideFiles = Object.keys(zip.files)
-    .filter((path) => /^ppt\/slides\/slide\d+\.xml$/.test(path))
-    .sort((left, right) => {
-      const leftNumber = Number(left.match(/slide(\d+)\.xml/)?.[1] ?? 0);
-      const rightNumber = Number(right.match(/slide(\d+)\.xml/)?.[1] ?? 0);
-      return leftNumber - rightNumber;
-    });
-
-  const segments: ExtractedMaterialSegment[] = [];
-
-  for (const slidePath of slideFiles) {
-    const xml = await zip.file(slidePath)?.async("text");
-    if (!xml) {
-      continue;
-    }
-
-    const parsed = parser.parse(xml);
-    const slideNumber = Number(slidePath.match(/slide(\d+)\.xml/)?.[1] ?? segments.length + 1);
-    const text = normalizeExtractedText(collectTextNodes(parsed).join("\n"));
-
-    if (text) {
-      segments.push({ slide: slideNumber, text });
-    }
-  }
-
-  return segments;
-}
-
-async function extractImage(buffer: Buffer, mimeType: string, fileName: string): Promise<ExtractedMaterialSegment[]> {
-  const text = normalizeExtractedText(await extractImageText(buffer, mimeType, fileName));
-  return text ? [{ text, section: "Image extraction" }] : [];
-}
-
+let activeParsers = 0;
 export async function extractMaterialText(params: {
-  buffer: Buffer;
-  mimeType: string;
-  fileName: string;
+  buffer: Buffer; mimeType: string; fileName: string; userId?: string; signal?: AbortSignal; operationId?: string;
 }): Promise<ExtractedMaterialSegment[]> {
-  if (params.mimeType === "application/pdf") {
-    return extractPdf(params.buffer);
-  }
-
-  if (params.mimeType === DOCX_TYPE) {
-    return extractDocx(params.buffer);
-  }
-
-  if (params.mimeType === PPTX_TYPE) {
-    return extractPptx(params.buffer);
-  }
-
-  if (params.mimeType === "text/plain") {
-    const text = normalizeExtractedText(params.buffer.toString("utf8"));
-    return text ? [{ text }] : [];
-  }
-
-  if (IMAGE_TYPES.has(params.mimeType)) {
-    return extractImage(params.buffer, params.mimeType, params.fileName);
-  }
-
-  throw new Error(`Unsupported file type: ${params.mimeType || "unknown"}`);
+  validateUploadBuffer(params.buffer, params.mimeType);
+  if (activeParsers >= 2) throw new MaterialBoundaryError("Document processing is busy. Retry shortly.", 429, "PROCESSING_BUSY");
+  if (params.signal?.aborted) throw new MaterialBoundaryError("Document processing was cancelled.", 400, "CANCELLED");
+  activeParsers++;
+  try {
+    const result = await new Promise<ExtractedMaterialSegment[] | { image: true }>((resolve, reject) => {
+      const worker = new Worker(path.join(process.cwd(), "src/lib/materials/parser-worker.cjs"), {
+        workerData: { buffer: params.buffer, mimeType: params.mimeType, limits: UPLOAD_LIMITS, root: process.cwd() },
+        resourceLimits: { maxOldGenerationSizeMb: 128, maxYoungGenerationSizeMb: 16, stackSizeMb: 4 },
+      });
+      let settled = false;
+      const finish = (error?: Error, value?: ExtractedMaterialSegment[] | { image: true }) => {
+        if (settled) return; settled = true; clearTimeout(timer); params.signal?.removeEventListener("abort", abort);
+        void worker.terminate().then(() => { if (error) reject(error); else resolve(value!); }, () => reject(error ?? new Error("Document parser could not be stopped.")));
+      };
+      const abort = () => finish(new MaterialBoundaryError("Document processing was cancelled.", 400, "CANCELLED"));
+      const timer = setTimeout(() => finish(new MaterialBoundaryError("Document parsing exceeded its time limit.", 422, "PARSER_TIMEOUT")), UPLOAD_LIMITS.parserMilliseconds);
+      params.signal?.addEventListener("abort", abort, { once: true });
+      worker.once("error", () => finish(new MaterialBoundaryError("Document parsing failed.", 422, "PARSER_FAILED")));
+      worker.once("exit", () => { if (!settled) finish(new MaterialBoundaryError("Document parser stopped.", 422, "PARSER_FAILED")); });
+      worker.once("message", (message) => {
+        if (!message?.ok) finish(new MaterialBoundaryError("Document parsing failed or exceeded a supported limit.", 422, "PARSER_LIMIT"));
+        else finish(undefined, message.result);
+      });
+    });
+    let segments: ExtractedMaterialSegment[];
+    if (Array.isArray(result)) segments = result;
+    else {
+      if (!params.userId) throw new MaterialBoundaryError("Verified identity is required for image extraction.", 401);
+      const text = await extractImageText(params.buffer, params.mimeType, params.fileName, { userId: params.userId, signal: params.signal, operationId: params.operationId });
+      segments = text.trim() ? [{ text: text.trim(), section: "Image extraction" }] : [];
+    }
+    if (segments.length > UPLOAD_LIMITS.pages || segments.reduce((total, segment) => total + segment.text.length, 0) > UPLOAD_LIMITS.textCharacters) {
+      throw new MaterialBoundaryError("Extracted document text exceeds the processing limit.", 422, "TEXT_LIMIT");
+    }
+    return segments;
+  } finally { activeParsers--; }
 }

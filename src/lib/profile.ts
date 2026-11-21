@@ -23,8 +23,8 @@ export type NormalizedProfile = {
   studyGoals: string[];
   favoriteSubjects: string[];
   interests: string[];
-  accessibilityPreferences: Record<string, any>;
-  learningPreferences: Record<string, any>;
+  accessibilityPreferences: Record<string, unknown>;
+  learningPreferences: Record<string, unknown>;
   teachingStyle: string;
   difficulty: string;
   preferredLanguage: string;
@@ -56,6 +56,45 @@ export type NormalizedProfile = {
   lastActive?: string;
 };
 
+type ProfileAliasMap = {
+  first_name: "firstName";
+  last_name: "lastName";
+  display_name: "displayName";
+  avatar_url: "avatarUrl";
+  onboarding_completed: "onboardingCompleted";
+  account_type: "accountType";
+  institution_id: "institutionId";
+  institution_type: "institutionType";
+  study_level: "studyLevel";
+  company: "company";
+  study_goals: "studyGoals";
+  favorite_subjects: "favoriteSubjects";
+  accessibility_preferences: "accessibilityPreferences";
+  learning_preferences: "learningPreferences";
+  teaching_style: "teachingStyle";
+  preferred_language: "preferredLanguage";
+  preferred_quiz_format: "preferredQuizFormat";
+  preferred_question_type: "preferredQuestionType";
+  flashcard_preference: "flashcardPreference";
+  response_length: "responseLength";
+  voice_preference: "voicePreference";
+  study_reminder_enabled: "studyReminderEnabled";
+  marketing_updates_enabled: "marketingUpdatesEnabled";
+  security_alerts_enabled: "securityAlertsEnabled";
+  preferred_theme: "preferredTheme";
+  daily_goal_minutes: "dailyGoalMinutes";
+  is_student: "isStudent";
+  is_suspended: "isSuspended";
+  is_deleted: "isDeleted";
+  tos_accepted_at: "tosAcceptedAt";
+  privacy_accepted_at: "privacyAcceptedAt";
+  referral_code_used: "referralCodeUsed";
+  institution_invite_code_used: "institutionInviteCodeUsed";
+  subscription_status: "subscriptionStatus";
+  billing_cycle: "billingCycle";
+};
+export type ProfileWithAliases = NormalizedProfile & { [Key in keyof ProfileAliasMap]: NormalizedProfile[ProfileAliasMap[Key]] };
+
 function asString(value: unknown, fallback = "") {
   return typeof value === "string" ? value : fallback;
 }
@@ -65,10 +104,10 @@ function asStringArray(value: unknown) {
 }
 
 function asObject(value: unknown) {
-  return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, any>) : {};
+  return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
 }
 
-export function normalizeProfile(profile: Record<string, any> | null | undefined, subscription?: Record<string, any> | null, role?: Record<string, any> | null): NormalizedProfile | null {
+export function normalizeProfile(profile: Record<string, unknown> | null | undefined, subscription?: Record<string, unknown> | null, role?: Record<string, unknown> | null): ProfileWithAliases | null {
   if (!profile) {
     return null;
   }
@@ -77,8 +116,8 @@ export function normalizeProfile(profile: Record<string, any> | null | undefined
   const lastName = asString(profile.last_name);
   const displayName = asString(profile.display_name, `${firstName} ${lastName}`.trim() || "User");
 
-  const normalized = {
-    id: profile.id,
+  const normalized: NormalizedProfile = {
+    id: asString(profile.id),
     email: asString(profile.email),
     firstName,
     lastName,
@@ -112,27 +151,27 @@ export function normalizeProfile(profile: Record<string, any> | null | undefined
     flashcardPreference: asString(profile.flashcard_preference, "Standard"),
     responseLength: asString(profile.response_length, "Medium"),
     voicePreference: asString(profile.voice_preference, "Default"),
-    studyReminderEnabled: profile.study_reminder_enabled ?? true,
-    marketingUpdatesEnabled: profile.marketing_updates_enabled ?? true,
-    securityAlertsEnabled: profile.security_alerts_enabled ?? true,
+    studyReminderEnabled: typeof profile.study_reminder_enabled === "boolean" ? profile.study_reminder_enabled : true,
+    marketingUpdatesEnabled: typeof profile.marketing_updates_enabled === "boolean" ? profile.marketing_updates_enabled : true,
+    securityAlertsEnabled: typeof profile.security_alerts_enabled === "boolean" ? profile.security_alerts_enabled : true,
     preferredTheme: asString(profile.preferred_theme, "dark"),
     dailyGoalMinutes: Number(profile.daily_goal_minutes ?? 15),
-    isStudent: profile.is_student ?? true,
+    isStudent: typeof profile.is_student === "boolean" ? profile.is_student : true,
     gender: asString(profile.gender),
-    age: profile.age ?? "",
+    age: typeof profile.age === "number" && Number.isFinite(profile.age) ? profile.age : "",
     isSuspended: Boolean(profile.is_suspended),
     isDeleted: Boolean(profile.is_deleted),
-    tosAcceptedAt: profile.tos_accepted_at ?? null,
-    privacyAcceptedAt: profile.privacy_accepted_at ?? null,
-    referralCodeUsed: profile.referral_code_used ?? null,
-    institutionInviteCodeUsed: profile.institution_invite_code_used ?? null,
+    tosAcceptedAt: typeof profile.tos_accepted_at === "string" ? profile.tos_accepted_at : null,
+    privacyAcceptedAt: typeof profile.privacy_accepted_at === "string" ? profile.privacy_accepted_at : null,
+    referralCodeUsed: typeof profile.referral_code_used === "string" ? profile.referral_code_used : null,
+    institutionInviteCodeUsed: typeof profile.institution_invite_code_used === "string" ? profile.institution_invite_code_used : null,
     plan: asString(subscription?.plan, "free"),
     subscriptionStatus: asString(subscription?.subscription_status || subscription?.status, "active"),
     billingCycle: asString(subscription?.billing_cycle, "monthly"),
     role: asString(role?.role, "user"),
-    createdAt: profile.created_at,
-    updatedAt: profile.updated_at,
-    lastActive: profile.last_active,
+    createdAt: asString(profile.created_at),
+    updatedAt: asString(profile.updated_at),
+    lastActive: asString(profile.last_active),
   };
 
   return {
@@ -172,10 +211,10 @@ export function normalizeProfile(profile: Record<string, any> | null | undefined
     institution_invite_code_used: normalized.institutionInviteCodeUsed,
     subscription_status: normalized.subscriptionStatus,
     billing_cycle: normalized.billingCycle,
-  } as NormalizedProfile & Record<string, any>;
+  };
 }
 
-export function buildProfileUpdatePayload(data: Record<string, any>) {
+export function buildProfileUpdatePayload(data: Record<string, unknown>) {
   const firstName = asString(data.firstName ?? data.first_name).trim();
   const lastName = asString(data.lastName ?? data.last_name).trim();
   const displayName = asString(data.displayName ?? data.display_name).trim() || `${firstName} ${lastName}`.trim();
@@ -225,7 +264,7 @@ export function buildProfileUpdatePayload(data: Record<string, any>) {
   };
 }
 
-export function stripUndefined<T extends Record<string, any>>(input: T) {
+export function stripUndefined<T extends Record<string, unknown>>(input: T) {
   return Object.fromEntries(Object.entries(input).filter(([, value]) => value !== undefined)) as Partial<T>;
 }
 

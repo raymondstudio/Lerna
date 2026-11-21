@@ -1,13 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Bell, Loader2, Volume2, Plus, Users, Calendar, Clock, Eye, Trash, Check } from "lucide-react";
+import { Bell, Loader2, Volume2, Plus, Users, Calendar, Clock } from "lucide-react";
+import { useVisibleRefresh } from "./use-visible-refresh";
+import { useAdminData } from "./use-admin-data";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
+type Broadcast = { id: string; title: string; content: string; status: string; target_audience: string; target_institution: string | null; target_department: string | null; scheduled_for: string | null; expires_at: string | null; created_at: string };
 export function AnnouncementsTab() {
-  const [broadcasts, setBroadcasts] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: rows, setData: setBroadcasts, loading, error, reload: fetchBroadcasts } = useAdminData<Broadcast[]>("/api/admin/broadcasts");
+  const broadcasts = rows ?? [];
 
   // Form states
   const [title, setTitle] = useState("");
@@ -26,43 +29,7 @@ export function AnnouncementsTab() {
   const [estimatedSize, setEstimatedSize] = useState<number | null>(null);
   const [loadingEstimate, setLoadingEstimate] = useState(false);
 
-  const fetchBroadcasts = async () => {
-    try {
-      setLoading(true);
-      const res = await fetch("/api/admin/broadcasts");
-      const json = await res.json();
-      if (json.success && Array.isArray(json.data)) {
-        setBroadcasts(json.data);
-      }
-    } catch (err) {
-      console.error("[announcements] Error fetching broadcasts:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    void fetchBroadcasts();
-
-    const { createSupabaseBrowserClient } = require("@/lib/supabase/client");
-    const supabase = createSupabaseBrowserClient();
-    if (!supabase) return;
-
-    const channel = supabase
-      .channel("broadcasts_realtime_sync")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "broadcasts" },
-        () => {
-          void fetchBroadcasts();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      void supabase.removeChannel(channel);
-    };
-  }, []);
+  useVisibleRefresh(fetchBroadcasts);
 
   // Fetch estimated reach size dynamically when targeting criteria changes
   useEffect(() => {
@@ -120,7 +87,7 @@ export function AnnouncementsTab() {
         setScheduledFor("");
         setExpiresAt("");
         setShowForm(false);
-        setBroadcasts(prev => [json.data, ...prev]);
+        setBroadcasts(prev => [json.data, ...(prev ?? [])]);
       } else {
         alert(json.error || "Failed to publish announcement.");
       }
@@ -131,6 +98,7 @@ export function AnnouncementsTab() {
     }
   };
 
+  if (error) return <p role="alert" className="p-4 text-xs text-red-300">{error}</p>;
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center gap-4">
