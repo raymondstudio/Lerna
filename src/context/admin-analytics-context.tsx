@@ -61,7 +61,6 @@ export function AdminAnalyticsProvider({ children }: { children: ReactNode }) {
     const timer = window.setInterval(() => { if (!document.hidden && navigator.onLine) setRefreshToken(value => value+1); }, 15000);
     return () => window.clearInterval(timer);
   }, [preset]);
-
   const queryString = useMemo(() => {
     const params = new URLSearchParams({ range: preset, timezone });
     if (preset === "custom") {

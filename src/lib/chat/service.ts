@@ -4,6 +4,7 @@ import type { ChatMessage, ChatSource } from "./types";
 import { formatRagContext, retrieveMaterialContext } from "@/lib/materials/retrieval";
 import { buildAIProfileContext, normalizeProfile } from "@/lib/profile";
 import { selectReadyOwnedMaterialIds } from "@/lib/repositories/materials";
+import { lookupResponseCache, storeResponseCache } from "@/lib/ai/response-cache";
 
 const SYSTEM_PROMPT = `You are Lerna AI, an elite personal learning companion and academic tutor. 
 
@@ -92,6 +93,33 @@ export async function getAIResponse(
 
   const lastUserMessage = [...recentMessages].reverse().find((m) => m.role === "user");
 
+  // ── Semantic response cache ────────────────────────────────────────────────
+  // Only attempt a cache lookup when no user-specific uploaded materials are
+  // scoped to this conversation.  Material-scoped answers embed per-user RAG
+  // context and must never be reused across accounts.
+  const isMaterialScoped = Array.isArray(documentIds) && documentIds.length > 0;
+
+  if (lastUserMessage && !isMaterialScoped) {
+    const cached = await lookupResponseCache(lastUserMessage.content);
+    if (cached) {
+      console.info("[chat] semantic cache HIT", {
+        tier: cached.tier,
+        similarity: cached.similarity.toFixed(4),
+        entryId: cached.id,
+      });
+      return {
+        id: `cache-${Date.now()}`,
+        role: "assistant",
+        content: cached.answerText,
+        timestamp: Date.now(),
+        sources: [],
+        // No LLM call was made — no token usage to report.
+        usage: undefined,
+      };
+    }
+  }
+  // ──────────────────────────────────────────────────────────────────────────
+
   let searchPromise = Promise.resolve({ contextText: "", sources: [] as ChatSource[] });
   
   if (sessionId && userId && lastUserMessage) {
@@ -163,6 +191,16 @@ Standalone Query:`;
   const prompt = `Conversation transcript:\n${transcript}${profileContext}${searchResult.contextText}`;
 
   const { text: aiText, usage } = await callGeminiAPI(prompt, userId);
+
+  // ── Populate cache for future identical/similar questions ────────────────
+  // Fire-and-forget: failure here must never delay or break the response.
+  if (lastUserMessage && !isMaterialScoped) {
+    void storeResponseCache(lastUserMessage.content, aiText, {
+      modelUsed: usage.modelUsed,
+      requestType: "chat",
+    });
+  }
+  // ──────────────────────────────────────────────────────────────────────────
 
   return {
     id: `ai-${Date.now()}`,
