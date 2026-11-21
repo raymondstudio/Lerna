@@ -116,3 +116,11 @@ AS $$
     last_hit_at = now()
   WHERE id = p_id;
 $$;
+
+-- Grants
+GRANT ALL ON TABLE ai_response_cache TO service_role;
+GRANT EXECUTE ON FUNCTION find_cached_response TO service_role;
+GRANT EXECUTE ON FUNCTION record_cache_hit TO service_role;
+
+-- Reload schema cache
+NOTIFY pgrst, 'reload schema';

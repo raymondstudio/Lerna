@@ -68,7 +68,7 @@ ALTER TABLE quiz_rooms ENABLE ROW LEVEL SECURITY;
 ALTER TABLE quiz_room_questions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE quiz_room_participants ENABLE ROW LEVEL SECURITY;
 
--- Allow authenticated users to read rooms they are part of or created
+-- Policies for quiz_rooms
 CREATE POLICY "Users can view quiz rooms they are in"
   ON quiz_rooms FOR SELECT
   TO authenticated
@@ -77,4 +77,79 @@ CREATE POLICY "Users can view quiz rooms they are in"
     id IN (SELECT room_id FROM quiz_room_participants WHERE user_id = auth.uid())
   );
 
--- Service role bypasses RLS for server-side management
+CREATE POLICY "Host can insert quiz room"
+  ON quiz_rooms FOR INSERT
+  TO authenticated
+  WITH CHECK (host_id = auth.uid());
+
+CREATE POLICY "Host can update quiz room"
+  ON quiz_rooms FOR UPDATE
+  TO authenticated
+  USING (host_id = auth.uid())
+  WITH CHECK (host_id = auth.uid());
+
+-- Policies for quiz_room_questions
+CREATE POLICY "Participants can view questions for their room"
+  ON quiz_room_questions FOR SELECT
+  TO authenticated
+  USING (
+    room_id IN (
+      SELECT id FROM quiz_rooms WHERE host_id = auth.uid()
+      UNION
+      SELECT room_id FROM quiz_room_participants WHERE user_id = auth.uid()
+    )
+  );
+
+-- Policies for quiz_room_participants
+CREATE POLICY "Users can view participants in their room"
+  ON quiz_room_participants FOR SELECT
+  TO authenticated
+  USING (
+    room_id IN (
+      SELECT id FROM quiz_rooms WHERE host_id = auth.uid()
+      UNION
+      SELECT room_id FROM quiz_room_participants WHERE user_id = auth.uid()
+    )
+  );
+
+CREATE POLICY "Users can join as participant"
+  ON quiz_room_participants FOR INSERT
+  TO authenticated
+  WITH CHECK (user_id = auth.uid());
+
+CREATE POLICY "Participants can update their own status"
+  ON quiz_room_participants FOR UPDATE
+  TO authenticated
+  USING (user_id = auth.uid())
+  WITH CHECK (user_id = auth.uid());
+
+-- Explicit Grants
+GRANT ALL ON TABLE quiz_rooms TO service_role;
+GRANT ALL ON TABLE quiz_room_questions TO service_role;
+GRANT ALL ON TABLE quiz_room_participants TO service_role;
+
+GRANT SELECT, INSERT, UPDATE ON TABLE quiz_rooms TO authenticated;
+GRANT SELECT ON TABLE quiz_room_questions TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE quiz_room_participants TO authenticated;
+
+-- Realtime Publication for Arena Synchronisation
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables 
+    WHERE pubname = 'supabase_realtime' AND tablename = 'quiz_rooms'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE quiz_rooms;
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables 
+    WHERE pubname = 'supabase_realtime' AND tablename = 'quiz_room_participants'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE quiz_room_participants;
+  END IF;
+EXCEPTION WHEN OTHERS THEN
+  NULL;
+END $$;
+
+-- Tell PostgREST to reload its schema cache immediately
+NOTIFY pgrst, 'reload schema';
