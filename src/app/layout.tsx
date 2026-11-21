@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import { Analytics } from "@vercel/analytics/next";
 import { Providers } from "@/components/providers";
@@ -68,6 +68,10 @@ export const metadata: Metadata = {
   },
 };
 
+export const viewport: Viewport = {
+  themeColor: "#0a0a0a",
+};
+
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const supabase = await createSupabaseServerClient();
   let initialSession = null;
@@ -85,8 +89,8 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   }
 
   return (
-    <html lang="en" suppressHydrationWarning className="h-full">
-      <body className={`${headingFont.variable} ${bodyFont.variable} min-h-screen overflow-x-hidden bg-background font-body text-foreground antialiased`}>
+    <html lang="en" suppressHydrationWarning className="h-full bg-[#0a0a0a]">
+      <body className={`${headingFont.variable} ${bodyFont.variable} min-h-screen overflow-x-hidden bg-[#0a0a0a] font-body text-foreground antialiased`}>
         <Providers initialSession={initialSession}>{children}</Providers>
         <Analytics />
       </body>

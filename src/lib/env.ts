@@ -23,6 +23,10 @@ const envSchema = z.object({
   RESEND_API_KEY: z.string().min(1).optional(),
   RESEND_EMAILS_API_KEY: z.string().min(1).optional(),
   RESEND_WEBHOOK_SECRET: z.string().min(1).optional(),
+  // Semantic response cache
+  RESPONSE_CACHE_ENABLED: z.string().optional(),
+  RESPONSE_CACHE_SIMILARITY_THRESHOLD: z.string().optional(),
+  RESPONSE_CACHE_TTL_DAYS: z.string().optional(),
 });
 
 export const env = envSchema.parse({
@@ -48,4 +52,7 @@ export const env = envSchema.parse({
   RESEND_API_KEY: process.env.RESEND_API_KEY ?? process.env.RESEND_EMAILS_API_KEY,
   RESEND_EMAILS_API_KEY: process.env.RESEND_EMAILS_API_KEY ?? process.env.RESEND_API_KEY,
   RESEND_WEBHOOK_SECRET: process.env.RESEND_WEBHOOK_SECRET,
+  RESPONSE_CACHE_ENABLED: process.env.RESPONSE_CACHE_ENABLED,
+  RESPONSE_CACHE_SIMILARITY_THRESHOLD: process.env.RESPONSE_CACHE_SIMILARITY_THRESHOLD,
+  RESPONSE_CACHE_TTL_DAYS: process.env.RESPONSE_CACHE_TTL_DAYS,
 });
