@@ -117,9 +117,9 @@ function PricingContent() {
 
       {/* Hero */}
       <section className="relative py-20 sm:py-28 px-5 text-center overflow-hidden">
-        <div className="pointer-events-none absolute top-0 left-1/2 -translate-x-1/2 h-[350px] w-[600px] rounded-full bg-cyan-500/6 blur-[100px]" />
+        <div className="pointer-events-none absolute top-0 left-1/2 -translate-x-1/2 h-[350px] w-[600px] rounded-full bg-blue-500/6 blur-[100px]" />
         <div className="relative z-10 mx-auto max-w-2xl">
-          <span className="mb-4 inline-block rounded-full border border-cyan-500/20 bg-cyan-500/8 px-4 py-1.5 text-xs font-semibold uppercase tracking-widest text-cyan-400">
+          <span className="mb-4 inline-block rounded-full border border-blue-500/20 bg-blue-500/8 px-4 py-1.5 text-xs font-semibold uppercase tracking-widest text-blue-400">
             Pricing
           </span>
           <h1 className="font-heading text-4xl sm:text-5xl font-normal tracking-tight text-white leading-[1.1] mb-5">
@@ -140,12 +140,12 @@ function PricingContent() {
                 key={plan.id}
                 className={`relative flex flex-col rounded-2xl border p-7 transition-all ${
                   plan.highlight
-                    ? "border-cyan-500/40 bg-[#0d1a1f] shadow-[0_0_40px_rgba(6,182,212,0.1)]"
-                    : "border-white/8 bg-[#111317]"
+                    ? "border-blue-500/40 bg-[#111111]"
+                    : "border-white/8 bg-[#141414]"
                 }`}
               >
                 {plan.highlight && (
-                  <div className="absolute -top-px left-1/2 -translate-x-1/2 rounded-b-xl bg-cyan-500 px-4 py-1 text-[10px] font-bold uppercase tracking-widest text-[#0a0a0a]">
+                  <div className="absolute -top-px left-1/2 -translate-x-1/2 rounded-b-xl bg-blue-600 px-4 py-1 text-[10px] font-bold uppercase tracking-widest text-white">
                     Most Popular
                   </div>
                 )}
@@ -155,16 +155,16 @@ function PricingContent() {
                   <div
                     className={`mb-4 flex h-9 w-9 items-center justify-center rounded-xl ${
                       plan.id === "pro"
-                        ? "bg-cyan-500/15"
+                        ? "bg-blue-500/15"
                         : plan.id === "premium"
-                        ? "bg-purple-500/15"
+                        ? "bg-blue-500/10"
                         : "bg-white/8"
                     }`}
                   >
                     {plan.id === "pro" ? (
-                      <Zap className="h-4 w-4 text-cyan-400" />
+                      <Zap className="h-4 w-4 text-blue-400" />
                     ) : plan.id === "premium" ? (
-                      <Star className="h-4 w-4 text-purple-400" />
+                      <Star className="h-4 w-4 text-blue-300" />
                     ) : (
                       <Shield className="h-4 w-4 text-slate-400" />
                     )}
@@ -174,15 +174,7 @@ function PricingContent() {
                   <p className="text-sm text-slate-400 mb-5">{plan.description}</p>
 
                   <div className="flex items-baseline gap-1 mb-6">
-                    <span
-                      className={`text-3xl font-bold tracking-tight ${
-                        plan.id === "pro"
-                          ? "text-cyan-400"
-                          : plan.id === "premium"
-                          ? "text-purple-400"
-                          : "text-white"
-                      }`}
-                    >
+                    <span className="text-3xl font-bold tracking-tight text-white">
                       {plan.price}
                     </span>
                     {plan.period && (
@@ -194,13 +186,7 @@ function PricingContent() {
                     {plan.features.map((f) => (
                       <li key={f} className="flex items-start gap-2 text-sm text-slate-300">
                         <CheckCircle2
-                          className={`mt-0.5 h-4 w-4 shrink-0 ${
-                            plan.id === "pro"
-                              ? "text-cyan-400"
-                              : plan.id === "premium"
-                              ? "text-purple-400"
-                              : "text-slate-500"
-                          }`}
+                          className="mt-0.5 h-4 w-4 shrink-0 text-blue-400"
                         />
                         {f}
                       </li>
@@ -213,11 +199,7 @@ function PricingContent() {
                     <button
                       type="button"
                       onClick={() => handleUpgradeClick(plan.id as Plan)}
-                      className={`w-full rounded-xl py-3 text-sm font-semibold transition-all active:scale-[0.98] ${
-                        plan.id === "pro"
-                          ? "bg-cyan-500 text-[#0a0a0a] hover:bg-cyan-400 shadow-lg shadow-cyan-500/20"
-                          : "bg-purple-600 text-white hover:bg-purple-500 shadow-lg shadow-purple-500/15"
-                      }`}
+                      className="w-full rounded-xl py-3 text-sm font-semibold transition-all active:scale-[0.98] bg-blue-600 text-white hover:bg-blue-500"
                     >
                       {plan.cta}
                     </button>

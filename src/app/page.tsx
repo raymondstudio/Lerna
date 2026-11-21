@@ -308,7 +308,7 @@ function FAQItem({ question, answer }: { question: string; answer: string }) {
 
 function TestimonialCard({ testimonial }: { testimonial: (typeof testimonials)[number] }) {
   return (
-    <article className="rounded-2xl border border-white/8 bg-[#111827] p-6 transition-colors">
+    <article className="rounded-2xl border border-white/8 bg-[#141414] p-6 transition-colors">
       <div className="mb-5 flex items-start justify-between gap-4">
         <div className="flex min-w-0 items-center gap-3">
           <div
@@ -364,7 +364,7 @@ function HeroMockupCard() {
   return (
     <div className="relative w-full max-w-sm mx-auto lg:mx-0 select-none">
       {/* Main chat card */}
-      <div className="animate-float relative z-10 rounded-2xl border border-white/10 bg-[#111827] shadow-2xl shadow-black/60 p-5">
+      <div className="animate-float relative z-10 rounded-2xl border border-white/10 bg-[#141414] p-5">
         {/* Header */}
         <div className="flex items-center gap-3 mb-4 pb-4 border-b border-white/8">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-500/20 text-blue-400">
@@ -388,7 +388,7 @@ function HeroMockupCard() {
             <div className="h-6 w-6 rounded-full bg-slate-700 shrink-0 mt-0.5 flex items-center justify-center">
               <span className="text-[9px] text-slate-300">U</span>
             </div>
-            <div className="bg-[#1e2d4d] rounded-xl rounded-tl-sm px-3 py-2 max-w-[85%]">
+            <div className="bg-white/8 rounded-xl rounded-tl-sm px-3 py-2 max-w-[85%]">
               <p className="text-[11px] text-slate-200">Explain the Krebs cycle in simple terms.</p>
             </div>
           </div>
@@ -396,7 +396,7 @@ function HeroMockupCard() {
             <div className="h-6 w-6 rounded-lg bg-blue-500/20 shrink-0 mt-0.5 flex items-center justify-center">
               <Brain className="h-3 w-3 text-blue-400" />
             </div>
-            <div className="bg-[#162032] border border-blue-500/10 rounded-xl rounded-tl-sm px-3 py-2 max-w-[85%]">
+            <div className="bg-[#1a1a1a] border border-blue-500/10 rounded-xl rounded-tl-sm px-3 py-2 max-w-[85%]">
               <p className="text-[11px] text-slate-200 leading-relaxed">
                 The Krebs cycle is your cell&apos;s &ldquo;energy factory&rdquo;. It takes acetyl-CoA and spins it through 8 steps, releasing CO₂ and capturing energy as NADH...
               </p>
@@ -415,7 +415,7 @@ function HeroMockupCard() {
       </div>
 
       {/* Floating badge — top right */}
-      <div className="animate-float-slow absolute -top-4 -right-4 z-20 rounded-xl bg-white px-3 py-2 shadow-xl shadow-black/30 flex items-center gap-2">
+      <div className="animate-float-slow absolute -top-4 -right-4 z-20 rounded-xl bg-white px-3 py-2 flex items-center gap-2">
         <div className="flex text-amber-400">
           {[...Array(5)].map((_, i) => <Star key={i} className="h-3 w-3 fill-current" />)}
         </div>
@@ -423,7 +423,7 @@ function HeroMockupCard() {
       </div>
 
       {/* Floating doc badge — bottom left */}
-      <div className="animate-float absolute -bottom-5 -left-4 z-20 rounded-xl bg-[#111827] border border-blue-500/20 px-3 py-2 shadow-xl shadow-black/40 flex items-center gap-2.5">
+      <div className="animate-float absolute -bottom-5 -left-4 z-20 rounded-xl bg-[#141414] border border-blue-500/20 px-3 py-2 flex items-center gap-2.5">
         <div className="h-7 w-7 rounded-lg bg-blue-500/20 flex items-center justify-center shrink-0">
           <FileText className="h-3.5 w-3.5 text-blue-400" />
         </div>
@@ -463,7 +463,7 @@ function HomePageContent() {
   }, [searchParams]);
 
   return (
-    <main className="min-h-screen bg-[#0B1120] text-slate-200 overflow-x-hidden font-body">
+    <main className="min-h-screen bg-[#0a0a0a] text-slate-200 overflow-x-hidden font-body">
       {/* Structured Data */}
       <script
         type="application/ld+json"
@@ -485,7 +485,7 @@ function HomePageContent() {
       <nav
         className={`fixed z-50 transition-all duration-300 left-1/2 -translate-x-1/2 ${
           isScrolled
-            ? "top-0 w-full bg-[#0B1120]/80 backdrop-blur-xl border-b border-white/10 shadow-xl"
+            ? "top-0 w-full bg-[#0a0a0a]/80 backdrop-blur-xl border-b border-white/10"
             : "top-5 w-[calc(100%-2rem)] max-w-6xl bg-transparent"
         }`}
       >
@@ -538,7 +538,7 @@ function HomePageContent() {
                 </button>
                 <button
                   onClick={() => setActiveModal("signup")}
-                  className="rounded-full bg-white text-[#0B1120] hover:bg-slate-100 px-5 h-9 text-sm font-semibold transition-all hover:scale-[1.02] active:scale-[0.98]"
+                  className="rounded-full bg-white text-[#0a0a0a] hover:bg-slate-100 px-5 h-9 text-sm font-semibold transition-all hover:scale-[1.02] active:scale-[0.98]"
                 >
                   Get started
                 </button>
@@ -558,7 +558,7 @@ function HomePageContent() {
         {/* Mobile menu */}
         <AnimatePresence>
           {isMobileMenuOpen && (
-            <div className="md:hidden absolute top-[calc(100%+0.5rem)] left-0 right-0 rounded-2xl border border-white/10 bg-[#0B1120] backdrop-blur-2xl p-6 shadow-2xl flex flex-col gap-5 z-40">
+            <div className="md:hidden absolute top-[calc(100%+0.5rem)] left-0 right-0 rounded-2xl border border-white/10 bg-[#0a0a0a] backdrop-blur-2xl p-6 flex flex-col gap-5 z-40">
               <div className="flex flex-col gap-3">
                 {["How it works", "Features", "Pricing", "FAQ"].map((label) => (
                   <Link
@@ -589,7 +589,7 @@ function HomePageContent() {
                     </button>
                     <button
                       onClick={() => { setIsMobileMenuOpen(false); setActiveModal("signup"); }}
-                      className="w-full bg-white text-[#0B1120] hover:bg-slate-100 rounded-full py-3 font-semibold text-base transition-all flex items-center justify-center gap-2"
+                      className="w-full bg-white text-[#0a0a0a] hover:bg-slate-100 rounded-full py-3 font-semibold text-base transition-all flex items-center justify-center gap-2"
                     >
                       Get started <ArrowRight className="h-4 w-4" />
                     </button>
@@ -602,7 +602,7 @@ function HomePageContent() {
       </nav>
 
       {/* ── Hero Section ────────────────────────────────────────────────── */}
-      <section className="relative mx-auto max-w-7xl px-6 pt-32 pb-24 sm:pt-40 sm:pb-32">
+      <section className="relative mx-auto max-w-7xl px-6 pt-32 pb-24 sm:pt-40 sm:pb-32 overflow-hidden">
         {/* Background glow */}
         <div className="pointer-events-none absolute top-0 left-1/4 h-[500px] w-[600px] rounded-full bg-blue-600/8 blur-[120px]" />
 
@@ -628,7 +628,7 @@ function HomePageContent() {
             <div className="flex flex-col sm:flex-row gap-6 items-center justify-start">
               <button
                 onClick={() => setActiveModal("signup")}
-                className="inline-flex items-center justify-center gap-2 rounded-full bg-white text-[#0B1120] hover:bg-slate-200 px-6 h-12 text-sm font-semibold transition-all hover:scale-[1.02] active:scale-[0.98]"
+                className="inline-flex items-center justify-center gap-2 rounded-full bg-white text-[#0a0a0a] hover:bg-slate-200 px-6 h-12 text-sm font-semibold transition-all hover:scale-[1.02] active:scale-[0.98]"
               >
                 Get started <ArrowRight className="h-4 w-4" />
               </button>
@@ -643,9 +643,9 @@ function HomePageContent() {
 
         {/* Bottom: Dashboard mockup image */}
         <div className="relative z-10 mt-20 sm:mt-24 w-full">
-          <div className="rounded-xl sm:rounded-2xl border border-white/10 bg-white/5 p-2 sm:p-4 shadow-2xl backdrop-blur-xl">
-            <div className="rounded-lg sm:rounded-xl overflow-hidden border border-white/5 relative bg-[#0B1120]">
-              <div className="absolute top-0 left-0 w-full h-8 sm:h-12 bg-[#1A2234] border-b border-white/5 flex items-center px-3 sm:px-4 gap-1.5 sm:gap-2 z-10">
+          <div className="rounded-xl sm:rounded-2xl border border-white/10 bg-white/5 p-2 sm:p-4 backdrop-blur-xl">
+            <div className="rounded-lg sm:rounded-xl overflow-hidden border border-white/5 relative bg-[#0a0a0a]">
+              <div className="absolute top-0 left-0 w-full h-8 sm:h-12 bg-[#141414] border-b border-white/5 flex items-center px-3 sm:px-4 gap-1.5 sm:gap-2 z-10">
                 <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-rose-500/80"></div>
                 <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-amber-500/80"></div>
                 <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-emerald-500/80"></div>
@@ -688,7 +688,7 @@ function HomePageContent() {
             {steps.map((step, idx) => (
               <div
                 key={step.number}
-                className="relative bg-[#111827] border border-white/8 rounded-2xl p-8 sm:p-10 transition-all"
+                className="relative bg-[#141414] border border-white/8 rounded-2xl p-8 sm:p-10 transition-all"
               >
                 <div className="font-heading text-6xl sm:text-7xl font-normal text-white/8 transition-colors mb-6 leading-none select-none">
                   {step.number}
@@ -696,7 +696,7 @@ function HomePageContent() {
                 <h3 className="text-xl font-semibold text-white mb-3">{step.title}</h3>
                 <p className="text-slate-400 text-base leading-relaxed">{step.description}</p>
                 {idx < 2 && (
-                  <div className="hidden lg:flex absolute top-10 -right-4 z-20 h-8 w-8 items-center justify-center rounded-full bg-[#1e2d4d] border border-white/10">
+                  <div className="hidden lg:flex absolute top-10 -right-4 z-20 h-8 w-8 items-center justify-center rounded-full bg-[#202020] border border-white/10">
                     <ArrowRight className="h-3.5 w-3.5 text-blue-400" />
                   </div>
                 )}
@@ -727,7 +727,7 @@ function HomePageContent() {
               return (
                 <div
                   key={feature.title}
-                  className="relative bg-[#111827] border border-white/8 p-7 rounded-2xl transition-all duration-300 cursor-default"
+                  className="relative bg-[#141414] border border-white/8 p-7 rounded-2xl transition-all duration-300 cursor-default"
                 >
                   <div className="flex items-start justify-between mb-5">
                     <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-500/15 text-blue-400 transition-colors">
@@ -770,8 +770,8 @@ function HomePageContent() {
                 key={plan.name}
                 className={`flex flex-col justify-between rounded-2xl p-8 relative overflow-hidden border transition-all ${
                   plan.name === "Pro"
-                    ? "bg-[#0d1e3a] border-blue-500/50 shadow-[0_0_40px_rgba(59,130,246,0.12)]"
-                    : "bg-[#111827] border-white/8"
+                    ? "bg-[#111111] border-blue-500/40"
+                    : "bg-[#141414] border-white/8"
                 }`}
               >
                 {plan.isComingSoon && plan.name !== "Pro" && (
@@ -809,18 +809,14 @@ function HomePageContent() {
                 {plan.name === "Pro" || plan.name === "Premium" ? (
                   <Link
                     href={`/pricing?plan=${plan.name.toLowerCase()}`}
-                    className={`flex w-full h-11 items-center justify-center rounded-xl text-sm font-semibold transition-all active:scale-[0.98] ${
-                      plan.name === "Pro"
-                        ? "bg-blue-600 text-white hover:bg-blue-500 shadow-lg shadow-blue-500/20"
-                        : "bg-purple-600 text-white hover:bg-purple-500 shadow-lg shadow-purple-500/15"
-                    }`}
+                    className="flex w-full h-11 items-center justify-center rounded-xl text-sm font-semibold transition-all active:scale-[0.98] bg-blue-600 text-white hover:bg-blue-500"
                   >
                     {plan.name === "Pro" ? "Upgrade to Pro" : "Upgrade to Premium"}
                   </Link>
                 ) : (
                   <button
                     onClick={() => setActiveModal("signup")}
-                    className="w-full h-11 rounded-xl text-sm font-semibold transition-all active:scale-[0.98] bg-blue-600 text-white hover:bg-blue-500 shadow-lg shadow-blue-500/20"
+                    className="w-full h-11 rounded-xl border border-white/10 text-sm font-semibold transition-all active:scale-[0.98] text-slate-300 hover:border-white/20 hover:bg-white/5 hover:text-white"
                   >
                     {plan.buttonText}
                   </button>
@@ -875,7 +871,7 @@ function HomePageContent() {
         <div className="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-[400px] w-[600px] rounded-full bg-blue-700/5 blur-[100px]" />
         <div className="mx-auto max-w-5xl px-6 relative z-10">
           <div className="text-center mb-16 sm:mb-20">
-            <span className="inline-flex items-center justify-center rounded-full bg-[#1e2d4d] border border-blue-500/20 text-blue-300 text-xs font-semibold px-4 py-1.5 mb-6 tracking-wide">
+            <span className="inline-flex items-center justify-center rounded-full bg-white/5 border border-blue-500/20 text-blue-300 text-xs font-semibold px-4 py-1.5 mb-6 tracking-wide">
               Capabilities
             </span>
             <h2 className="font-heading text-4xl sm:text-5xl lg:text-[3rem] font-normal tracking-tight text-white leading-[1.1] mb-5">
@@ -885,7 +881,7 @@ function HomePageContent() {
           </div>
 
           <div className="overflow-x-auto pb-8">
-            <div className="min-w-[700px] rounded-2xl border border-white/8 bg-[#111827]/50 backdrop-blur-sm overflow-hidden">
+            <div className="min-w-[700px] rounded-2xl border border-white/8 bg-[#141414]/50 backdrop-blur-sm overflow-hidden">
               {/* Header Row */}
               <div className="grid grid-cols-4 bg-white/5 border-b border-white/8 p-4 sm:p-6 items-center">
                 <div className="col-span-1"></div>
@@ -964,7 +960,7 @@ function HomePageContent() {
 
           <div className="grid gap-6 md:grid-cols-2">
             {/* WhatsApp */}
-            <div className="relative overflow-hidden rounded-2xl border border-emerald-500/20 bg-[#111827] p-8 flex flex-col justify-between transition-all">
+            <div className="relative overflow-hidden rounded-2xl border border-emerald-500/20 bg-[#141414] p-8 flex flex-col justify-between transition-all">
               <div className="absolute -right-8 -top-8 h-40 w-40 bg-emerald-500/8 rounded-full blur-3xl pointer-events-none" />
               <div>
                 <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-400 border border-emerald-500/20 mb-6">
@@ -988,7 +984,7 @@ function HomePageContent() {
             </div>
 
             {/* Discord */}
-            <div className="relative overflow-hidden rounded-2xl border border-indigo-500/20 bg-[#111827] p-8 flex flex-col justify-between transition-all">
+            <div className="relative overflow-hidden rounded-2xl border border-indigo-500/20 bg-[#141414] p-8 flex flex-col justify-between transition-all">
               <div className="absolute -right-8 -top-8 h-40 w-40 bg-indigo-500/8 rounded-full blur-3xl pointer-events-none" />
               <div>
                 <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-500/15 text-indigo-400 border border-indigo-500/20 mb-6">
@@ -1029,7 +1025,7 @@ function HomePageContent() {
             </p>
           </div>
 
-          <div className="bg-[#111827] border border-white/8 rounded-2xl px-6 sm:px-8 py-2">
+          <div className="bg-[#141414] border border-white/8 rounded-2xl px-6 sm:px-8 py-2">
             {faqs.map((faq) => (
               <FAQItem key={faq.question} question={faq.question} answer={faq.answer} />
             ))}
@@ -1040,7 +1036,7 @@ function HomePageContent() {
       {/* ── Footer CTA + Footer ─────────────────────────────────────────── */}
       <footer>
         {/* CTA band */}
-        <div className="relative overflow-hidden border-t border-white/8 bg-[#0d1424] px-6 py-20 sm:py-24 text-center">
+        <div className="relative overflow-hidden border-t border-white/8 bg-[#0a0a0a] px-6 py-20 sm:py-24 text-center">
           <div className="pointer-events-none absolute top-0 left-1/2 -translate-x-1/2 h-64 w-[500px] rounded-full bg-blue-600/10 blur-[80px]" />
           <div className="relative z-10 mx-auto max-w-2xl flex flex-col items-center">
             <span className="mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-blue-400">
@@ -1054,7 +1050,7 @@ function HomePageContent() {
             </p>
             <button
               onClick={() => setActiveModal("signup")}
-              className="inline-flex items-center gap-2 rounded-full bg-white text-[#0B1120] hover:bg-slate-100 px-8 h-12 text-sm font-semibold transition-all hover:scale-[1.02] active:scale-[0.98] shadow-xl shadow-white/10"
+              className="inline-flex items-center gap-2 rounded-full bg-white text-[#0a0a0a] hover:bg-slate-100 px-8 h-12 text-sm font-semibold transition-all hover:scale-[1.02] active:scale-[0.98]"
             >
               Get started for free <ArrowRight className="h-4 w-4" />
             </button>
@@ -1062,7 +1058,7 @@ function HomePageContent() {
         </div>
 
         {/* Footer links */}
-        <div className="border-t border-white/5 bg-[#0B1120] px-6 py-14">
+        <div className="border-t border-white/5 bg-[#0a0a0a] px-6 py-14">
           <div className="mx-auto max-w-7xl">
             <div className="grid gap-10 grid-cols-2 md:grid-cols-5 items-start">
               {/* Brand */}
@@ -1154,7 +1150,7 @@ export default function HomePage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-[#0B1120] flex items-center justify-center">
+        <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
           <div className="h-8 w-8 rounded-full border-2 border-blue-500 border-t-transparent animate-spin" />
         </div>
       }

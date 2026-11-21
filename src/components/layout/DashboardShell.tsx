@@ -19,6 +19,7 @@ import {
   User,
   Settings,
   Loader2,
+  Swords,
 } from "lucide-react";
 import { motion, useReducedMotion } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -163,6 +164,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
     { name: "Study Session", href: "/study", icon: Timer },
     { name: "Courses Hub", href: "/courses", icon: BookOpen },
     { name: "AI Quizzes", href: "/quiz", icon: GraduationCap },
+    { name: "Quiz Arena", href: "/arena", icon: Swords },
   ];
 
   const handleNewChatClick = () => {
