@@ -38,6 +38,11 @@ This document records the durable security and persistence invariants establishe
    - Administrative activity reads log `admin.activity.read` with outcome `attempted` (deduplicated per 15-minute bucket) before querying; exports re-verify admin + `aal2` MFA after collection and commit `admin.activity.export` before releasing rows.
    - Hard deletion of `auth.users` triggers `private.pseudonymize_deleted_actor()` to clear actor/target identifiers in `public.events` and `public.audit_logs` while preserving staff accountability.
 
+7. **Private Storage Restrictive Policies & Resilient Retrieval Fallback (`M1` / `M2`)**
+   - Private buckets (`uploaded-materials`) use restrictive RLS policies preventing direct authenticated user token insertions. All mutations and uploads must be executed server-side via `createSupabaseAdminClient().storage`.
+   - External vector search (ElasticSearch) outages or DNS failures must never halt core learning flows. Network/DNS failures trigger automatic fallback to the internal in-memory store in `src/lib/elastic/client.ts`.
+   - Chat RAG and quiz generation fall back automatically to stored document summaries and metadata from PostgreSQL `uploaded_materials` when vector chunk indexing is unavailable, ensuring robust tutor availability.
+
 ## 2. Threat Assumptions & Accepted Limitations
 
 - **Paused Coupon Redemption (`503`)**: Historical percentage/fixed discount coupons in `public.coupon_codes` did not encode plan entitlements and previously granted Pro non-transactionally. `POST /api/account/billing` intentionally returns `503` until an owner-approved checkout contract is designed.
@@ -52,4 +57,5 @@ This document records the durable security and persistence invariants establishe
 - **2026-10-19 (`16c94e6`, `644a80b`)**: Restored strict ESLint/TypeScript/Next 16.4.1 tooling, local fonts, and reviewed dimensional landing page.
 - **2026-10-20 (`c1300ed`, `fb0f192`, `e4bb054`)**: Integrated M1–M6 source candidate and targeted independent review fixes (`LERNA-STAB-REV-001` through `LERNA-STAB-REV-009`).
 - **2026-10-29 (`1aa101d`)**: Installed portable project skills and isolated offline Graphify (`0.9.97`) + Playwright CLI (`0.1.22`) runtimes.
-- **2026-10-29 (Current Session)**: Completed full diff + untouched-boundary audit; identified and repaired `LERNA-STAB-AUD-001` through `LERNA-STAB-AUD-007` (`supabase/migrations/20261029120000_stabilization_audit_repairs.sql`, admin/learner route hardening, privacy canonical fix, and `docs/security/security-boundary-tests.mjs` + `docs/security/parser-render-tests.mjs` VM harness repair); established `docs/audit/*` and `scripts/audit_knowledge.py`.
+- **2026-10-29**: Completed full diff + untouched-boundary audit; identified and repaired `LERNA-STAB-AUD-001` through `LERNA-STAB-AUD-007` (`supabase/migrations/20261029120000_stabilization_audit_repairs.sql`, admin/learner route hardening, privacy canonical fix, and `docs/security/security-boundary-tests.mjs` + `docs/security/parser-render-tests.mjs` VM harness repair); established `docs/audit/*` and `scripts/audit_knowledge.py`.
+- **2026-11-24 (`36b3509`)**: Resolved `INC-2026-11-24-STORAGE-ELASTIC-BUILD`: fixed assignment uploads via admin storage client, added resilient ElasticSearch DNS/network error handling with fallback to in-memory fixtures, added Postgres summary RAG fallback in `src/lib/materials/retrieval.ts`, made quiz context resilient to zero-chunk states in `src/lib/repositories/quiz-context.ts`, and stubbed vector extensions in PGlite test suite (`tests/database.test.mjs`). Synchronized worktree and desktop workspaces and verified 100% build pass.
