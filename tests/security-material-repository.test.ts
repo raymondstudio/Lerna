@@ -16,7 +16,7 @@ function clientWith(rows: Record<string, unknown>) {
 }
 beforeEach(() => {
   vi.resetAllMocks();
-  mocks.admin.mockReturnValue({ rpc: mocks.rpc, from: () => ({ insert: mocks.insert }), storage: { from: () => ({ upload: mocks.upload, remove: mocks.remove }) } });
+  mocks.admin.mockReturnValue({ rpc: mocks.rpc, from: () => ({ insert: mocks.insert }), storage: { from: () => ({ upload: mocks.upload, remove: mocks.remove, download: vi.fn().mockResolvedValue({ data: new Blob(["fixture"]), error: null }), createSignedUrl: vi.fn().mockResolvedValue({ data: { signedUrl: "https://fixture.supabase.co/signed" }, error: null }) }) } });
   mocks.insert.mockReturnValue({ select: () => ({ single: async () => ({ data: material, error: null }) }) });
   mocks.upload.mockResolvedValue({ error: null }); mocks.remove.mockResolvedValue({ error: null });
 });
