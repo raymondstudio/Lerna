@@ -62,8 +62,24 @@ export async function insertMaterial(userId: string, sessionId: string, fileName
   if (error || !data) throw new MaterialBoundaryError("Upload metadata could not be saved.", 503, "SAVE_FAILED");
   return data as MaterialRow;
 }
-export async function downloadOwnedUpload(supabase: SupabaseClient, storagePath: string) {
-  const { data, error } = await supabase.storage.from(UPLOADED_MATERIALS_BUCKET).createSignedUrl(storagePath, 30);
+export async function downloadOwnedUpload(_supabase: SupabaseClient, storagePath: string) {
+  const admin = createSupabaseAdminClient();
+  try {
+    const { data: blob, error } = await admin.storage.from(UPLOADED_MATERIALS_BUCKET).download(storagePath);
+    if (!error && blob) {
+      const arrayBuffer = await blob.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+      if (buffer.length > UPLOAD_LIMITS.fileBytes) {
+        throw new MaterialBoundaryError("The uploaded file exceeds the maximum size.", 413);
+      }
+      return buffer;
+    }
+  } catch (downloadErr) {
+    if (downloadErr instanceof MaterialBoundaryError) throw downloadErr;
+    console.warn("[downloadOwnedUpload] Direct download failed, attempting signed URL fallback:", downloadErr);
+  }
+
+  const { data, error } = await admin.storage.from(UPLOADED_MATERIALS_BUCKET).createSignedUrl(storagePath, 60);
   if (error || !data?.signedUrl) throw new MaterialBoundaryError("The uploaded file could not be downloaded.", 503, "DOWNLOAD_FAILED");
   if (new URL(data.signedUrl).origin !== new URL(getSupabaseUrl()).origin) throw new MaterialBoundaryError("Storage origin could not be verified.", 503);
   const controller = new AbortController();
@@ -73,7 +89,6 @@ export async function downloadOwnedUpload(supabase: SupabaseClient, storagePath:
     if (!response.ok) throw new MaterialBoundaryError("The uploaded file could not be downloaded.", 503, "DOWNLOAD_FAILED");
     return await readBoundedBody({ headers: response.headers, body: response.body, signal: controller.signal }, UPLOAD_LIMITS.fileBytes);
   } finally { clearTimeout(timeout); }
-
 }
 export async function storeUpload(supabase: SupabaseClient, material: MaterialRow, userId: string, buffer: Buffer, mimeType: string) {
   if (material.user_id !== userId || !material.session_id) throw new MaterialBoundaryError("Upload owner could not be verified.", 403);

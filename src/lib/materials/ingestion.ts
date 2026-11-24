@@ -14,7 +14,7 @@ import {
 
 export { fetchOwnedMaterial } from "@/lib/repositories/materials";
 
-export async function processMaterial(params: { supabase: SupabaseClient; materialId: string; userId: string; signal?: AbortSignal }) {
+export async function processMaterial(params: { supabase: SupabaseClient; materialId: string; userId: string; signal?: AbortSignal; buffer?: Buffer }) {
   const material = await fetchOwnedMaterial(params.supabase, params.materialId, params.userId);
   if (!material || !material.session_id) throw new MaterialBoundaryError("Material not found.", 404, "NOT_FOUND");
   await requireOwnedMaterialSession(params.supabase, material.session_id, params.userId);
@@ -33,7 +33,7 @@ export async function processMaterial(params: { supabase: SupabaseClient; materi
   params.signal?.addEventListener("abort", abort, { once: true });
   if (params.signal?.aborted) controller.abort();
   try {
-    const buffer = await downloadOwnedUpload(params.supabase, material.storage_path);
+    const buffer = params.buffer ?? await downloadOwnedUpload(params.supabase, material.storage_path);
     const metadata = validateUploadMetadata(material.file_name, material.file_type, buffer.length);
     validateUploadBuffer(buffer, metadata.mimeType);
     const scope = providerArtifactScope();

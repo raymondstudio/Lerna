@@ -36,7 +36,7 @@ export async function POST(request: Request) {
       throw error;
     }
     await reservation.finalize("succeeded");
-    const processed = await processMaterial({ supabase, materialId: material.id, userId: user.id, signal: request.signal });
+    const processed = await processMaterial({ supabase, materialId: material.id, userId: user.id, signal: request.signal, buffer });
     return NextResponse.json({ success: true, message: "Successfully processed document.", requestId, data: { materialId: processed.id, material: processed } });
   } catch (error) { return materialErrorResponse(error, requestId); }
 }
