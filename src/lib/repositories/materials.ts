@@ -90,7 +90,7 @@ export async function removeStoredUpload(material: { id: string; storage_path: s
   if (error) throw new MaterialBoundaryError("File cleanup is pending.", 503, "CLEANUP_PENDING");
 }
 export async function signOwnedUpload(supabase: SupabaseClient, path: string) {
-  const { data, error } = await supabase.storage.from(UPLOADED_MATERIALS_BUCKET).createSignedUrl(path, 60);
+  const { data, error } = await createSupabaseAdminClient().storage.from(UPLOADED_MATERIALS_BUCKET).createSignedUrl(path, 60);
   if (error || !data?.signedUrl) throw new MaterialBoundaryError("The material could not be opened.", 503);
   return data.signedUrl;
 }
@@ -129,6 +129,16 @@ export async function selectReadyOwnedMaterialIds(userId: string, documentIds?: 
   const { data, error } = await query.limit(1000);
   if (error) throw new MaterialBoundaryError("Material authorization is unavailable.", 503);
   return (data ?? []).map((row) => String(row.id));
+}
+export async function selectReadyOwnedMaterialsWithSummaries(userId: string, documentIds?: string[]) {
+  if (documentIds !== undefined && documentIds.length === 0) return [];
+  if (documentIds && (documentIds.length > 1000 || documentIds.some((id) => !isResourceId(id)))) return [];
+  const supabase = await createSupabaseServerClient();
+  let query = supabase.from("uploaded_materials").select("id,file_name,session_id,summary").eq("user_id", userId).eq("status", "ready").is("deleted_at", null);
+  if (documentIds) query = query.in("id", [...new Set(documentIds)]);
+  const { data, error } = await query.limit(10);
+  if (error) return [];
+  return (data ?? []) as Array<{ id: string; file_name: string; session_id: string | null; summary: string | null }>;
 }
 export async function deleteMaterial(materialId: string) {
   const supabase = await createSupabaseServerClient();

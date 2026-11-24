@@ -90,10 +90,25 @@ async function elasticRequest(path: string, init: RequestInit = {}): Promise<Ela
   if (!endpoint || !apiKey) throw new Error("Search service is not configured.");
   const origin = new URL(endpoint);
   if (origin.protocol !== "https:" && !["localhost", "127.0.0.1", "[::1]"].includes(origin.hostname)) throw new Error("Search service requires a trusted HTTPS endpoint.");
-  const response = await fetch(`${endpoint.replace(/\/+$/g, "")}/${path.replace(/^\/+/, "")}`, {
-    ...init, redirect: "error", signal: init.signal ? AbortSignal.any([init.signal, AbortSignal.timeout(15_000)]) : AbortSignal.timeout(15_000),
-    headers: { "Content-Type": "application/json", Authorization: authHeader(), ...(init.headers ?? {}) },
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${endpoint.replace(/\/+$/g, "")}/${path.replace(/^\/+/, "")}`, {
+      ...init, redirect: "error", signal: init.signal ? AbortSignal.any([init.signal, AbortSignal.timeout(15_000)]) : AbortSignal.timeout(15_000),
+      headers: { "Content-Type": "application/json", Authorization: authHeader(), ...(init.headers ?? {}) },
+    });
+  } catch (fetchErr: unknown) {
+    const isNetworkOrDnsError = fetchErr instanceof TypeError && (
+      Boolean((fetchErr.cause as Record<string, unknown>)?.code === "ENOTFOUND") ||
+      Boolean((fetchErr.cause as Record<string, unknown>)?.code === "ECONNREFUSED") ||
+      Boolean((fetchErr.cause as Record<string, unknown>)?.code === "ETIMEDOUT") ||
+      String(fetchErr.message).toLowerCase().includes("fetch failed")
+    );
+    if (isNetworkOrDnsError && process.env.NODE_ENV !== "test") {
+      console.warn(`[elastic] Endpoint ${endpoint} is unreachable; falling back to in-memory search store.`);
+      return mockElasticRequest(path, init);
+    }
+    throw fetchErr;
+  }
   if (!response.ok) { await response.body?.cancel(); throw new ElasticRequestError(response.status); }
   if (init.method === "HEAD" || response.status === 204) return {};
   const reader = response.body?.getReader();

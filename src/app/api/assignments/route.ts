@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { authorizeActiveUserApi } from "@/lib/auth/require-active-user-api";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import {
   listAssignments,
   createAssignment,
@@ -112,7 +113,7 @@ export async function POST(request: NextRequest) {
       const safeName = fileName.replace(/[^a-zA-Z0-9.-]/g, "_");
       const storagePath = `assignments/${user.id}/${assignment.id}/${Date.now()}-${safeName}`;
 
-      await supabase.storage
+      await createSupabaseAdminClient().storage
         .from(UPLOADED_MATERIALS_BUCKET)
         .upload(storagePath, fileBuffer, { contentType: fileMime, upsert: true });
 

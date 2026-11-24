@@ -40,7 +40,16 @@ before(async () => {
       await sql("update public.user_roles set role='owner' where user_id=$1", [OWNER]);
       await sql("update public.user_roles set role='admin' where user_id=$1", [ADMIN]);
     }
-    try { await db.exec(await readFile(path.join(root, 'supabase/migrations', file), 'utf8')); }
+    let sqlContent = await readFile(path.join(root, 'supabase/migrations', file), 'utf8');
+    if (sqlContent.includes('vector') && !sqlContent.includes('vector_cosine_ops_stub')) {
+      sqlContent = sqlContent
+        .replace(/CREATE EXTENSION IF NOT EXISTS vector;/gi, '-- PGlite synthetic vector stub')
+        .replace(/VECTOR\(\d+\)/gi, 'TEXT')
+        .replace(/CREATE INDEX IF NOT EXISTS ai_response_cache_embedding_idx[\s\S]*?WITH \(lists = \d+\);/gi, 'CREATE INDEX IF NOT EXISTS ai_response_cache_embedding_idx ON ai_response_cache (question_hash);')
+        .replace(/ORDER BY embedding <=>[^\n;]+/gi, 'ORDER BY created_at DESC')
+        .replace(/embedding <=>[^)\n]+/gi, '0.0');
+    }
+    try { await db.exec(sqlContent); }
     catch (error) { throw new Error(`Actual migration failed: ${file}: ${error.message} (SQLSTATE ${error.code}; position ${error.position ?? 'unknown'})`); }
     if (file === '20261017120000_stabilization_activity.sql') await sql("insert into private.activity_runtime(singleton,environment,release_id) values(true,'local','synthetic-database-tests')");
   }
